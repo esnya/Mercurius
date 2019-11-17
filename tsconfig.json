@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    // Output
+    "outDir": "lib",
+    "declaration": true,
+    "sourceMap": true,
+    // Features
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "jsx": "react",
+    // Strict
+    "strict": true
+  },
+  "exclude": [
+    "grafana-*",
+    "kibana-*",
+    "logstash-*"
+  ]
+}
