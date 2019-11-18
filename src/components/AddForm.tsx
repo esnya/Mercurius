@@ -59,28 +59,25 @@ export default withESQuery({
     get names(): Bucket[] {
       const t = Date.now() - 1000 * 60 * 60 * 4;
       const { buckets } = this.props.result.aggregations.names;
-      const index = buckets.findIndex(
-        b => b.maxTimestamp.value < t,
-      );
+      const index = buckets.findIndex(b => b.maxTimestamp.value < t);
 
       if (index <= 0) return buckets;
 
-      return [
-        ...buckets.slice(index),
-        ...buckets.slice(0, index),
-      ];
+      return [...buckets.slice(index), ...buckets.slice(0, index)];
     }
 
-    get datalist(): { label: string, value: string }[] {
+    get datalist(): { label: string; value: string }[] {
       const t = Date.now() - 1000 * 60 * 60 * 4;
       return this.names.map(b => {
         const value = b.key;
 
         return {
           value,
-          label: b.maxTimestamp.value < t ? 'outdated' : 'up to date',
+          label: `${value} (${
+            b.maxTimestamp.value < t ? 'outdated' : 'up to date'
+          })`,
         };
-      })
+      });
     }
 
     private async add(value: State): Promise<void> {
@@ -98,15 +95,18 @@ export default withESQuery({
       console.log(res);
       this.props.update();
 
-      this.setState({
-        name: '',
-        value: '',
-        drawing: false,
-      }, () => {
-        if (this.nameRef.current) {
-          this.nameRef.current.focus();
-        }
-      });
+      this.setState(
+        {
+          name: '',
+          value: '',
+          drawing: false,
+        },
+        () => {
+          if (this.nameRef.current) {
+            this.nameRef.current.focus();
+          }
+        },
+      );
     }
 
     render(): JSX.Element {
@@ -157,14 +157,13 @@ export default withESQuery({
           >
             <input ref={this.nameRef} />
           </Form.Input>
-          <datalist id={this.datalistId}>{nameOptions}
-          </datalist>
+          <datalist id={this.datalistId}>{nameOptions}</datalist>
           <Form.Input
             required
             label="value"
             type="number"
             value={this.state.value || ''}
-            onChange={(e) => this.setState({ value: e.target.value })}
+            onChange={e => this.setState({ value: e.target.value })}
           />
           <Checkbox
             label="drawing"
