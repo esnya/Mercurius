@@ -10,7 +10,7 @@ interface State {
   date: string;
   time: string;
   name: string;
-  value: number;
+  value: number | null;
   drawing: boolean;
 }
 
@@ -60,7 +60,8 @@ export default withESQuery({
 
       this.setState({
         name: '',
-        value: 0,
+        value: null,
+        drawing: false,
       });
 
       console.log(this.nameRef);
@@ -121,7 +122,7 @@ export default withESQuery({
             required
             label="value"
             type="number"
-            value={this.state.value}
+            value={this.state.value || ''}
             onChange={(e, { value }) => this.setState({ value: Number(value) })}
           />
           <Checkbox

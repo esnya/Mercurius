@@ -1,7 +1,10 @@
-import { Configuration } from "webpack";
-import HtmlWebpackPlugin from "html-webpack-plugin";
+import { Configuration } from 'webpack';
+import HtmlWebpackPlugin from 'html-webpack-plugin';
 
 const config: Configuration = {
+  devServer: {
+    host: '0.0.0.0',
+  },
   devtool: 'cheap-eval-source-map',
   entry: './src/index.tsx',
   mode: 'development',
@@ -25,16 +28,9 @@ const config: Configuration = {
       },
     ],
   },
-  plugins: [
-    new HtmlWebpackPlugin(),
-  ],
+  plugins: [new HtmlWebpackPlugin()],
   resolve: {
-    extensions: [
-      '.ts',
-      '.tsx',
-      '.js',
-      '.jsx',
-    ],
+    extensions: ['.ts', '.tsx', '.js', '.jsx'],
   },
 };
 export = config;
