@@ -5,6 +5,8 @@
     "declaration": true,
     "sourceMap": true,
     // Features
+    "target": "esnext",
+    "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "jsx": "react",

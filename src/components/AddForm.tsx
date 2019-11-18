@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { ChangeEvent } from 'react';
 import { Form, Checkbox } from 'semantic-ui-react';
 import shortid from 'shortid';
 import moment from 'moment';
-import { index } from '../elasticsearch';
+import { index, Bucket } from '../elasticsearch';
 import { withESQuery, Props } from '../enhancers/withESQuery';
 
 interface State {
@@ -10,7 +10,7 @@ interface State {
   date: string;
   time: string;
   name: string;
-  value: number | null;
+  value: string;
   drawing: boolean;
 }
 
@@ -21,12 +21,23 @@ export default withESQuery({
     aggs: {
       names: {
         terms: {
-          size: 10000,
           field: 'name.keyword',
+          size: 10000,
+          order: {
+            maxTimestamp: 'desc',
+          },
+        },
+        aggs: {
+          maxTimestamp: {
+            max: {
+              field: 'timestamp',
+            },
+          },
         },
       },
     },
   },
+  watch: 5 * 1000,
 })(
   class AddForm extends React.Component<Props, State> {
     constructor(props: Props) {
@@ -37,13 +48,40 @@ export default withESQuery({
         date: moment().format('Y-MM-DD'),
         time: moment().format('HH:mm'),
         name: '',
-        value: 0,
+        value: '',
         drawing: false,
       };
     }
 
     private nameRef = React.createRef<HTMLInputElement>();
     readonly datalistId = shortid();
+
+    get names(): Bucket[] {
+      const t = Date.now() - 1000 * 60 * 60 * 4;
+      const { buckets } = this.props.result.aggregations.names;
+      const index = buckets.findIndex(
+        b => b.maxTimestamp.value < t,
+      );
+
+      if (index <= 0) return buckets;
+
+      return [
+        ...buckets.slice(index),
+        ...buckets.slice(0, index),
+      ];
+    }
+
+    get datalist(): { label: string, value: string }[] {
+      const t = Date.now() - 1000 * 60 * 60 * 4;
+      return this.names.map(b => {
+        const value = b.key;
+
+        return {
+          value,
+          label: b.maxTimestamp.value < t ? 'outdated' : 'up to date',
+        };
+      })
+    }
 
     private async add(value: State): Promise<void> {
       const timestamp = moment(
@@ -54,27 +92,24 @@ export default withESQuery({
 
       const res = await index('rom_trading', {
         ...value,
+        value: Number(value.value.replace(/[^0-9]/g, '')),
         timestamp,
       });
       console.log(res);
+      this.props.update();
 
       this.setState({
         name: '',
-        value: null,
+        value: '',
         drawing: false,
+      }, () => {
+        if (this.nameRef.current) {
+          this.nameRef.current.focus();
+        }
       });
-
-      console.log(this.nameRef);
-      if (this.nameRef.current) {
-        this.nameRef.current.focus();
-      }
     }
 
     render(): JSX.Element {
-      const names = this.props.result.aggregations.names.buckets.map(
-        ({ key }) => key,
-      );
-
       const timestampInput = this.state.inputTimestamp ? (
         <Form.Group>
           <Form.Input
@@ -82,17 +117,26 @@ export default withESQuery({
             label="date"
             type="date"
             value={this.state.date}
-            onChange={(e, { value }) => this.setState({ date: value || '' })}
+            onChange={(e: ChangeEvent, { value }: { value: string }) =>
+              this.setState({ date: value || '' })
+            }
           />
           <Form.Input
             required
             label="time"
             type="time"
             value={this.state.time}
-            onChange={(e, { value }) => this.setState({ time: value || '' })}
+            onChange={(e: ChangeEvent, { value }: { value: string }) =>
+              this.setState({ time: value || '' })
+            }
           />
         </Form.Group>
       ) : null;
+
+      const nameOptions = this.datalist.map(({ label, value }) => (
+        <option key={value} value={value} label={label} />
+      ));
+
       return (
         <Form>
           <Checkbox
@@ -113,17 +157,14 @@ export default withESQuery({
           >
             <input ref={this.nameRef} />
           </Form.Input>
-          <datalist id={this.datalistId}>
-            {names.map(name => (
-              <option key={name} value={name} />
-            ))}
+          <datalist id={this.datalistId}>{nameOptions}
           </datalist>
           <Form.Input
             required
             label="value"
             type="number"
             value={this.state.value || ''}
-            onChange={(e, { value }) => this.setState({ value: Number(value) })}
+            onChange={(e) => this.setState({ value: e.target.value })}
           />
           <Checkbox
             label="drawing"

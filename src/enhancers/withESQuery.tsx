@@ -1,4 +1,5 @@
 import React from 'react';
+import { Placeholder, PlaceholderLine } from 'semantic-ui-react';
 import { search, Result } from '../elasticsearch';
 
 export type Query = Record<string, any>;
@@ -6,6 +7,7 @@ export type Query = Record<string, any>;
 export interface QueryProps {
   index: string;
   body: Record<string, any>;
+  watch?: number;
 }
 
 interface State {
@@ -14,6 +16,7 @@ interface State {
 
 export interface Props {
   result: Result;
+  update: () => Promise<void>;
 }
 
 export function withESQueryProps(
@@ -25,20 +28,39 @@ export function withESQueryProps(
 
       this.state = {};
 
-      this.execute();
+      this.update();
+
+      if (props.watch) {
+        this.interval = setInterval(() => this.update(), props.watch);
+      }
     }
 
-    private async execute(): Promise<void> {
+    private interval?: ReturnType<typeof setInterval>;
+
+    private async update(): Promise<void> {
       const { index, body } = this.props;
 
       search(index, body).then(result => this.setState({ result }));
     }
 
+    componentWillUnmount(): void {
+      if (this.interval) clearInterval(this.interval);
+    }
+
     render(): JSX.Element | null {
       const { result } = this.state;
-      if (!result) return null;
+      if (!result)
+        return (
+          <Placeholder>
+            <PlaceholderLine />
+            <PlaceholderLine />
+            <PlaceholderLine />
+            <PlaceholderLine />
+            <PlaceholderLine />
+          </Placeholder>
+        );
 
-      return <Component result={result} />;
+      return <Component result={result} update={() => this.update()} />;
     }
   };
 }

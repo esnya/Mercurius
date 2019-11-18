@@ -28,9 +28,11 @@ const config: Configuration = {
       },
     ],
   },
-  plugins: [new HtmlWebpackPlugin()],
+  plugins: [new HtmlWebpackPlugin({
+    title: 'Rom Trading',
+  })],
   resolve: {
     extensions: ['.ts', '.tsx', '.js', '.jsx'],
   },
 };
-export = config;
+export default config;

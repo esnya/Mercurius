@@ -1,13 +1,24 @@
 const node = 'http://localhost:9200';
 
+export interface Hit {
+  _id: string;
+  _index: string;
+  _source: Record<string, any>;
+}
+
 export interface Hits {
   hits: Record<string, any>[];
 }
 
-export interface Bucket {
+export interface AggrigationValue {
+  value: number;
+  value_as_string: string;
+}
+
+export type Bucket = Record<string, AggrigationValue> & {
   key: string;
   doc_count: number;
-}
+};
 
 export interface Result {
   hits: Hits;
@@ -22,14 +33,15 @@ export interface Result {
 export async function api<T>(
   index: string,
   path: string,
-  body: T,
-): Promise<any> {
+  options: Omit<RequestInit, 'body'> & { body?: T } = {},
+): Promise<Result> {
   const res = await fetch(`${node}/${index}/${path}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(body),
+    ...options,
+    body: options.body ? JSON.stringify(options.body) : undefined,
   });
 
   const json = await res.json();
@@ -42,10 +54,14 @@ export async function api<T>(
   return json;
 }
 
-export async function index<T>(index: string, body: T): Promise<any> {
-  return await api(index, '_doc', body);
+export async function index<T>(index: string, body: T): Promise<Result> {
+  return await api(index, '_doc', { body });
 }
 
-export async function search<T>(index: string, body: T): Promise<any> {
-  return await api(index, '_search', body);
+export async function search<T>(index: string, body: T): Promise<Result> {
+  return await api(index, '_search', { body });
+}
+
+export async function del(index: string, id: string): Promise<Result> {
+  return await api(index, `_doc/${id}`, { method: 'DELETE' });
 }
