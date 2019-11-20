@@ -1,4 +1,4 @@
-const node = 'http://localhost:9200';
+const node = `http://${location.hostname}:9200`;
 
 export interface Hit {
   _id: string;

@@ -14,6 +14,8 @@ interface State {
   drawing: boolean;
 }
 
+const ValueTTL = 1000 * 60 * 60 * 3;
+
 export default withESQuery({
   index: 'rom_trading',
   body: {
@@ -57,7 +59,7 @@ export default withESQuery({
     readonly datalistId = shortid();
 
     get names(): Bucket[] {
-      const t = Date.now() - 1000 * 60 * 60 * 4;
+      const t = Date.now() - ValueTTL;
       const { buckets } = this.props.result.aggregations.names;
       const index = buckets.findIndex(b => b.maxTimestamp.value < t);
 
@@ -67,7 +69,7 @@ export default withESQuery({
     }
 
     get datalist(): { label: string; value: string }[] {
-      const t = Date.now() - 1000 * 60 * 60 * 4;
+      const t = Date.now() - ValueTTL;
       return this.names.map(b => {
         const value = b.key;
 
