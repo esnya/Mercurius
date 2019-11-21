@@ -1,5 +1,6 @@
 import { Configuration } from 'webpack';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
+import WorkboxPlugin from 'workbox-webpack-plugin';
 
 const config: Configuration = {
   devServer: {
@@ -28,9 +29,15 @@ const config: Configuration = {
       },
     ],
   },
-  plugins: [new HtmlWebpackPlugin({
-    title: 'Rom Trading',
-  })],
+  plugins: [
+    new HtmlWebpackPlugin({
+      title: 'Rom Trading',
+    }),
+    new WorkboxPlugin.GenerateSW({
+      clientsClaim: true,
+      skipWaiting: true,
+    }),
+  ],
   resolve: {
     extensions: ['.ts', '.tsx', '.js', '.jsx'],
   },

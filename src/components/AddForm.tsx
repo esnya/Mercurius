@@ -41,8 +41,8 @@ export default withESQuery({
   },
   watch: 5 * 1000,
 })(
-  class AddForm extends React.Component<Props, State> {
-    constructor(props: Props) {
+  class AddForm extends React.Component<Props<{}>, State> {
+    constructor(props: Props<{}>) {
       super(props);
 
       this.state = {
@@ -119,7 +119,7 @@ export default withESQuery({
             label="date"
             type="date"
             value={this.state.date}
-            onChange={(e: ChangeEvent, { value }: { value: string }) =>
+            onChange={(e: ChangeEvent, { value }: { value: string }): void =>
               this.setState({ date: value || '' })
             }
           />
@@ -128,7 +128,7 @@ export default withESQuery({
             label="time"
             type="time"
             value={this.state.time}
-            onChange={(e: ChangeEvent, { value }: { value: string }) =>
+            onChange={(e: ChangeEvent, { value }: { value: string }): void =>
               this.setState({ time: value || '' })
             }
           />
@@ -144,7 +144,7 @@ export default withESQuery({
           <Checkbox
             label="input timestamp"
             checked={this.state.inputTimestamp}
-            onChange={() =>
+            onChange={(): void =>
               this.setState({ inputTimestamp: !this.state.inputTimestamp })
             }
           />
@@ -155,7 +155,9 @@ export default withESQuery({
             type="string"
             list={this.datalistId}
             value={this.state.name}
-            onChange={(e, { value }) => this.setState({ name: value || '' })}
+            onChange={(e, { value }): void =>
+              this.setState({ name: value || '' })
+            }
           >
             <input ref={this.nameRef} />
           </Form.Input>
@@ -165,15 +167,19 @@ export default withESQuery({
             label="value"
             type="number"
             value={this.state.value || ''}
-            onChange={e => this.setState({ value: e.target.value })}
+            onChange={(e): void => this.setState({ value: e.target.value })}
           />
           <Checkbox
             label="drawing"
             control="input"
             checked={this.state.drawing}
-            onChange={() => this.setState({ drawing: !this.state.drawing })}
+            onChange={(): void =>
+              this.setState({ drawing: !this.state.drawing })
+            }
           />
-          <Form.Button onClick={() => this.add(this.state)}>Add</Form.Button>
+          <Form.Button onClick={(): Promise<void> => this.add(this.state)}>
+            Add
+          </Form.Button>
         </Form>
       );
     }

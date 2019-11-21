@@ -9,9 +9,6 @@ import {
   TableHeader,
   TableHeaderCell,
   Button,
-  Modal,
-  ModalHeader,
-  ModalDescription,
   Confirm,
 } from 'semantic-ui-react';
 import NumberFormat from 'react-number-format';
@@ -34,29 +31,34 @@ export default withESQuery({
   },
   watch: 5 * 1000,
 })(({ result }) => {
-  const rows = result.hits.hits.map(hit => (
-    <TableRow key={hit._id}>
-      <TableCell>{hit._id}</TableCell>
-      <TableCell>{hit._source.timestamp}</TableCell>
-      <TableCell>{hit._source.name}</TableCell>
-      <TableCell textAlign="right">
-        <NumberFormat
-          displayType="text"
-          thousandSeparator
-          value={hit._source.value}
-        />
-      </TableCell>
-      <TableCell textAlign="center">
-        <Checkbox checked={hit._source.drawing} disabled />
-      </TableCell>
-      <TableCell>
-        <Confirm
-          trigger={<Button color="red" icon="delete" />}
-          onConfirm={() => del('rom_trading', hit._id)}
-        />
-      </TableCell>
-    </TableRow>
-  ));
+  const rows = result.hits.hits.map(hit => {
+    const { _id: id, _source: source } = hit;
+    const { timestamp, name, value, drawing } = source;
+
+    return (
+      <TableRow key={id}>
+        <TableCell>{id}</TableCell>
+        <TableCell>{timestamp}</TableCell>
+        <TableCell>{name}</TableCell>
+        <TableCell textAlign="right">
+          {typeof value === 'number' ? (
+            <NumberFormat displayType="text" thousandSeparator value={value} />
+          ) : null}
+        </TableCell>
+        <TableCell textAlign="center">
+          <Checkbox checked={drawing === true} disabled />
+        </TableCell>
+        <TableCell>
+          <Confirm
+            trigger={<Button color="red" icon="delete" />}
+            onConfirm={async (): Promise<void> => {
+              await del('rom_trading', id);
+            }}
+          />
+        </TableCell>
+      </TableRow>
+    );
+  });
 
   return (
     <Table>

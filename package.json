@@ -7,16 +7,17 @@
   "author": "",
   "main": "index.js",
   "scripts": {
-    "start": "run-p -l start:* serve",
+    "build": "cross-env TS_NODE_FILES=true webpack",
+    "lint": "eslint src/**/*",
+    "serve": "cross-env TS_NODE_FILES=true webpack-dev-server",
+    "start": "run-p -l start:*",
     "start:grafana": "grafana-6.4.4\\bin\\grafana-server.exe -homepath grafana-6.4.4",
     "start:kibana": "kibana-7.4.2-windows-x86_64\\bin\\kibana.bat",
     "start:elasticsearch": "cmd /C \"C:\\Program Files\\Elastic\\Elasticsearch\\7.4.2\\bin\\elasticsearch.exe\"",
-    "build": "cross-env TS_NODE_FILES=true webpack",
-    "serve": "cross-env TS_NODE_FILES=true webpack-dev-server",
+    "start:http": "http-server dist",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "eslint-plugin-react": "^7.16.0",
     "lodash": "^4.17.15",
     "moment": "^2.24.0",
     "react": "^16.11.0",
@@ -36,6 +37,7 @@
     "@types/react-dom": "^16.9.4",
     "@types/shortid": "0.0.29",
     "@types/webpack-dev-server": "^3.4.0",
+    "@types/workbox-webpack-plugin": "^4.1.0",
     "@typescript-eslint/eslint-plugin": "^2.6.1",
     "@typescript-eslint/parser": "^2.6.1",
     "cross-env": "^6.0.3",
@@ -43,11 +45,14 @@
     "eslint": "^6.6.0",
     "eslint-config-google": "^0.14.0",
     "eslint-config-prettier": "^6.5.0",
+    "eslint-config-typescript": "^3.0.0",
     "eslint-loader": "^3.0.2",
     "eslint-plugin-prettier": "^3.1.1",
+    "eslint-plugin-react": "^7.16.0",
     "file-loader": "^4.2.0",
     "foreach-cli": "^1.8.1",
     "html-webpack-plugin": "^3.2.0",
+    "http-server": "^0.11.1",
     "js-yaml-loader": "^1.2.2",
     "npm-run-all": "^4.1.5",
     "prettier": "^1.19.1",
@@ -60,6 +65,7 @@
     "webpack": "^4.41.2",
     "webpack-cli": "^3.3.10",
     "webpack-dev-server": "^3.9.0",
-    "webpack-loader-append-prepend": "^1.0.2"
+    "webpack-loader-append-prepend": "^1.0.2",
+    "workbox-webpack-plugin": "^4.3.1"
   }
 }

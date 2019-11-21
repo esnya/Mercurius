@@ -1,28 +1,26 @@
 import React from 'react';
 import { Placeholder, PlaceholderLine } from 'semantic-ui-react';
-import { search, Result } from '../elasticsearch';
-
-export type Query = Record<string, any>;
+import { search, Result, SearchBody } from '../elasticsearch';
 
 export interface QueryProps {
   index: string;
-  body: Record<string, any>;
+  body: SearchBody;
   watch?: number;
 }
 
-interface State {
-  result?: Result;
+interface State<T> {
+  result?: Result<T>;
 }
 
-export interface Props {
-  result: Result;
+export interface Props<T> {
+  result: Result<T>;
   update: () => Promise<void>;
 }
 
-export function withESQueryProps(
-  Component: React.ComponentType<Props>,
+export function withESQueryProps<T = {}>(
+  Component: React.ComponentType<Props<T>>,
 ): React.ComponentClass<QueryProps> {
-  return class WithESQuery extends React.Component<QueryProps, State> {
+  return class WithESQuery extends React.Component<QueryProps, State<T>> {
     constructor(props: QueryProps) {
       super(props);
 
@@ -40,7 +38,7 @@ export function withESQueryProps(
     private async update(): Promise<void> {
       const { index, body } = this.props;
 
-      search(index, body).then(result => this.setState({ result }));
+      search<T>(index, body).then(result => this.setState({ result }));
     }
 
     componentWillUnmount(): void {
@@ -60,15 +58,20 @@ export function withESQueryProps(
           </Placeholder>
         );
 
-      return <Component result={result} update={() => this.update()} />;
+      return (
+        <Component
+          result={result}
+          update={(): Promise<void> => this.update()}
+        />
+      );
     }
   };
 }
 
 export function withESQuery<T = {}>(
   props: QueryProps,
-): (Component: React.ComponentType<Props>) => React.ComponentType {
-  return (Component: React.ComponentType<Props>) => (): JSX.Element => {
+): (Component: React.ComponentType<Props<T>>) => React.ComponentType {
+  return (Component: React.ComponentType<Props<T>>) => (): JSX.Element => {
     const WrappedComponent = withESQueryProps(Component);
     return <WrappedComponent {...props} />;
   };

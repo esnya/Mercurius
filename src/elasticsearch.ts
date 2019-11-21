@@ -1,27 +1,70 @@
+import { string } from "prop-types";
+
 const node = `http://${location.hostname}:9200`;
 
-export interface Hit {
+export type Scalar = null | boolean | number | string;
+
+export interface MatchAllQuery {
+  match_all: {};
+}
+
+export interface MatchQuery {
+  match: Record<string, Scalar>;
+}
+
+export type Query = MatchAllQuery | MatchQuery;
+
+export type Order = 'asc' | 'desc';
+
+export interface TermsAggregation {
+  terms: {
+    field: string;
+    size?: number;
+    order?: Record<string, string>;
+  };
+}
+
+export interface ValueAggregation {
+  [key: string]: {
+    field: string;
+  };
+}
+
+export type Aggregation = (TermsAggregation | ValueAggregation) & {
+  aggs?: Record<string, Aggregation>;
+};
+
+export type Sort = Record<string, { order: Order }>;
+
+export interface SearchBody {
+  size?: number;
+  query?: Query;
+  sort?: Sort[];
+  aggs?: Record<string, Aggregation>;
+}
+
+export interface Hit<T> {
   _id: string;
   _index: string;
-  _source: Record<string, any>;
+  _source: Record<string, T>;
 }
 
-export interface Hits {
-  hits: Record<string, any>[];
+export interface Hits<T> {
+  hits: Hit<T>[];
 }
 
-export interface AggrigationValue {
+export interface AggregationValue {
   value: number;
   value_as_string: string;
 }
 
-export type Bucket = Record<string, AggrigationValue> & {
+export type Bucket = Record<string, AggregationValue> & {
   key: string;
   doc_count: number;
 };
 
-export interface Result {
-  hits: Hits;
+export interface Result<T> {
+  hits: Hits<T>;
   aggregations: Record<
     string,
     {
@@ -30,11 +73,11 @@ export interface Result {
   >;
 }
 
-export async function api<T>(
+export async function api<U = {}, T = never>(
   index: string,
   path: string,
   options: Omit<RequestInit, 'body'> & { body?: T } = {},
-): Promise<Result> {
+): Promise<Result<U>> {
   const res = await fetch(`${node}/${index}/${path}`, {
     method: 'POST',
     headers: {
@@ -54,14 +97,23 @@ export async function api<T>(
   return json;
 }
 
-export async function index<T>(index: string, body: T): Promise<Result> {
-  return await api(index, '_doc', { body });
+export async function index<T, U = {}>(
+  index: string,
+  value: T,
+): Promise<Result<U>> {
+  return await api(index, '_doc', { body: value });
 }
 
-export async function search<T>(index: string, body: T): Promise<Result> {
+export async function search<T = {}>(
+  index: string,
+  body: SearchBody,
+): Promise<Result<T>> {
   return await api(index, '_search', { body });
 }
 
-export async function del(index: string, id: string): Promise<Result> {
+export async function del<T = {}>(
+  index: string,
+  id: string,
+): Promise<Result<T>> {
   return await api(index, `_doc/${id}`, { method: 'DELETE' });
 }
