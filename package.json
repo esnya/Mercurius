@@ -8,16 +8,19 @@
   "main": "index.js",
   "scripts": {
     "build": "cross-env TS_NODE_FILES=true webpack",
+    "dev": "run-p -l start:* dev:*",
+    "dev:webpack": "cross-env TS_NODE_FILES=true webpack-dev-server",
     "lint": "eslint src/**/*",
-    "serve": "cross-env TS_NODE_FILES=true webpack-dev-server",
-    "start": "run-p -l start:*",
+    "lint-fix": "eslint src/**/* --fix",
+    "start": "run-p -l start:* start:*:*",
     "start:grafana": "grafana-6.4.4\\bin\\grafana-server.exe -homepath grafana-6.4.4",
     "start:kibana": "kibana-7.4.2-windows-x86_64\\bin\\kibana.bat",
     "start:elasticsearch": "cmd /C \"C:\\Program Files\\Elastic\\Elasticsearch\\7.4.2\\bin\\elasticsearch.exe\"",
-    "start:http": "http-server dist",
+    "start:dist:http": "http-server dist",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
+    "format-number": "^3.0.0",
     "lodash": "^4.17.15",
     "moment": "^2.24.0",
     "react": "^16.11.0",
@@ -30,6 +33,7 @@
     "source-map-support": "^0.5.16"
   },
   "devDependencies": {
+    "@types/format-number": "^3.0.0",
     "@types/html-webpack-plugin": "^3.2.1",
     "@types/lodash": "^4.14.146",
     "@types/moment": "^2.13.0",

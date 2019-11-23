@@ -13,7 +13,7 @@ const config: Configuration = {
     rules: [
       {
         test: /\.tsx?/,
-        loader: 'ts-loader',
+        loaders: ['ts-loader', 'eslint-loader'],
       },
       {
         test: /\.css?/,

@@ -1,5 +1,3 @@
-import { string } from "prop-types";
-
 const node = `http://${location.hostname}:9200`;
 
 export type Scalar = null | boolean | number | string;
@@ -69,7 +67,7 @@ export interface Result<T> {
     string,
     {
       buckets: Bucket[];
-    }
+    } & AggregationValue
   >;
 }
 
