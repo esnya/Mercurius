@@ -197,9 +197,16 @@ export default withESQuery(
           : new Date(`${this.state.date} ${this.state.time} `),
       ).format('Y/MM/DD HH:mm:ss');
     }
+    get nameExists(): boolean {
+      const { name } = this.state;
+      return Boolean(this.names.find(({ key }): boolean => key === name));
+    }
 
     get valid(): boolean {
-      return validate(this.state) === true;
+      return (
+        validate(this.state) === true &&
+        (this.state.allowNewName || this.nameExists)
+      );
     }
 
     private async onAdd(): Promise<void> {
@@ -245,7 +252,7 @@ export default withESQuery(
     }
 
     render(): JSX.Element {
-      const { names, state, valid } = this;
+      const { nameExists, state, valid } = this;
       const { allowNewName, name } = state;
 
       const nameOptions = this.datalist.map(
@@ -255,9 +262,7 @@ export default withESQuery(
       );
 
       const nameErrors =
-        name && !allowNewName && !names.find(({ key }): boolean => key === name)
-          ? ['アイテムが存在しません']
-          : [];
+        name && !allowNewName && !nameExists ? ['アイテムが存在しません'] : [];
 
       const numberValue = Number(this.state.value);
       const valueLabel = numberValue

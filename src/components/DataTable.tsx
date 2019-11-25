@@ -21,22 +21,31 @@ interface RowOptions {
   name: string;
   value: number;
   drawing: boolean;
+  onDeleted: () => void;
 }
-function Row({ id, timestamp, name, value, drawing }: RowOptions): JSX.Element {
+function Row({
+  id,
+  timestamp,
+  name,
+  value,
+  drawing,
+  onDeleted,
+}: RowOptions): JSX.Element {
   return (
     <TableRow key={id}>
       <TableCell>{id}</TableCell>
       <TableCell>{timestamp}</TableCell>
       <TableCell>{name}</TableCell>
       <TableCell>{format(value)}</TableCell>
-      <TableCell textAlign="center">
+      <TableCell>
         <Checkbox checked={drawing === true} disabled />
       </TableCell>
       <TableCell>
         <ActionWithConfirm
+          header="削除しますか？"
           trigger={<Button color="red" icon="delete" />}
           action={(): void => {
-            del('rom_trading', id);
+            del('rom_trading', id).then(() => onDeleted());
           }}
         />
       </TableCell>
@@ -70,17 +79,23 @@ export default withESQuery<Source>(
 )(
   React.memo(
     function DataTable(props: ChildProps<Source>): JSX.Element {
-      const { value } = props;
+      const { value, update } = props;
       const rows = value.hits.hits.map(hit => {
         const { _id: id, _source: source } = hit;
         const { timestamp, name, value, drawing } = source;
 
-        return <Row key={id} {...{ id, timestamp, name, value, drawing }} />;
+        return (
+          <Row
+            key={id}
+            onDeleted={update}
+            {...{ id, timestamp, name, value, drawing }}
+          />
+        );
       });
 
       return (
         <Table>
-          <TableHeader textAlign="center">
+          <TableHeader>
             <TableRow>
               <TableHeaderCell>id</TableHeaderCell>
               <TableHeaderCell>timestamp</TableHeaderCell>
