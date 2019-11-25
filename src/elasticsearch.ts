@@ -44,7 +44,7 @@ export interface SearchBody {
 export interface Hit<T> {
   _id: string;
   _index: string;
-  _source: Record<string, T>;
+  _source: T;
 }
 
 export interface Hits<T> {

@@ -9,12 +9,49 @@ import {
   TableHeader,
   TableHeaderCell,
   Button,
-  Confirm,
 } from 'semantic-ui-react';
-import NumberFormat from 'react-number-format';
 import { del } from '../elasticsearch';
+import ActionWithConfirm from './ActionWithConfirm';
+import formatter from 'format-number';
 
-export default withESQuery(
+const format = formatter();
+interface RowOptions {
+  id: string;
+  timestamp: string;
+  name: string;
+  value: number;
+  drawing: boolean;
+}
+function Row({ id, timestamp, name, value, drawing }: RowOptions): JSX.Element {
+  return (
+    <TableRow key={id}>
+      <TableCell>{id}</TableCell>
+      <TableCell>{timestamp}</TableCell>
+      <TableCell>{name}</TableCell>
+      <TableCell>{format(value)}</TableCell>
+      <TableCell textAlign="center">
+        <Checkbox checked={drawing === true} disabled />
+      </TableCell>
+      <TableCell>
+        <ActionWithConfirm
+          trigger={<Button color="red" icon="delete" />}
+          action={(): void => {
+            del('rom_trading', id);
+          }}
+        />
+      </TableCell>
+    </TableRow>
+  );
+}
+
+interface Source {
+  timestamp: string;
+  name: string;
+  value: number;
+  drawing: boolean;
+}
+
+export default withESQuery<Source>(
   'rom_trading',
   {
     size: 50,
@@ -31,40 +68,14 @@ export default withESQuery(
   },
   5 * 1000,
 )(
-  React.memo<ChildProps>(
-    function DataTable(props: ChildProps): JSX.Element {
+  React.memo(
+    function DataTable(props: ChildProps<Source>): JSX.Element {
       const { value } = props;
       const rows = value.hits.hits.map(hit => {
         const { _id: id, _source: source } = hit;
         const { timestamp, name, value, drawing } = source;
 
-        return (
-          <TableRow key={id}>
-            <TableCell>{id}</TableCell>
-            <TableCell>{timestamp}</TableCell>
-            <TableCell>{name}</TableCell>
-            <TableCell textAlign="right">
-              {typeof value === 'number' ? (
-                <NumberFormat
-                  displayType="text"
-                  thousandSeparator
-                  value={value}
-                />
-              ) : null}
-            </TableCell>
-            <TableCell textAlign="center">
-              <Checkbox checked={drawing === true} disabled />
-            </TableCell>
-            <TableCell>
-              <Confirm
-                trigger={<Button color="red" icon="delete" />}
-                onConfirm={async (): Promise<void> => {
-                  await del('rom_trading', id);
-                }}
-              />
-            </TableCell>
-          </TableRow>
-        );
+        return <Row key={id} {...{ id, timestamp, name, value, drawing }} />;
       });
 
       return (

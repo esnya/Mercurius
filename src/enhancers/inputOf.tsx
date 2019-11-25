@@ -1,57 +1,79 @@
 import React from 'react';
 import { FormInput, FormInputProps } from 'semantic-ui-react';
+import { ValidateFunction } from 'ajv';
+import get from 'lodash/get';
+import set from 'lodash/set';
+import flatten from 'lodash/flatten';
 
-export type Value<N extends string> = Record<N, string>;
-export interface InputOptions<N extends string> {
+export type Value = string | number;
+export type Data = Readonly<{}>;
+
+export interface InputOptions<V extends Value = string> {
   formatter?: {
-    read: (value: string) => string;
-    write: (value: string) => string | undefined;
+    read: (value?: V) => string;
+    write: (value: string) => V | undefined;
   };
   label?: string;
-  name: N;
-  pattern?: RegExp;
+  name: string;
   required?: boolean;
   type?: string;
   component?: React.ComponentType<FormInputProps>;
+  validator?: ValidateFunction;
 }
 
-export interface InputProps<N extends string>
+export interface InputProps<D extends Data = Data>
   extends Omit<FormInputProps, 'value' | 'onChange'> {
-  value: Partial<Value<N>>;
-  onChange: (value: Value<N>) => void;
+  value: Partial<D>;
+  onChange: (value: Partial<D>) => void;
 }
 
-export default function inputOf<N extends string = string>({
+export default function inputOf<
+  V extends Value = string,
+  D extends Data = Data
+>({
   label,
   name,
   type,
-  pattern,
   formatter,
   component,
+  validator,
   ...otherOptions
-}: InputOptions<N>): React.ComponentType<InputProps<N>> {
-  return React.memo<InputProps<N>>(function Input({
+}: InputOptions<V>): React.ComponentType<InputProps<D>> {
+  return React.memo<InputProps<D>>(function InputOf({
+    error,
     value,
     onChange,
     ...otherProps
-  }: InputProps<N>): JSX.Element {
-    const itemValue: string | undefined = value[name];
+  }: InputProps<D>): JSX.Element {
+    const validationErrors =
+      (validator &&
+        !validator(value) &&
+        validator.errors &&
+        validator.errors
+          .filter(error => error.dataPath == `.${name}`)
+          .map(error => error.message)) ||
+      [];
+    const mergedErrors = flatten([validationErrors || [], error || []]);
+
+    const itemValue: V | undefined = get(value, name) as V | undefined;
     const displayValue =
       formatter && itemValue ? formatter.read(itemValue) : itemValue;
+
     const Component = component || FormInput;
+
     return (
       <Component
-        {...otherOptions}
-        {...otherProps}
-        label={label || name}
+        error={mergedErrors.length > 0 ? mergedErrors : false}
+        label={label}
         name={name}
         type={type}
-        value={displayValue}
+        {...otherOptions}
+        {...otherProps}
+        value={displayValue || ''}
         onChange={(_event, { value }): void => {
           const valueToWrite = formatter ? formatter.write(value) : value;
-          if (!pattern || !valueToWrite || pattern.test(valueToWrite)) {
-            onChange({ [name]: valueToWrite } as Value<N>);
-          }
+          const data = set({}, name, valueToWrite) as Partial<D>;
+          onChange(data);
         }}
       />
     );

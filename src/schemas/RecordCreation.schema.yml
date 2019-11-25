@@ -1,0 +1,14 @@
+title: RecordCreation
+type: object
+properties:
+  name:
+    type: string
+    minLength: 1
+  value:
+    type: integer
+    exclusiveMinimum: 0
+  drawing:
+    type: boolean
+required:
+  - name
+  - value

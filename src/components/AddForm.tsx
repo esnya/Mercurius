@@ -5,7 +5,6 @@ import {
   FormInputProps,
   CheckboxProps,
   FormField,
-  Message,
 } from 'semantic-ui-react';
 import shortid from 'shortid';
 import moment from 'moment';
@@ -13,6 +12,8 @@ import { index, Bucket } from '../elasticsearch';
 import { withESQuery, ChildProps } from '../enhancers/withESQuery';
 import inputOf from '../enhancers/inputOf';
 import formatter from 'format-number';
+import Ajv from 'ajv';
+import RecordCreation from '../schemas/RecordCreation.schema.yml';
 
 const ValueTTL = 1000 * 60 * 60 * 3;
 
@@ -24,6 +25,8 @@ function Toggle({ label, ...props }: CheckboxProps): JSX.Element {
     </FormField>
   );
 }
+const validate = new Ajv().compile(RecordCreation);
+const validator = validate;
 
 const DateInput = inputOf({
   required: true,
@@ -42,17 +45,18 @@ const NameInput = inputOf({
   required: true,
   label: 'アイテム名',
   name: 'name',
+  validator,
 });
 
-const ValueInput = inputOf({
+const ValueInput = inputOf<number>({
   formatter: {
-    read: (value): string => formatter()(Number(value)),
-    write: (value): string => value.replace(/[^0-9]+/g, ''),
+    read: (a?: number): string => `${a}`,
+    write: (b: string): number | undefined => Number(b),
   },
-  pattern: /^[0-9,]+$/,
-  label: 'アイテム名',
   name: 'value',
+  type: 'number',
   required: true,
+  validator,
 });
 
 interface TimestampValue {
@@ -109,10 +113,12 @@ interface State {
   autoTimestamp: boolean;
   date: string;
   time: string;
-  name: string;
-  value: string;
+  name?: string;
+  value?: number;
   drawing: boolean;
 }
+
+const format = formatter();
 
 export default withESQuery(
   'rom_trading',
@@ -153,8 +159,8 @@ export default withESQuery(
         autoTimestamp: true,
         date: moment().format('Y-MM-DD'),
         time: moment().format('HH:mm'),
-        name: '',
-        value: '',
+        name: undefined,
+        value: undefined,
         drawing: false,
       };
     }
@@ -172,16 +178,14 @@ export default withESQuery(
       return [...buckets.slice(index), ...buckets.slice(0, index)];
     }
 
-    get datalist(): { label: string; value: string }[] {
+    get datalist(): { color: string | null; value: string }[] {
       const t = Date.now() - ValueTTL;
       return this.names.map(b => {
         const value = b.key;
 
         return {
           value,
-          label: `${value} (${
-            b.maxTimestamp.value < t ? 'outdated' : 'up to date'
-          }`,
+          color: b.maxTimestamp.value < t ? 'red' : null,
         };
       });
     }
@@ -194,31 +198,14 @@ export default withESQuery(
       ).format('Y/MM/DD HH:mm:ss');
     }
 
-    get errors(): string[] {
-      const errors: string[] = [];
-      try {
-        this.timestamp;
-      } catch (e) {
-        errors.push('不正なタイムスタンプ');
-      }
-
-      const { allowNewName, name, value } = this.state;
-
-      if (!(Number(value) > 0)) {
-        errors.push('価格は0より大きい数値');
-      }
-
-      if (!(name && (allowNewName || this.names.find(a => a.key === name)))) {
-        errors.push('不正なアイテム名');
-      }
-
-      return errors;
+    get valid(): boolean {
+      return validate(this.state) === true;
     }
 
     private async onAdd(): Promise<void> {
-      const { timestamp, state, errors } = this;
+      const { timestamp, state, valid } = this;
 
-      if (errors.length > 0) return;
+      if (!valid) return;
 
       const { name, value, drawing } = state;
 
@@ -233,8 +220,9 @@ export default withESQuery(
 
       this.setState(
         {
-          name: '',
-          value: '',
+          allowNewName: false,
+          name: undefined,
+          value: undefined,
           drawing: false,
         },
         () => {
@@ -257,18 +245,27 @@ export default withESQuery(
     }
 
     render(): JSX.Element {
-      const nameOptions = this.datalist.map(({ label, value }) => (
-        <option key={value} value={value} label={label} />
-      ));
+      const { names, state, valid } = this;
+      const { allowNewName, name } = state;
 
-      const errorMessages =
-        this.errors.length > 0 ? (
-          <Message negative>
-            {this.errors.map((error, key) => (
-              <p key={key}>{error}</p>
-            ))}
-          </Message>
-        ) : null;
+      const nameOptions = this.datalist.map(
+        ({ color, value }): JSX.Element => (
+          <option className={color || undefined} key={value} value={value} />
+        ),
+      );
+
+      const nameErrors =
+        name && !allowNewName && !names.find(({ key }): boolean => key === name)
+          ? ['アイテムが存在しません']
+          : [];
+
+      const numberValue = Number(this.state.value);
+      const valueLabel = numberValue
+        ? `価格 ${format(numberValue)} Zeny`
+        : '価格';
+
+      const onChange = (value: Partial<State>): void =>
+        this.setState(value as State);
 
       return (
         <Form>
@@ -284,16 +281,18 @@ export default withESQuery(
             }
           />
           <NameInput
+            error={nameErrors}
             list={this.datalistId}
             value={this.state}
-            onChange={(value): void => this.setState(value)}
+            onChange={onChange}
           >
             <input ref={this.nameRef} />
           </NameInput>
           <datalist id={this.datalistId}>{nameOptions}</datalist>
           <ValueInput
+            label={valueLabel}
             value={this.state}
-            onChange={(value): void => this.setState(value)}
+            onChange={onChange}
           />
           <Toggle
             label="抽選中"
@@ -302,10 +301,9 @@ export default withESQuery(
               this.setState({ drawing: !this.state.drawing })
             }
           />
-          {errorMessages}
           <Form.Button
             color="blue"
-            disabled={this.errors.length > 0}
+            disabled={!valid}
             fluid
             onClick={(): Promise<void> => this.onAdd()}
           >
