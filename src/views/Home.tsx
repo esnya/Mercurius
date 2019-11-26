@@ -1,9 +1,9 @@
 import React from 'react';
 import { Container, Segment } from 'semantic-ui-react';
-import AddForm from './AddForm';
-import DataTable from './DataTable';
+import AddForm from '../components/AddForm';
+import DataTable from '../components/DataTable';
 
-export default function App(): JSX.Element {
+export default function Home(): JSX.Element {
   return (
     <Container>
       <Segment>

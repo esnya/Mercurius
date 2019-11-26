@@ -5,6 +5,7 @@ import WorkboxPlugin from 'workbox-webpack-plugin';
 const config: Configuration = {
   devServer: {
     host: '0.0.0.0',
+    historyApiFallback: true,
   },
   devtool: 'cheap-eval-source-map',
   entry: './src/index.tsx',
@@ -33,10 +34,7 @@ const config: Configuration = {
     new HtmlWebpackPlugin({
       title: 'Rom Trading',
     }),
-    new WorkboxPlugin.GenerateSW({
-      clientsClaim: true,
-      skipWaiting: true,
-    }),
+    new WorkboxPlugin.GenerateSW({}),
   ],
   resolve: {
     extensions: ['.ts', '.tsx', '.js', '.jsx'],

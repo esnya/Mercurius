@@ -1,7 +1,7 @@
 import React from 'react';
 import { render } from 'react-dom';
 import 'semantic-ui-css/semantic.css';
-import App from './components/App';
+import App from './App';
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
