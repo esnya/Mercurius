@@ -13,8 +13,16 @@ const config: Configuration = {
   module: {
     rules: [
       {
+        enforce: 'pre',
+        test: /\.[tj]sx?$/,
+        loader: 'eslint-loader',
+        options: {
+          fix: true,
+        },
+      },
+      {
         test: /\.tsx?/,
-        loaders: ['ts-loader', 'eslint-loader'],
+        loader: 'ts-loader',
       },
       {
         test: /\.css?/,

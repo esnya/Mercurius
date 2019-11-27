@@ -19,5 +19,8 @@
     "node_modules",
     "dist",
     "lib"
+  ],
+  "include": [
+    "src"
   ]
 }

@@ -11,9 +11,9 @@ import moment from 'moment';
 import { index, Bucket } from '../elasticsearch';
 import { withESQuery, ChildProps } from '../enhancers/withESQuery';
 import inputOf from '../enhancers/inputOf';
-import formatter from 'format-number';
 import Ajv from 'ajv';
 import RecordCreation from '../schemas/RecordCreation.schema.yml';
+import { formatTimestamp, formatNumber } from '../utilities/format';
 
 const ValueTTL = 1000 * 60 * 60 * 3;
 
@@ -118,8 +118,6 @@ interface State {
   drawing: boolean;
 }
 
-const format = formatter();
-
 export default withESQuery(
   'rom_trading',
   {
@@ -191,11 +189,11 @@ export default withESQuery(
     }
 
     get timestamp(): string {
-      return moment(
+      return formatTimestamp(
         this.state.autoTimestamp
           ? new Date()
           : new Date(`${this.state.date} ${this.state.time} `),
-      ).format('Y/MM/DD HH:mm:ss');
+      );
     }
     get nameExists(): boolean {
       const { name } = this.state;
@@ -266,7 +264,7 @@ export default withESQuery(
 
       const numberValue = Number(this.state.value);
       const valueLabel = numberValue
-        ? `価格 ${format(numberValue)} Zeny`
+        ? `価格 ${formatNumber(numberValue)} Zeny`
         : '価格';
 
       const onChange = (value: Partial<State>): void =>
