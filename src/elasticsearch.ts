@@ -22,13 +22,31 @@ export interface TermsAggregation {
   };
 }
 
+export interface DateHistogramAggregation {
+  date_histogram: {
+    field: string;
+    calendar_interval: string;
+  };
+}
+
+export interface DerivativeAggregation {
+  derivative: {
+    buckets_path: string;
+  };
+}
+
 export interface ValueAggregation {
   [key: string]: {
     field: string;
   };
 }
 
-export type Aggregation = (TermsAggregation | ValueAggregation) & {
+export type Aggregation = (
+  | TermsAggregation
+  | ValueAggregation
+  | DateHistogramAggregation
+  | DerivativeAggregation
+) & {
   aggs?: Record<string, Aggregation>;
 };
 
@@ -56,8 +74,26 @@ export interface AggregationValue {
   value_as_string: string;
 }
 
-export type Bucket = Record<string, AggregationValue> & {
+export interface ExtendedStatsValue {
+  avg: number;
+  count: number;
+  max: number;
+  min: number;
+  std_deviation_bounds: {
+    lower: number;
+    upper: number;
+  };
+  std_deviation: number;
+  sum: number;
+  variance: number;
+}
+
+export type Bucket = Record<
+  string,
+  AggregationValue & ExtendedStatsValue & { buckets: Bucket[] }
+> & {
   key: string;
+  key_as_string: string;
   doc_count: number;
 };
 
@@ -67,7 +103,8 @@ export interface Result<T> {
     string,
     {
       buckets: Bucket[];
-    } & AggregationValue
+    } & AggregationValue &
+      ExtendedStatsValue
   >;
 }
 

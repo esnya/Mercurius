@@ -6,3 +6,10 @@ export function formatTimestamp(value?: Moment | Date | number): string {
 }
 
 export const formatNumber = formatter();
+export const formatInteger = formatter({
+  round: 0,
+});
+export const formatDecimal = formatter({
+  round: 2,
+  padRight: 2,
+});

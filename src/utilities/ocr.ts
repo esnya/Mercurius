@@ -11,6 +11,7 @@ import {
   WorkerParams,
   Worker,
 } from 'tesseract.js';
+import _ from 'lodash';
 
 export default class Ocr {
   constructor(words: string[], lang = 'jpn+eng', nWorkers = 1) {
@@ -56,41 +57,56 @@ export default class Ocr {
   async recognize(
     image: Blob,
     names: string[],
-  ): Promise<{ name: string; value: number; drawing: boolean }> {
+  ): Promise<{
+    name?: string;
+    value?: number;
+    drawing: boolean;
+    nameCandidates?: { name: string; score: number }[];
+  }> {
     const scheduler = await this.pScheduler;
 
     const res = (await scheduler.addJob('recognize', image)) as RecognizeResult;
 
-    const lines = res.data.lines.map(line =>
-      line.text.replace(/\s/g, '').replace(/[[\]]+/g, '[1]'),
-    );
+    const lines = res.data.lines.map(line => line.text.replace(/\s/g, ''));
     console.log(lines);
     if (lines.length < 2 || lines.length > 3) {
-      throw new Error(`Failed to find price from: ${lines.join('\\n')}`);
+      return {
+        drawing: false,
+      };
     }
-
-    const [matchedName, score] = names.reduce(
-      ([pn, ps], name: string): [string | null, number] => {
-        const [n1, n2] = lines;
-        const s1 = WinkDistance.string.jaroWinkler(name, n1);
-        const s2 = WinkDistance.string.jaroWinkler(name, n2);
-        if (s1 < s2 && s1 < ps) return [name, s1];
-        if (s2 < s1 && s2 < ps) return [name, s2];
-
-        return [pn, ps];
-      },
-      [null, 1] as [string | null, number],
-    );
-    console.log(matchedName, score);
-    const name = matchedName && score < 0.2 ? matchedName : null;
-    if (!name) throw new Error('Failed to recognize name');
     const drawing = lines.length === 3;
-    const value = Number(lines[drawing ? 2 : 1].replace(/^0|[^0-9]+/g, ''));
-    if (!value) throw new Error('Failed to recognize price');
-    console.log({ name, value, drawing, matchedName, score });
+
+    const [n1, n2] = lines;
+    const nameCandidates = _(names)
+      .map(name => [
+        { name, score: WinkDistance.string.jaroWinkler(name, n1) },
+        ...(drawing
+          ? [{ name, score: WinkDistance.string.jaroWinkler(name, n2) }]
+          : []),
+      ])
+      .flatten()
+      .filter(({ score }) => score < 0.8)
+      .sortBy(({ score }) => score)
+      .value();
+
+    const front = nameCandidates[0];
+    const name = front && front.score < 0.25 ? front.name : undefined;
+    const value =
+      Number(lines[drawing ? 2 : 1].replace(/^0|[^0-9]+/g, '')) || undefined;
 
     return {
       name,
+      nameCandidates: [
+        ...(!name
+          ? []
+          : drawing
+          ? [
+              { name: n1, score: 1 },
+              { name: n2, score: 1 },
+            ]
+          : [{ name: n1, score: 1 }]),
+        ...nameCandidates,
+      ],
       value,
       drawing,
     };

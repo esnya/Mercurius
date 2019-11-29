@@ -1,16 +1,28 @@
 import React from 'react';
-import { Container, Segment, TextArea, CardGroup } from 'semantic-ui-react';
+import {
+  Container,
+  Segment,
+  TextArea,
+  CardGroup,
+  Card,
+  CardContent,
+} from 'semantic-ui-react';
 import shortid from 'shortid';
 import { ChildProps, withESQuery } from '../enhancers/withESQuery';
 import defaultsDeep from 'lodash/defaultsDeep';
 import { index } from '../elasticsearch';
 import ActionButton from '../components/ActionButton';
-import RecognitionTask, { Task } from '../components/RecognitionTask';
+import RecognitionTask, {
+  Task,
+  Result,
+  isValid,
+} from '../components/RecognitionTask';
 import { formatTimestamp } from '../utilities/format';
 import Ocr from '../utilities/ocr';
 
 interface State {
-  stream?: MediaStream;
+  video?: HTMLVideoElement;
+  context?: CanvasRenderingContext2D;
   options: RecognitionOptions;
   tasks: Task[];
 }
@@ -23,6 +35,7 @@ interface Rect {
 }
 interface RecognitionOptions extends Rect {
   mask: (Rect & { style: string })[];
+  fps: number;
 }
 const defaultRecognitionOptions = {
   x: -0.02,
@@ -30,6 +43,7 @@ const defaultRecognitionOptions = {
   width: 0.35,
   height: 0.1,
   mask: [{ style: 'white', x: -0.18, y: -0.005, width: 0.135, height: 0.06 }],
+  fps: 10,
 };
 const optionsKey = 'rom_trading:recognition-options';
 
@@ -69,41 +83,12 @@ export default withESQuery('rom_trading', {
       };
 
       this.ocr = new Ocr(this.names);
-    }
 
-    ocr: Ocr;
-    canvasRef = React.createRef<HTMLCanvasElement>();
+      this.renderInterval = setInterval(() => {
+        const canvas = this.canvasRef.current;
+        const { context, video } = this.state;
+        if (!canvas || !context || !video) return;
 
-    get options(): RecognitionOptions {
-      return this.state.options;
-    }
-
-    set options(options: RecognitionOptions) {
-      this.setState({ options }, () => {
-        localStorage.setItem(optionsKey, JSON.stringify(options));
-      });
-    }
-
-    get names(): string[] {
-      return this.props.value.aggregations.names.buckets.map(({ key }) => key);
-    }
-
-    async componentDidMount(): Promise<void> {
-      const stream: MediaStream = await (navigator.mediaDevices as any).getDisplayMedia(
-        { video: true },
-      );
-
-      const video = document.createElement('video');
-      video.srcObject = stream;
-
-      await video.play();
-
-      const canvas = this.canvasRef.current;
-      if (!canvas) throw new Error('Failed to get canvas');
-      const context = canvas.getContext('2d');
-      if (!context) throw new Error('Failed to get context');
-
-      const canvasRender = (): void => {
         const { videoWidth: sw, videoHeight: sh } = video;
         const { x, y, width, height, mask } = this.options;
 
@@ -135,9 +120,31 @@ export default withESQuery('rom_trading', {
             s * m.height,
           );
         });
-        requestAnimationFrame(canvasRender);
-      };
-      canvasRender();
+      }, 1000 / this.state.options.fps);
+    }
+
+    renderInterval: ReturnType<typeof setInterval>;
+    ocr: Ocr;
+    canvasRef = React.createRef<HTMLCanvasElement>();
+
+    get options(): RecognitionOptions {
+      return this.state.options;
+    }
+
+    set options(options: RecognitionOptions) {
+      this.setState({ options }, () => {
+        localStorage.setItem(optionsKey, JSON.stringify(options));
+      });
+    }
+
+    get names(): string[] {
+      return this.props.value.aggregations.names.buckets.map(({ key }) => key);
+    }
+
+    componentWillUnmount(): void {
+      clearInterval(this.renderInterval);
+      const { video } = this.state;
+      if (video) video.remove();
     }
 
     render(): JSX.Element {
@@ -145,13 +152,16 @@ export default withESQuery('rom_trading', {
         await Promise.all(
           this.state.tasks.map(
             async (task): Promise<void> => {
-              if (!task.result) return;
+              const { result } = task;
+              if (!isValid(result)) return;
+
+              const { name, value, drawing } = result;
 
               await index('rom_trading', {
                 timestamp: task.timestamp,
-                name: task.result.name,
-                value: task.result.value,
-                drawing: task.result.drawing,
+                name,
+                value,
+                drawing,
               });
             },
           ),
@@ -187,8 +197,18 @@ export default withESQuery('rom_trading', {
 
         this.ocr.recognize(image, this.names).then(
           result => updateTask({ id, result }),
-          error => updateTask({ id, error: error.toString() }),
+          error => updateTask({ id, errors: [error.toString()] }),
         );
+      };
+
+      const onTaskEdit = ({ id }: Task, value: Partial<Result>): void => {
+        this.setState(({ tasks }) => ({
+          tasks: tasks.map(task =>
+            task.id === id && task.result
+              ? { ...task, result: { ...task.result, ...value } }
+              : task,
+          ),
+        }));
       };
 
       const onTaskDelete = ({ id }: Task): Promise<void> =>
@@ -201,8 +221,35 @@ export default withESQuery('rom_trading', {
           ),
         );
 
+      const onSelectSource = async (): Promise<void> => {
+        if (this.state.video) this.state.video.remove();
+
+        const stream = await (navigator.mediaDevices as any).getDisplayMedia({
+          video: true,
+        });
+
+        const video = document.createElement('video');
+        video.srcObject = stream;
+        await video.play();
+
+        const canvas = this.canvasRef.current;
+        if (!canvas) throw new Error('Failed to get canvas');
+        const context = canvas.getContext('2d');
+        if (!context) throw new Error('Failed to get context');
+
+        await new Promise(resolve =>
+          this.setState({ video, context }, resolve),
+        );
+      };
+
       const tasks = this.state.tasks.map(task => (
-        <RecognitionTask key={task.id} task={task} onDelete={onTaskDelete} />
+        <RecognitionTask
+          key={task.id}
+          names={this.names}
+          task={task}
+          onEdit={(value): void => onTaskEdit(task, value)}
+          onDelete={onTaskDelete}
+        />
       ));
 
       return (
@@ -215,28 +262,27 @@ export default withESQuery('rom_trading', {
               }}
             />
           </Segment>
-          <Segment textAlign="center">
-            <div>
+          <CardGroup>
+            <Card>
               <canvas ref={this.canvasRef} />
-            </div>
-            <div>
-              <ActionButton color="blue" action={onRecognize}>
-                認識
-              </ActionButton>
-            </div>
-          </Segment>
-          <Segment>
-            <div>
-              <ActionButton
-                color="blue"
-                disabled={tasks.length === 0}
-                action={onSubmit}
-              >
-                登録
-              </ActionButton>
-            </div>
-            <CardGroup>{tasks}</CardGroup>
-          </Segment>
+              <CardContent extra>
+                <ActionButton color="blue" action={onSelectSource}>
+                  画面選択
+                </ActionButton>
+                <ActionButton color="blue" action={onRecognize}>
+                  認識
+                </ActionButton>
+                <ActionButton
+                  color="blue"
+                  disabled={tasks.length === 0}
+                  action={onSubmit}
+                >
+                  登録
+                </ActionButton>
+              </CardContent>
+            </Card>
+            {tasks}
+          </CardGroup>
         </Container>
       );
     }
