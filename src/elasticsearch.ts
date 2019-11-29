@@ -1,4 +1,8 @@
-const node = `http://${location.hostname}:9200`;
+const esMatch = location.search.match(/es=([^&]+)/);
+
+const node = esMatch
+  ? decodeURIComponent(esMatch[1])
+  : `http://${location.hostname}:9200`;
 
 export type Scalar = null | boolean | number | string;
 

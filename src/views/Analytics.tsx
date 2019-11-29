@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { withESQuery, ChildProps } from '../enhancers/withESQuery';
 import {
   Table,
@@ -11,11 +11,17 @@ import {
   Label,
   LabelProps,
   Icon,
+  Modal,
+  Button,
+  Segment,
 } from 'semantic-ui-react';
+import { VegaLite } from 'react-vega';
 import get from 'lodash/get';
 import sortBy from 'lodash/sortBy';
 import { formatInteger, formatDecimal } from '../utilities/format';
 import moment from 'moment';
+import defaultsDeep from 'lodash/defaultsDeep';
+import { TopLevelSpec } from 'vega-lite';
 
 interface Item {
   name: string;
@@ -26,6 +32,7 @@ interface Item {
   totalRate: number;
   diff: number | null;
   diffRate: number | null;
+  values: { timestamp: number; value: number }[];
 }
 
 const Colors: LabelProps['color'][] = [
@@ -49,12 +56,96 @@ function diffIcon(diffRate: number | null): JSX.Element {
   return <Icon color="green" name="minus" />;
 }
 
+const ChartSpec: TopLevelSpec = {
+  // width: 400,
+  // height: 300,
+  $schema: 'https://vega.github.io/schema/vega-lite/v4.json',
+  padding: 30,
+  data: { name: 'data' },
+  layer: [{ mark: 'line' }, { mark: 'point' }],
+  encoding: {
+    x: {
+      field: 'timestamp',
+      type: 'temporal',
+      axis: {
+        formatType: 'time',
+        format: '%m/%d %H:%M',
+      },
+    },
+    y: { field: 'value', type: 'quantitative' },
+    strokeWidth: { value: 1 },
+    tooltip: {
+      format: ',',
+      formatType: 'number',
+      field: 'value',
+      type: 'quantitative',
+    },
+  },
+  config: {
+    axis: {
+      shortTimeLabels: true,
+    },
+  },
+};
+
+const ChartModal = React.memo(function ChartModal({
+  item,
+  open,
+  onClose,
+}: {
+  item: Item;
+  open: boolean;
+  onClose: () => void;
+}): JSX.Element {
+  const color = Colors[Math.floor((Colors.length - 1) * item.lastRate)];
+  const domain = [
+    moment()
+      .subtract(14, 'days')
+      .add(9, 'hours')
+      .toISOString(),
+    moment()
+      .add(9, 'hours')
+      .toISOString(),
+  ];
+  const spec: TopLevelSpec = defaultsDeep(
+    {
+      title: item.name,
+      height: Math.max(window.innerHeight - 200, 200),
+      width: Math.min(Math.max(window.innerWidth - 200, 200), 790),
+      encoding: {
+        color: {
+          value: color,
+        },
+        x: {
+          scale: {
+            domain,
+          },
+        },
+      },
+    },
+    ChartSpec,
+  );
+  return (
+    <Modal open={open} onClose={onClose}>
+      <Segment>
+        <VegaLite spec={spec} data={{ data: item.values }} />
+        <Button onClick={onClose}>閉じる</Button>
+      </Segment>
+    </Modal>
+  );
+});
+
 const Row = React.memo(function Row({ item }: { item: Item }): JSX.Element {
   const color = Colors[Math.floor((Colors.length - 1) * item.lastRate)];
+  const [open, setOpen] = useState(false);
 
   return (
     <TableRow>
-      <TableCell>{item.diffRate && diffIcon(item.diffRate)}</TableCell>
+      <TableCell textAlign="center">
+        <Button basic icon size="small" onClick={(): void => setOpen(true)}>
+          {item.diffRate && diffIcon(item.diffRate)}
+        </Button>
+      </TableCell>
       <TableCell>{item.name}</TableCell>
       <TableCell textAlign="right">{formatInteger(item.lastPrice)}</TableCell>
       <TableCell textAlign="right">
@@ -65,6 +156,11 @@ const Row = React.memo(function Row({ item }: { item: Item }): JSX.Element {
       <TableCell textAlign="right">
         {formatDecimal(item.totalRate * 100)}%
       </TableCell>
+      <ChartModal
+        item={item}
+        open={open}
+        onClose={(): void => setOpen(false)}
+      />
     </TableRow>
   );
 });
@@ -165,6 +261,13 @@ export default withESQuery(
           const lastRate =
             totalDiff === 0 ? 0 : (lastPrice - minPrice) / totalDiff;
 
+          const values = dateBuckets
+            .filter(b => b.stats.avg)
+            .map(b => ({
+              timestamp: (b.key as unknown) as number,
+              value: b.stats.avg,
+            }));
+
           return {
             name,
             lastPrice,
@@ -174,6 +277,7 @@ export default withESQuery(
             lastRate,
             diff,
             diffRate,
+            values,
           };
         },
       );
@@ -188,7 +292,8 @@ export default withESQuery(
 
       const headerCell = (
         column: keyof Item,
-        label?: string | JSX.Element,
+        label: string | JSX.Element,
+        textAlign?: 'center',
       ): JSX.Element => {
         const sorted =
           this.state.sort.column === column
@@ -199,14 +304,18 @@ export default withESQuery(
             sort: {
               column,
               direction:
-                sort.column === column && sort.direction === 'ascending'
-                  ? 'descending'
-                  : 'ascending',
+                sort.column === column && sort.direction === 'descending'
+                  ? 'ascending'
+                  : 'descending',
             },
           }));
         };
         return (
-          <TableHeaderCell sorted={sorted} onClick={onClick}>
+          <TableHeaderCell
+            sorted={sorted}
+            textAlign={textAlign}
+            onClick={onClick}
+          >
             {label}
           </TableHeaderCell>
         );
@@ -217,7 +326,7 @@ export default withESQuery(
           <Table sortable>
             <TableHeader>
               <TableRow>
-                {headerCell('diffRate', <Icon name="line graph" />)}
+                {headerCell('diffRate', <Icon name="line graph" />, 'center')}
                 {headerCell('name', 'アイテム名')}
                 {headerCell('lastPrice', '現価')}
                 {headerCell('lastRate', '')}

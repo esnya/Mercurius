@@ -33,14 +33,14 @@ const config: Configuration = {
         loaders: ['js-yaml-loader'],
       },
       {
-        test: /\.(ttf|woff2?|eot|png|svg)$/,
+        test: /\.(ttf|woff2?|eot|png|svg|mp3|wav)$/,
         loaders: ['file-loader'],
       },
     ],
   },
   plugins: [
     new HtmlWebpackPlugin({
-      title: 'Rom Trading',
+      title: 'Mercurius',
     }),
     new WorkboxPlugin.GenerateSW({}),
   ],

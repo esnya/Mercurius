@@ -19,6 +19,9 @@ import RecognitionTask, {
 } from '../components/RecognitionTask';
 import { formatTimestamp } from '../utilities/format';
 import Ocr from '../utilities/ocr';
+import Decision22 from '../assets/decision22.mp3';
+import Decision24 from '../assets/decision24.mp3';
+import Warning1 from '../assets/warning1.mp3';
 
 interface State {
   video?: HTMLVideoElement;
@@ -174,6 +177,7 @@ export default withESQuery('mercurius-trading', {
     canvasRef = React.createRef<HTMLCanvasElement>();
 
     async recognize(): Promise<void> {
+      this.playSound('triggered');
       const canvas = this.canvasRef.current;
       if (!canvas) throw new Error('Failed to get canvas');
 
@@ -200,8 +204,14 @@ export default withESQuery('mercurius-trading', {
       };
 
       this.ocr.recognize(image, this.names).then(
-        result => updateTask({ id, result }),
-        error => updateTask({ id, errors: [error.toString()] }),
+        result => {
+          updateTask({ id, result });
+          this.playSound(isValid(result) ? 'succeeded' : 'failed');
+        },
+        error => {
+          updateTask({ id, errors: [error.toString()] });
+          this.playSound('failed');
+        },
       );
     }
 
@@ -217,6 +227,20 @@ export default withESQuery('mercurius-trading', {
 
     get names(): string[] {
       return this.props.value.aggregations.names.buckets.map(({ key }) => key);
+    }
+
+    soundRefs = {
+      triggered: React.createRef<HTMLVideoElement>(),
+      succeeded: React.createRef<HTMLVideoElement>(),
+      failed: React.createRef<HTMLVideoElement>(),
+    };
+
+    playSound(type: keyof Recognition['soundRefs']) {
+      const audio = this.soundRefs[type].current;
+      if (!audio) return;
+      audio.pause();
+      audio.currentTime = 0;
+      audio.play();
     }
 
     componentWillUnmount(): void {
@@ -272,6 +296,7 @@ export default withESQuery('mercurius-trading', {
       const onSelectSource = async (): Promise<void> => {
         if (this.state.video) this.state.video.remove();
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const stream = await (navigator.mediaDevices as any).getDisplayMedia({
           video: true,
         });
@@ -331,6 +356,17 @@ export default withESQuery('mercurius-trading', {
             </Card>
             {tasks}
           </CardGroup>
+          <audio
+            src={Decision22}
+            ref={this.soundRefs.triggered}
+            preload="true"
+          />
+          <audio
+            src={Decision24}
+            ref={this.soundRefs.succeeded}
+            preload="true"
+          />
+          <audio src={Warning1} ref={this.soundRefs.failed} preload="true" />
         </Container>
       );
     }

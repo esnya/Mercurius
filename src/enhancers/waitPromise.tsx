@@ -1,5 +1,10 @@
 import React from 'react';
-import { Message, Placeholder, PlaceholderLine } from 'semantic-ui-react';
+import {
+  Message,
+  Placeholder,
+  PlaceholderLine,
+  Container,
+} from 'semantic-ui-react';
 
 interface State<T> {
   value?: T;
@@ -60,13 +65,15 @@ export function waitPromise<T, Props = {}>(
 
         if (loading) {
           return (
-            <Placeholder>
-              <PlaceholderLine />
-              <PlaceholderLine />
-              <PlaceholderLine />
-              <PlaceholderLine />
-              <PlaceholderLine />
-            </Placeholder>
+            <Container>
+              <Placeholder>
+                <PlaceholderLine />
+                <PlaceholderLine />
+                <PlaceholderLine />
+                <PlaceholderLine />
+                <PlaceholderLine />
+              </Placeholder>
+            </Container>
           );
         }
 
