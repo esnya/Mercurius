@@ -3,7 +3,8 @@ node_modules
 /dist
 /lib
 
-/grafana*
-/kibana*
-/logstash*
+/elasticsearch
+/grafana
+/kibana
+/logstash
 /data

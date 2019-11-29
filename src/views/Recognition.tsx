@@ -36,6 +36,12 @@ interface Rect {
 interface RecognitionOptions extends Rect {
   mask: (Rect & { style: string })[];
   fps: number;
+  trigger: {
+    x: number;
+    y: number;
+    color: [number, number, number];
+    preview: boolean;
+  };
 }
 const defaultRecognitionOptions = {
   x: -0.02,
@@ -44,10 +50,16 @@ const defaultRecognitionOptions = {
   height: 0.1,
   mask: [{ style: 'white', x: -0.18, y: -0.005, width: 0.135, height: 0.06 }],
   fps: 10,
+  trigger: {
+    x: 0.02,
+    y: 0.02,
+    color: [219, 241, 255],
+    preview: false,
+  },
 };
-const optionsKey = 'rom_trading:recognition-options';
+const optionsKey = 'mercurius-trading:recognition-options';
 
-export default withESQuery('rom_trading', {
+export default withESQuery('mercurius-trading', {
   size: 0,
   aggs: {
     names: {
@@ -84,13 +96,14 @@ export default withESQuery('rom_trading', {
 
       this.ocr = new Ocr(this.names);
 
+      let prevTriggered = false;
       this.renderInterval = setInterval(() => {
         const canvas = this.canvasRef.current;
         const { context, video } = this.state;
         if (!canvas || !context || !video) return;
 
         const { videoWidth: sw, videoHeight: sh } = video;
-        const { x, y, width, height, mask } = this.options;
+        const { x, y, width, height, mask, trigger } = this.options;
 
         const s = Math.min(sw, sh);
         const dw = s * width;
@@ -120,12 +133,77 @@ export default withESQuery('rom_trading', {
             s * m.height,
           );
         });
+
+        if (trigger.preview) {
+          context.strokeStyle = 'red';
+          context.ellipse(
+            dw / 2 + s * trigger.x,
+            dh / 2 + s * trigger.y,
+            3,
+            3,
+            0,
+            0,
+            360,
+          );
+          context.stroke();
+        }
+        const triggerPixel = context.getImageData(
+          dw / 2 + s * trigger.x,
+          dh / 2 + s * trigger.y,
+          1,
+          1,
+        );
+        const triggered =
+          trigger.color.reduce(
+            (p, c, i) => p + Math.abs(triggerPixel.data[i] - c),
+            0,
+          ) /
+            3 <
+          5;
+        if (triggered && !prevTriggered) {
+          setTimeout(() => {
+            this.recognize();
+          });
+        }
+        prevTriggered = triggered;
       }, 1000 / this.state.options.fps);
     }
 
     renderInterval: ReturnType<typeof setInterval>;
     ocr: Ocr;
     canvasRef = React.createRef<HTMLCanvasElement>();
+
+    async recognize(): Promise<void> {
+      const canvas = this.canvasRef.current;
+      if (!canvas) throw new Error('Failed to get canvas');
+
+      const image = await new Promise<Blob | null>(r => canvas.toBlob(r));
+      if (!image) throw new Error('Failed to get image');
+
+      const id = shortid();
+
+      this.setState(({ tasks }) => ({
+        tasks: [
+          {
+            id,
+            image,
+            timestamp: formatTimestamp(),
+          },
+          ...tasks.filter(t => t.id !== id),
+        ],
+      }));
+
+      const updateTask = (task: Partial<Task> & { id: string }): void => {
+        this.setState(({ tasks }) => ({
+          tasks: tasks.map(t => (t.id === id ? { ...t, ...task } : t)),
+        }));
+      };
+
+      this.ocr.recognize(image, this.names).then(
+        result => updateTask({ id, result }),
+        error => updateTask({ id, errors: [error.toString()] }),
+      );
+    }
 
     get options(): RecognitionOptions {
       return this.state.options;
@@ -157,7 +235,7 @@ export default withESQuery('rom_trading', {
 
               const { name, value, drawing } = result;
 
-              await index('rom_trading', {
+              await index('mercurius-trading', {
                 timestamp: task.timestamp,
                 name,
                 value,
@@ -169,37 +247,7 @@ export default withESQuery('rom_trading', {
         this.setState({ tasks: [] });
       };
 
-      const onRecognize = async (oid?: string): Promise<void> => {
-        const canvas = this.canvasRef.current;
-        if (!canvas) throw new Error('Failed to get canvas');
-
-        const image = await new Promise<Blob | null>(r => canvas.toBlob(r));
-        if (!image) throw new Error('Failed to get image');
-
-        const id = oid || shortid();
-
-        this.setState(({ tasks }) => ({
-          tasks: [
-            {
-              id,
-              image,
-              timestamp: formatTimestamp(),
-            },
-            ...tasks.filter(t => t.id !== id),
-          ],
-        }));
-
-        const updateTask = (task: Partial<Task> & { id: string }): void => {
-          this.setState(({ tasks }) => ({
-            tasks: tasks.map(t => (t.id === id ? { ...t, ...task } : t)),
-          }));
-        };
-
-        this.ocr.recognize(image, this.names).then(
-          result => updateTask({ id, result }),
-          error => updateTask({ id, errors: [error.toString()] }),
-        );
-      };
+      const onRecognize = async (): Promise<void> => this.recognize();
 
       const onTaskEdit = ({ id }: Task, value: Partial<Result>): void => {
         this.setState(({ tasks }) => ({

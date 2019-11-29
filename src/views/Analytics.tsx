@@ -81,7 +81,7 @@ function sortPredicate(column: string) {
 }
 
 export default withESQuery(
-  'rom_trading',
+  'mercurius-trading',
   {
     size: 0,
     aggs: {

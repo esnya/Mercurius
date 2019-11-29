@@ -119,7 +119,7 @@ interface State {
 }
 
 export default withESQuery(
-  'rom_trading',
+  'mercurius-trading',
   {
     size: 0,
     aggs: {
@@ -214,7 +214,7 @@ export default withESQuery(
 
       const { name, value, drawing } = state;
 
-      const res = await index('rom_trading', {
+      const res = await index('mercurius-trading', {
         name,
         value: Number(value),
         drawing,

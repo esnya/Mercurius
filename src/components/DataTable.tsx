@@ -45,7 +45,7 @@ function Row({
           header="削除しますか？"
           trigger={<Button color="red" icon="delete" />}
           action={(): void => {
-            del('rom_trading', id).then(() => onDeleted());
+            del('mercurius-trading', id).then(() => onDeleted());
           }}
         />
       </TableCell>
@@ -61,7 +61,7 @@ interface Source {
 }
 
 export default withESQuery<Source>(
-  'rom_trading',
+  'mercurius-trading',
   {
     size: 50,
     query: {
