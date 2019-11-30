@@ -49,6 +49,7 @@ const Colors: LabelProps['color'][] = [
 
 function diffIcon(diffRate: number | null): JSX.Element {
   if (diffRate === null) return <Icon color="grey" name="question" />;
+  if (Math.abs(diffRate) > 0.7) return <Icon color="red" name="warning" />;
   if (diffRate < -0.1) return <Icon color="red" name="angle double down" />;
   if (diffRate < -0.01) return <Icon color="orange" name="angle down" />;
   if (diffRate > 0.1) return <Icon color="blue" name="angle double up" />;
@@ -148,6 +149,9 @@ const Row = React.memo(function Row({ item }: { item: Item }): JSX.Element {
       </TableCell>
       <TableCell>{item.name}</TableCell>
       <TableCell textAlign="right">{formatInteger(item.lastPrice)}</TableCell>
+      <TableCell textAlign="right">
+        {item.diffRate && formatDecimal(item.diffRate * 100)}%
+      </TableCell>
       <TableCell textAlign="right">
         <Label color={color}>{formatDecimal(item.lastRate * 100)}%</Label>
       </TableCell>
@@ -329,6 +333,7 @@ export default withESQuery(
                 {headerCell('diffRate', <Icon name="line graph" />, 'center')}
                 {headerCell('name', 'アイテム名')}
                 {headerCell('lastPrice', '現価')}
+                {headerCell('diffRate', '増減率')}
                 {headerCell('lastRate', '')}
                 {headerCell('minPrice', '底値')}
                 {headerCell('maxPrice', '高値')}
