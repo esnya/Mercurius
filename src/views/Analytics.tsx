@@ -294,7 +294,6 @@ export default withESQuery(
       const i = sorted.findIndex(
         item => get(item, column) !== null && get(item, column) !== undefined,
       );
-      console.log(i);
       if (i <= 0) return reversed;
 
       return [...reversed.slice(i), ...reversed.slice(0, i)];
