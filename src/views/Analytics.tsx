@@ -111,8 +111,8 @@ const ChartModal = React.memo(function ChartModal({
   const spec: TopLevelSpec = defaultsDeep(
     {
       title: item.name,
-      height: Math.max(window.innerHeight - 200, 200),
-      width: Math.min(Math.max(window.innerWidth - 200, 200), 790),
+      width: Math.min(Math.max(window.innerWidth - 230, 200), 790),
+      height: Math.max(window.innerHeight - 300, 200),
       encoding: {
         color: {
           value: color,
