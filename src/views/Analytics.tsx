@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { withESQuery, ChildProps } from '../enhancers/withESQuery';
 import {
   Table,
@@ -36,7 +36,7 @@ interface Item {
   values: { timestamp: number; value: number }[];
 }
 
-const Colors: LabelProps['color'][] = [
+const Colors: Exclude<LabelProps['color'], undefined>[] = [
   'red',
   'orange',
   'yellow',
@@ -48,10 +48,16 @@ const Colors: LabelProps['color'][] = [
   'purple',
 ];
 
+function getChartColor(rate: number): string {
+  const color = Colors[Math.floor((Colors.length - 1) * rate)];
+  if (color === 'yellow') return '#FFD700';
+  return color;
+}
+
 const ChartSpec: TopLevelSpec = {
   // width: 400,
   // height: 300,
-  $schema: 'https://vega.github.io/schema/vega-lite/v4.json',
+  $schema: 'https://vega.github.io/schema/vega-lite/v4.0.0-beta.12.json',
   padding: 30,
   data: { name: 'data' },
   layer: [{ mark: 'line' }, { mark: 'point' }],
@@ -80,6 +86,18 @@ const ChartSpec: TopLevelSpec = {
   },
 };
 
+function getChartDomain(): [string, string] {
+  return [
+    moment()
+      .subtract(14, 'days')
+      .add(9, 'hours')
+      .toISOString(),
+    moment()
+      .add(9, 'hours')
+      .toISOString(),
+  ];
+}
+
 const ChartModal = React.memo(function ChartModal({
   item,
   open,
@@ -89,16 +107,7 @@ const ChartModal = React.memo(function ChartModal({
   open: boolean;
   onClose: () => void;
 }): JSX.Element {
-  const color = Colors[Math.floor((Colors.length - 1) * item.lastRate)];
-  const domain = [
-    moment()
-      .subtract(14, 'days')
-      .add(9, 'hours')
-      .toISOString(),
-    moment()
-      .add(9, 'hours')
-      .toISOString(),
-  ];
+  const color = getChartColor(item.lastRate);
   const spec: TopLevelSpec = defaultsDeep(
     {
       title: item.name,
@@ -110,8 +119,11 @@ const ChartModal = React.memo(function ChartModal({
         },
         x: {
           scale: {
-            domain,
+            domain: getChartDomain(),
           },
+        },
+        y: {
+          scale: { domain: [0, item.maxPrice] },
         },
       },
     },
@@ -120,35 +132,139 @@ const ChartModal = React.memo(function ChartModal({
   return (
     <Modal open={open} onClose={onClose}>
       <Segment>
-        <VegaLite spec={spec} data={{ data: item.values }} />
+        {open ? <VegaLite spec={spec} data={{ data: item.values }} /> : null}
         <Button onClick={onClose}>閉じる</Button>
       </Segment>
     </Modal>
   );
 });
 
+const ChartUnderRow = React.memo(function ChartUnderRow({
+  item,
+  size: { width, height },
+}: {
+  item: Item;
+  size: { width: number; height: number };
+}): JSX.Element | null {
+  if (!width || !height) {
+    return null;
+  }
+  const color = getChartColor(item.lastRate);
+
+  const spec: TopLevelSpec = defaultsDeep(
+    {
+      width: width,
+      height: height,
+      padding: 0,
+      layer: [{ mark: 'area' }, { mark: 'line' }],
+      encoding: {
+        color: {
+          value: color,
+        },
+        x: {
+          scale: {
+            domain: getChartDomain(),
+          },
+          axis: null,
+        },
+        y: {
+          axis: null,
+          scale: { domain: [0, item.maxPrice] },
+        },
+        strokeOpacity: { value: 0.25 },
+        fillOpacity: { value: 0.1 },
+      },
+      config: {
+        view: {
+          stroke: 'transparent',
+        },
+      },
+    },
+    ChartSpec,
+  );
+  return (
+    <VegaLite
+      data={{ data: item.values }}
+      spec={spec}
+      actions={false}
+      style={{ transform: 'scaleX(-1)', transformOrigin: 'center center' }}
+    />
+  );
+});
+
 const Row = React.memo(function Row({ item }: { item: Item }): JSX.Element {
   const color = Colors[Math.floor((Colors.length - 1) * item.lastRate)];
   const [open, setOpen] = useState(false);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  const [chart, setChart] = useState(false);
+  const anchorRef = useRef<HTMLDivElement>(null);
+
+  const onMouseEnter = () => setChart(true);
+
+  useEffect((): void => {
+    const anchor = anchorRef.current;
+    if (!anchor) return;
+
+    const tr = anchor.parentElement && anchor.parentElement.parentElement;
+    if (!tr) return;
+    tr.addEventListener('mouseover', onMouseEnter);
+
+    const { offsetWidth, offsetHeight } = tr;
+
+    const width = offsetWidth - (11 + 36);
+    const height = offsetHeight - 11 * 2;
+    if (width !== size.width && height !== size.height) {
+      setSize({ width, height });
+    }
+  });
+
+  const colStyle = {
+    transform: 'translateZ(1px)',
+  };
 
   return (
-    <TableRow>
-      <TableCell textAlign="center">
-        <Button basic icon size="small" onClick={(): void => setOpen(true)}>
+    <TableRow style={{ transformStyle: 'preserve-3d' }}>
+      <TableCell textAlign="center" style={colStyle}>
+        <div
+          ref={anchorRef}
+          style={{
+            position: 'relative',
+            width: 0,
+            height: 0,
+            overflow: 'visible',
+            transform: 'translateZ(-1px)',
+            left: 36,
+          }}
+        >
+          {chart ? <ChartUnderRow item={item} size={size} /> : null}
+        </div>
+        <Button
+          basic
+          icon
+          size="small"
+          style={{ backgroundColor: 'white !important', ...colStyle }}
+          onClick={(): void => setOpen(true)}
+        >
           {item.diffRate && <DiffIcon diffRate={item.diffRate} />}
         </Button>
       </TableCell>
-      <TableCell>{item.name}</TableCell>
-      <TableCell textAlign="right">{formatInteger(item.lastPrice)}</TableCell>
-      <TableCell textAlign="right">
+      <TableCell style={colStyle}>{item.name}</TableCell>
+      <TableCell textAlign="right" style={colStyle}>
+        {formatInteger(item.lastPrice)}
+      </TableCell>
+      <TableCell textAlign="right" style={colStyle}>
         {item.diffRate && formatDecimal(item.diffRate * 100)}%
       </TableCell>
-      <TableCell textAlign="right">
+      <TableCell textAlign="right" style={colStyle}>
         <Label color={color}>{formatDecimal(item.lastRate * 100)}%</Label>
       </TableCell>
-      <TableCell textAlign="right">{formatInteger(item.minPrice)}</TableCell>
-      <TableCell textAlign="right">{formatInteger(item.maxPrice)}</TableCell>
-      <TableCell textAlign="right">
+      <TableCell textAlign="right" style={colStyle}>
+        {formatInteger(item.minPrice)}
+      </TableCell>
+      <TableCell textAlign="right" style={colStyle}>
+        {formatInteger(item.maxPrice)}
+      </TableCell>
+      <TableCell textAlign="right" style={colStyle}>
         {formatDecimal(item.totalRate * 100)}%
       </TableCell>
       <ChartModal
