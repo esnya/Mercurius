@@ -288,7 +288,16 @@ export default withESQuery(
 
       const { column, direction } = this.state.sort;
       const sorted = sortBy(items, sortPredicate(column));
-      return direction === 'descending' ? sorted.reverse() : sorted;
+      if (direction == 'ascending') return sorted;
+
+      const reversed = sorted.reverse();
+      const i = sorted.findIndex(
+        item => get(item, column) !== null && get(item, column) !== undefined,
+      );
+      console.log(i);
+      if (i <= 0) return reversed;
+
+      return [...reversed.slice(i), ...reversed.slice(0, i)];
     }
 
     render(): JSX.Element {
