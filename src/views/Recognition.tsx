@@ -235,7 +235,7 @@ export default withESQuery('mercurius-trading', {
       failed: React.createRef<HTMLVideoElement>(),
     };
 
-    playSound(type: keyof Recognition['soundRefs']) {
+    playSound(type: keyof Recognition['soundRefs']): void {
       const audio = this.soundRefs[type].current;
       if (!audio) return;
       audio.pause();

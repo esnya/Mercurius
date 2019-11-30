@@ -13,8 +13,25 @@ export interface MatchAllQuery {
 export interface MatchQuery {
   match: Record<string, Scalar>;
 }
+export interface RangeQuery {
+  range: Record<
+    string,
+    {
+      lt?: Scalar;
+      gt?: Scalar;
+      lte?: Scalar;
+      gte?: Scalar;
+    }
+  >;
+}
 
-export type Query = MatchAllQuery | MatchQuery;
+export interface BooleanQuery {
+  bool: {
+    should?: Query[];
+  };
+}
+
+export type Query = MatchAllQuery | MatchQuery | RangeQuery | BooleanQuery;
 
 export type Order = 'asc' | 'desc';
 

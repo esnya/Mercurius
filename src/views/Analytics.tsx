@@ -22,6 +22,7 @@ import { formatInteger, formatDecimal } from '../utilities/format';
 import moment from 'moment';
 import defaultsDeep from 'lodash/defaultsDeep';
 import { TopLevelSpec } from 'vega-lite';
+import DiffIcon from '../components/DiffIcon';
 
 interface Item {
   name: string;
@@ -46,16 +47,6 @@ const Colors: LabelProps['color'][] = [
   'violet',
   'purple',
 ];
-
-function diffIcon(diffRate: number | null): JSX.Element {
-  if (diffRate === null) return <Icon color="grey" name="question" />;
-  if (Math.abs(diffRate) > 0.7) return <Icon color="red" name="warning" />;
-  if (diffRate < -0.1) return <Icon color="red" name="angle double down" />;
-  if (diffRate < -0.01) return <Icon color="orange" name="angle down" />;
-  if (diffRate > 0.1) return <Icon color="blue" name="angle double up" />;
-  if (diffRate > 0.01) return <Icon color="teal" name="angle up" />;
-  return <Icon color="green" name="minus" />;
-}
 
 const ChartSpec: TopLevelSpec = {
   // width: 400,
@@ -144,7 +135,7 @@ const Row = React.memo(function Row({ item }: { item: Item }): JSX.Element {
     <TableRow>
       <TableCell textAlign="center">
         <Button basic icon size="small" onClick={(): void => setOpen(true)}>
-          {item.diffRate && diffIcon(item.diffRate)}
+          {item.diffRate && <DiffIcon diffRate={item.diffRate} />}
         </Button>
       </TableCell>
       <TableCell>{item.name}</TableCell>

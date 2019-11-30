@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Card,
   CardContent,
@@ -15,6 +15,9 @@ import {
 import ActionButton from './ActionButton';
 import shortid from 'shortid';
 import { formatDecimal, formatInteger } from '../utilities/format';
+import { search } from '../elasticsearch';
+import moment from 'moment';
+import DiffIcon from './DiffIcon';
 
 export interface Result {
   name?: string;
@@ -108,15 +111,74 @@ const TaskForm = React.memo(function TaskForm({
   const value = result && result.value && formatInteger(result.value);
   const drawing = result && result.drawing;
 
+  const [prevValue, setPrevValue] = useState<number | null>(null);
+  if (name && value) {
+    search('mercurius-trading', {
+      size: 0,
+      aggs: {
+        filtered: {
+          filter: {
+            bool: {
+              must: {
+                match: {
+                  'name.keyword': name,
+                },
+              },
+              filter: {
+                range: {
+                  timestamp: {
+                    gt: moment()
+                      .subtract(1, 'days')
+                      .milliseconds(),
+                  },
+                },
+              },
+            },
+          },
+          aggs: {
+            avg: {
+              avg: {
+                field: 'value',
+              },
+            },
+          },
+        },
+      },
+    } as any).then(
+      ({
+        aggregations: {
+          filtered: {
+            avg: { value },
+          },
+        },
+      }: any) => {
+        setPrevValue(value);
+      },
+    );
+  }
+
+  const diffRate =
+    result && result.value && prevValue
+      ? (result.value - prevValue) / result.value
+      : null;
+
   return (
     <Form>
-      <Dimmer active={loading}>
+      <Dimmer inverted active={loading}>
         <Loader />
       </Dimmer>
       <FormInput
         required
+        iconPosition="left"
+        icon={
+          <Icon
+            {...(result && result.name
+              ? { color: 'green', name: 'check' }
+              : { color: 'red', name: 'exclamation' })}
+          />
+        }
         list={datalistId}
-        readonly={loading}
+        readOnly={loading}
         placeholder="アイテム名"
         loading={loading}
         value={name}
@@ -129,9 +191,11 @@ const TaskForm = React.memo(function TaskForm({
       />
       <FormInput
         required
+        icon={diffRate && <DiffIcon diffRate={diffRate} />}
+        iconPosition="left"
         placeholder="価格"
         loading={loading}
-        readonly={loading}
+        readOnly={loading}
         value={value}
         onChange={(_e, { value }): void => {
           const n = Number(value.replace(/[^.0-9]/g, ''));
@@ -168,22 +232,11 @@ export default React.memo(function RecognitionTask({
   const name = task.result && task.result.name;
   const value = task.result && task.result.value;
 
-  const icon = loading ? (
-    <Loader />
-  ) : isValid(task.result) ? (
-    <Icon color="green" name="check" />
-  ) : (
-    <Icon color="red" name="exclamation" />
-  );
-
   return (
     <Card>
       <TaskImage image={task.image} />
       <CardContent>
-        <CardDescription>
-          {icon}
-          {task.timestamp}
-        </CardDescription>
+        <CardDescription>{task.timestamp}</CardDescription>
       </CardContent>
       <CardContent>
         <CardDescription>
