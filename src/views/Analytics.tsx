@@ -202,6 +202,9 @@ const Row = React.memo(function Row({ item }: { item: Item }): JSX.Element {
   const onMouseEnter = () => setChart(true);
 
   useEffect((): void => {
+    if (localStorage.getItem('NO_CHART_UNDER_ROW')) {
+      return;
+    }
     const anchor = anchorRef.current;
     if (!anchor) return;
 
