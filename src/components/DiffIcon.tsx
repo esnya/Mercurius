@@ -1,13 +1,16 @@
 import React from 'react';
 import { Icon } from 'semantic-ui-react';
 
+export const ErrorThreshold = 0.7;
+
 export default function DiffIcon({
   diffRate,
 }: {
   diffRate: number | null;
 }): JSX.Element {
   if (diffRate === null) return <Icon color="grey" name="question" />;
-  if (Math.abs(diffRate) > 0.7) return <Icon color="red" name="warning" />;
+  if (Math.abs(diffRate) > ErrorThreshold)
+    return <Icon color="red" name="warning" />;
   if (diffRate < -0.1) return <Icon color="red" name="angle double down" />;
   if (diffRate < -0.01) return <Icon color="orange" name="angle down" />;
   if (diffRate > 0.1) return <Icon color="blue" name="angle double up" />;

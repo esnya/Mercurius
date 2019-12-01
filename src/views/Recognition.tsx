@@ -10,7 +10,7 @@ import {
 import shortid from 'shortid';
 import { ChildProps, withESQuery } from '../enhancers/withESQuery';
 import defaultsDeep from 'lodash/defaultsDeep';
-import { index } from '../elasticsearch';
+import { index, search } from '../elasticsearch';
 import ActionButton from '../components/ActionButton';
 import RecognitionTask, {
   Task,
@@ -22,6 +22,8 @@ import Ocr from '../utilities/ocr';
 import Decision22 from '../assets/decision22.mp3';
 import Decision24 from '../assets/decision24.mp3';
 import Warning1 from '../assets/warning1.mp3';
+import { ErrorThreshold } from '../components/DiffIcon';
+import moment from 'moment';
 
 interface State {
   video?: HTMLVideoElement;
@@ -186,12 +188,14 @@ export default withESQuery('mercurius-trading', {
 
       const id = shortid();
 
+      const timestamp = formatTimestamp();
+
       this.setState(({ tasks }) => ({
         tasks: [
           {
             id,
             image,
-            timestamp: formatTimestamp(),
+            timestamp,
           },
           ...tasks.filter(t => t.id !== id),
         ],
@@ -203,16 +207,86 @@ export default withESQuery('mercurius-trading', {
         }));
       };
 
-      this.ocr.recognize(image, this.names).then(
-        result => {
+      setTimeout(async () => {
+        try {
+          const result = await this.ocr.recognize(image, this.names);
           updateTask({ id, result });
-          this.playSound(isValid(result) ? 'succeeded' : 'failed');
-        },
-        error => {
+
+          const {
+            aggregations: {
+              filtered: {
+                avg: { value: prevValue },
+              },
+            },
+          } = (await search('mercurius-trading', {
+            size: 0,
+            aggs: {
+              filtered: {
+                filter: {
+                  bool: {
+                    must: {
+                      match: {
+                        'name.keyword': name,
+                      },
+                    },
+                    filter: {
+                      range: {
+                        timestamp: {
+                          gt: moment()
+                            .subtract(1, 'days')
+                            .milliseconds(),
+                        },
+                      },
+                    },
+                  },
+                },
+                aggs: {
+                  avg: {
+                    avg: {
+                      field: 'value',
+                    },
+                  },
+                },
+              },
+            },
+          } as any)) as any;
+
+          const diffRate =
+            result && result.value && prevValue
+              ? (result.value - prevValue) / result.value
+              : undefined;
+
+          updateTask({
+            id,
+            result: {
+              ...result,
+              diffRate,
+            },
+          });
+
+          if (diffRate && Math.abs(diffRate) > ErrorThreshold) {
+            throw new Error('Difference too big');
+          }
+
+          if (isValid(result)) {
+            await index('mercurius-trading', {
+              timestamp,
+              name: result.name,
+              value: result.value,
+              drawing: result.drawing,
+            });
+            await this.setState(({ tasks }) => ({
+              tasks: tasks.filter(t => t.id !== id),
+            }));
+            this.playSound('succeeded');
+          } else {
+            this.playSound('failed');
+          }
+        } catch (error) {
           updateTask({ id, errors: [error.toString()] });
           this.playSound('failed');
-        },
-      );
+        }
+      });
     }
 
     get options(): RecognitionOptions {

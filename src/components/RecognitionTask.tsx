@@ -15,8 +15,6 @@ import {
 import ActionButton from './ActionButton';
 import shortid from 'shortid';
 import { formatDecimal, formatInteger } from '../utilities/format';
-import { search } from '../elasticsearch';
-import moment from 'moment';
 import DiffIcon from './DiffIcon';
 
 export interface Result {
@@ -24,6 +22,7 @@ export interface Result {
   nameCandidates?: { name: string; score: number }[];
   value?: number;
   drawing: boolean;
+  diffRate?: number;
 }
 
 export interface ValidResult {
@@ -111,57 +110,6 @@ const TaskForm = React.memo(function TaskForm({
   const value = result && result.value && formatInteger(result.value);
   const drawing = result && result.drawing;
 
-  const [prevValue, setPrevValue] = useState<number | null>(null);
-  if (name && value) {
-    search('mercurius-trading', {
-      size: 0,
-      aggs: {
-        filtered: {
-          filter: {
-            bool: {
-              must: {
-                match: {
-                  'name.keyword': name,
-                },
-              },
-              filter: {
-                range: {
-                  timestamp: {
-                    gt: moment()
-                      .subtract(1, 'days')
-                      .milliseconds(),
-                  },
-                },
-              },
-            },
-          },
-          aggs: {
-            avg: {
-              avg: {
-                field: 'value',
-              },
-            },
-          },
-        },
-      },
-    } as any).then(
-      ({
-        aggregations: {
-          filtered: {
-            avg: { value },
-          },
-        },
-      }: any) => {
-        setPrevValue(value);
-      },
-    );
-  }
-
-  const diffRate =
-    result && result.value && prevValue
-      ? (result.value - prevValue) / result.value
-      : null;
-
   return (
     <Form>
       <Dimmer inverted active={loading}>
@@ -191,7 +139,9 @@ const TaskForm = React.memo(function TaskForm({
       />
       <FormInput
         required
-        icon={diffRate && <DiffIcon diffRate={diffRate} />}
+        icon={
+          result && result.diffRate && <DiffIcon diffRate={result.diffRate} />
+        }
         iconPosition="left"
         placeholder="価格"
         loading={loading}
@@ -218,8 +168,6 @@ export default React.memo(function RecognitionTask({
   onEdit,
   onDelete,
 }: RecognitionTaskProps): JSX.Element {
-  const loading = Boolean(!task.result && !task.errors);
-
   const error = task.errors ? (
     <CardContent>
       <Message negative>
@@ -229,8 +177,6 @@ export default React.memo(function RecognitionTask({
       </Message>
     </CardContent>
   ) : null;
-  const name = task.result && task.result.name;
-  const value = task.result && task.result.value;
 
   return (
     <Card>
