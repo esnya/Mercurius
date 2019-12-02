@@ -18,7 +18,11 @@ import {
 import { VegaLite } from 'react-vega';
 import get from 'lodash/get';
 import sortBy from 'lodash/sortBy';
-import { formatInteger, formatDecimal } from '../utilities/format';
+import {
+  formatInteger,
+  formatDecimal,
+  formatTimestamp,
+} from '../utilities/format';
 import moment from 'moment';
 import defaultsDeep from 'lodash/defaultsDeep';
 import { TopLevelSpec } from 'vega-lite';
@@ -34,6 +38,8 @@ interface Item {
   diff: number | null;
   diffRate: number | null;
   values: { timestamp: number; value: number }[];
+  maxTimestamp: number;
+  minTimestamp: number;
 }
 
 const Colors: Exclude<LabelProps['color'], undefined>[] = [
@@ -270,6 +276,12 @@ const Row = React.memo(function Row({ item }: { item: Item }): JSX.Element {
       <TableCell textAlign="right" style={colStyle}>
         {formatDecimal(item.totalRate * 100)}%
       </TableCell>
+      <TableCell style={colStyle}>
+        {formatTimestamp(item.maxTimestamp)}
+      </TableCell>
+      <TableCell style={colStyle}>
+        {formatTimestamp(item.minTimestamp)}
+      </TableCell>
       <ChartModal
         item={item}
         open={open}
@@ -301,6 +313,11 @@ export default withESQuery(
           size: 10000,
         },
         aggs: {
+          timestampStats: {
+            extended_stats: {
+              field: 'timestamp',
+            },
+          },
           stats: {
             extended_stats: {
               field: 'value',
@@ -382,6 +399,11 @@ export default withESQuery(
               value: b.stats.avg,
             }));
 
+          const {
+            min: minTimestamp,
+            max: maxTimestamp,
+          } = bucket.timestampStats;
+
           return {
             name,
             lastPrice,
@@ -392,6 +414,8 @@ export default withESQuery(
             diff,
             diffRate,
             values,
+            minTimestamp,
+            maxTimestamp,
           };
         },
       );
@@ -456,6 +480,8 @@ export default withESQuery(
                 {headerCell('minPrice', '底値')}
                 {headerCell('maxPrice', '高値')}
                 {headerCell('totalRate', '変動幅')}
+                {headerCell('maxTimestamp', '最終更新日時')}
+                {headerCell('minTimestamp', '登録日時')}
               </TableRow>
             </TableHeader>
             <TableBody>{rows}</TableBody>
