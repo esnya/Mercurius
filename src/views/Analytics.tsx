@@ -14,6 +14,8 @@ import {
   Modal,
   Button,
   Segment,
+  FormSelect,
+  Form,
 } from 'semantic-ui-react';
 import { VegaLite } from 'react-vega';
 import get from 'lodash/get';
@@ -296,10 +298,30 @@ interface State {
     column: keyof Item;
     direction: 'ascending' | 'descending';
   };
+  filter: string;
 }
 
 function sortPredicate(column: string) {
   return (item: Item): string | number => get(item, column);
+}
+
+function itemFilter(filter: string): (item: Item) => boolean {
+  return (item: Item): boolean => {
+    switch (filter) {
+      case 'buy':
+        return (
+          (item.diffRate && item.diffRate > -0.01 && item.lastRate <= 0.1) ||
+          false
+        );
+      case 'sell':
+        return (
+          ((!item.diffRate || item.diffRate > 0) && item.lastRate >= 0.4) ||
+          false
+        );
+      default:
+        return true;
+    }
+  };
 }
 
 export default withESQuery(
@@ -351,12 +373,13 @@ export default withESQuery(
           column: 'totalRate',
           direction: 'descending',
         },
+        filter: 'all',
       };
     }
 
     get items(): Item[] {
-      const items = this.props.value.aggregations.name_buckets.buckets.map(
-        bucket => {
+      const items = this.props.value.aggregations.name_buckets.buckets
+        .map(bucket => {
           const dateBuckets = sortBy(bucket.date_buckets.buckets, b => -b.key);
           const lastBucket = dateBuckets[0];
 
@@ -417,8 +440,8 @@ export default withESQuery(
             minTimestamp,
             maxTimestamp,
           };
-        },
-      );
+        })
+        .filter(itemFilter(this.state.filter));
 
       const { column, direction } = this.state.sort;
       const sorted = sortBy(items, sortPredicate(column));
@@ -469,6 +492,21 @@ export default withESQuery(
 
       return (
         <Container>
+          <Segment>
+            <Form>
+              <FormSelect
+                value={this.state.filter}
+                options={[
+                  { value: 'all', text: 'すべて' },
+                  { value: 'sell', text: '売り' },
+                  { value: 'buy', text: '買い' },
+                ]}
+                onChange={(_e, { value }) =>
+                  this.setState({ filter: value as any })
+                }
+              ></FormSelect>
+            </Form>
+          </Segment>
           <Table sortable>
             <TableHeader>
               <TableRow>
