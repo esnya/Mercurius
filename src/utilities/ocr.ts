@@ -85,12 +85,12 @@ export default class Ocr {
           : []),
       ])
       .flatten()
-      .filter(({ score }) => score < 0.8)
+      .filter(({ score }) => score < 0.6)
       .sortBy(({ score }) => score)
       .value();
 
     const front = nameCandidates[0];
-    const name = front && front.score < 0.25 ? front.name : undefined;
+    const name = front && front.score < 0.2 ? front.name : undefined;
     const value =
       Number(lines[drawing ? 2 : 1].replace(/^0|[^0-9]+/g, '')) || undefined;
 

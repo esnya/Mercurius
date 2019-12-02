@@ -264,11 +264,11 @@ export default withESQuery('mercurius-trading', {
             },
           });
 
-          if (diffRate && Math.abs(diffRate) > ErrorThreshold) {
+          if (diffRate && Math.abs(diffRate) > 0.5) {
             throw new Error('Difference too big');
           }
 
-          if (isValid(result)) {
+          if (diffRate !== undefined && isValid(result)) {
             await index('mercurius-trading', {
               timestamp,
               name: result.name,
