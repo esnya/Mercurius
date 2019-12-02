@@ -212,44 +212,40 @@ export default withESQuery('mercurius-trading', {
           const result = await this.ocr.recognize(image, this.names);
           updateTask({ id, result });
 
-          const {
-            aggregations: {
-              filtered: {
-                avg: { value: prevValue },
-              },
-            },
-          } = (await search('mercurius-trading', {
-            size: 0,
-            aggs: {
-              filtered: {
-                filter: {
-                  bool: {
-                    must: {
+          const res =
+            result.name &&
+            (await search('mercurius-trading', {
+              // size: 0,
+              query: {
+                bool: {
+                  must: [
+                    {
                       match: {
-                        'name.keyword': name,
+                        'name.keyword': result.name,
                       },
                     },
-                    filter: {
+                    {
                       range: {
                         timestamp: {
                           gt: moment()
                             .subtract(1, 'days')
-                            .milliseconds(),
+                            .unix(),
                         },
                       },
                     },
-                  },
+                  ],
                 },
-                aggs: {
+              },
+              aggs: {
+                avg: {
                   avg: {
-                    avg: {
-                      field: 'value',
-                    },
+                    field: 'value',
                   },
                 },
               },
-            },
-          } as any)) as any;
+            } as any));
+
+          const prevValue = res && res.aggregations.avg.value;
 
           const diffRate =
             result && result.value && prevValue
