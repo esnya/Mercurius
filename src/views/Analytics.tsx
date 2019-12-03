@@ -1,5 +1,4 @@
-import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
-import { withESQuery, ChildProps } from '../enhancers/withESQuery';
+import React, { useState, useEffect } from 'react';
 import {
   Table,
   TableHeader,
@@ -16,8 +15,13 @@ import {
   Segment,
   FormSelect,
   Form,
+  Pagination,
+  Loader,
+  Image,
+  ModalContent,
+  ModalActions,
+  FormInput,
 } from 'semantic-ui-react';
-import { VegaLite } from 'react-vega';
 import get from 'lodash/get';
 import sortBy from 'lodash/sortBy';
 import {
@@ -25,10 +29,10 @@ import {
   formatDecimal,
   formatTimestamp,
 } from '../utilities/format';
-import moment from 'moment';
-import defaultsDeep from 'lodash/defaultsDeep';
-import { TopLevelSpec } from 'vega-lite';
+import moment, { Moment } from 'moment';
 import DiffIcon from '../components/DiffIcon';
+import renderChart from '../chart';
+import { search } from '../elasticsearch';
 
 interface Item {
   name: string;
@@ -62,51 +66,20 @@ function getChartColor(rate: number): string {
   return color;
 }
 
-const ChartSpec: TopLevelSpec = {
-  // width: 400,
-  // height: 300,
-  $schema: 'https://vega.github.io/schema/vega-lite/v4.0.0-beta.12.json',
-  padding: 30,
-  data: { name: 'data' },
-  layer: [{ mark: 'line' }, { mark: 'point' }],
-  encoding: {
-    x: {
-      field: 'timestamp',
-      type: 'temporal',
-      axis: {
-        formatType: 'time',
-        format: '%m/%d %H:%M',
-      },
-    },
-    y: { field: 'value', type: 'quantitative' },
-    strokeWidth: { value: 1 },
-    tooltip: {
-      format: ',',
-      formatType: 'number',
-      field: 'value',
-      type: 'quantitative',
-    },
-  },
-  config: {
-    axis: {
-      shortTimeLabels: true,
-    },
-  },
-};
-
-function getChartDomain(): [string, string] {
+function getDomain(): [Moment, Moment] {
   return [
     moment()
       .subtract(14, 'days')
-      .add(9, 'hours')
-      .toISOString(),
-    moment()
-      .add(9, 'hours')
-      .toISOString(),
+      .add(9, 'hours'),
+    moment().add(9, 'hours'),
   ];
 }
 
-const ChartModal = React.memo(function ChartModal({
+function getChartDomain(): [string, string] {
+  return getDomain().map(m => m.toISOString()) as [string, string];
+}
+
+function ChartModal({
   item,
   open,
   onClose,
@@ -115,64 +88,65 @@ const ChartModal = React.memo(function ChartModal({
   open: boolean;
   onClose: () => void;
 }): JSX.Element {
-  const color = getChartColor(item.lastRate);
-  const spec: TopLevelSpec = defaultsDeep(
-    {
-      title: item.name,
-      width: Math.min(Math.max(window.innerWidth - 230, 200), 790),
-      height: Math.max(window.innerHeight - 300, 200),
-      encoding: {
-        color: {
-          value: color,
-        },
-        x: {
-          scale: {
-            domain: getChartDomain(),
+  const [url, setUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!url) {
+      const color = getChartColor(item.lastRate);
+      renderChart(
+        {
+          title: item.name,
+          width: Math.min(Math.max(window.innerWidth - 230, 200), 790),
+          height: Math.max(window.innerHeight - 300, 200),
+          encoding: {
+            color: {
+              value: color,
+            },
+            x: {
+              scale: {
+                domain: getChartDomain(),
+              },
+            },
+            y: {
+              scale: { domain: [0, item.maxPrice] },
+            },
           },
         },
-        y: {
-          scale: { domain: [0, item.maxPrice] },
-        },
-      },
-    },
-    ChartSpec,
-  );
+        item.values,
+      ).then(setUrl, console.error);
+    }
+  });
+
   return (
     <Modal open={open} onClose={onClose}>
-      <Segment>
-        {open ? <VegaLite spec={spec} data={{ data: item.values }} /> : null}
+      <ModalContent image>
+        {url ? <Image src={url} /> : <Loader />}
+      </ModalContent>
+      <ModalActions>
         <Button onClick={onClose}>閉じる</Button>
-      </Segment>
+      </ModalActions>
     </Modal>
   );
-});
+}
 
-const ChartUnderRow = React.memo(function ChartUnderRow({
-  item,
-  size: { width, height },
-}: {
-  item: Item;
-  size: { width: number; height: number };
-}): JSX.Element | null {
-  if (!width || !height) {
-    return null;
-  }
-  const color = getChartColor(item.lastRate);
+async function renderBackgroundChart(item: Item): Promise<string> {
+  const { values: data } = item;
 
-  const spec: TopLevelSpec = defaultsDeep(
+  const url = await renderChart(
     {
-      width: width,
-      height: height,
+      width: 1024,
+      height: 1024,
       padding: 0,
       layer: [{ mark: 'area' }, { mark: 'line' }],
       encoding: {
         color: {
-          value: color,
+          value: getChartColor(item.lastRate),
         },
         x: {
           scale: {
             domain: getChartDomain(),
           },
+          sort: 'descending',
           axis: null,
         },
         y: {
@@ -188,102 +162,50 @@ const ChartUnderRow = React.memo(function ChartUnderRow({
         },
       },
     },
-    ChartSpec,
+    data,
   );
-  return (
-    <VegaLite
-      data={{ data: item.values }}
-      spec={spec}
-      actions={false}
-      style={{ transform: 'scaleX(-1)', transformOrigin: 'center center' }}
-    />
-  );
-});
 
-const Row = React.memo(function Row({ item }: { item: Item }): JSX.Element {
+  return url;
+}
+
+function Row({ item }: { item: Item }): JSX.Element {
   const color = Colors[Math.floor((Colors.length - 1) * item.lastRate)];
   const [open, setOpen] = useState(false);
-  const [size, setSize] = useState({ width: 0, height: 0 });
-  const [chart, setChart] = useState(false);
-  const anchorRef = useRef<HTMLDivElement>(null);
 
-  const onMouseEnter = () => setChart(true);
-
-  useEffect((): void => {
-    if (localStorage.getItem('NO_CHART_UNDER_ROW')) {
-      return;
-    }
-    const anchor = anchorRef.current;
-    if (!anchor) return;
-
-    const tr = anchor.parentElement && anchor.parentElement.parentElement;
-    if (!tr) return;
-    tr.addEventListener('mouseover', onMouseEnter);
-
-    const { offsetWidth, offsetHeight } = tr;
-
-    const width = offsetWidth - (11 + 36);
-    const height = offsetHeight - 11 * 2;
-    if (width !== size.width && height !== size.height) {
-      setSize({ width, height });
+  const [background, setBackground] = useState<string | null>(null);
+  useEffect(() => {
+    if (!background) {
+      renderBackgroundChart(item).then(setBackground, console.error);
     }
   });
 
-  const colStyle = {
-    transform: 'translateZ(1px)',
-  };
-
   return (
-    <TableRow style={{ transformStyle: 'preserve-3d' }}>
-      <TableCell textAlign="center" style={colStyle}>
-        <div
-          ref={anchorRef}
-          style={{
-            position: 'relative',
-            width: 0,
-            height: 0,
-            overflow: 'visible',
-            transform: 'translateZ(-1px)',
-            left: 36,
-          }}
-        >
-          {chart ? <ChartUnderRow item={item} size={size} /> : null}
-        </div>
-        <Button
-          basic
-          icon
-          size="small"
-          style={{ backgroundColor: 'white !important', ...colStyle }}
-          onClick={(): void => setOpen(true)}
-        >
+    <TableRow
+      style={{
+        backgroundImage: background && `url(${background})`,
+        backgroundSize: '100% 100%',
+      }}
+    >
+      <TableCell textAlign="center">
+        <Button basic icon size="small" onClick={(): void => setOpen(true)}>
           {item.diffRate && <DiffIcon diffRate={item.diffRate} />}
         </Button>
       </TableCell>
-      <TableCell style={colStyle}>{item.name}</TableCell>
-      <TableCell textAlign="right" style={colStyle}>
-        {formatInteger(item.lastPrice)}
-      </TableCell>
-      <TableCell textAlign="right" style={colStyle}>
+      <TableCell>{item.name}</TableCell>
+      <TableCell textAlign="right">{formatInteger(item.lastPrice)}</TableCell>
+      <TableCell textAlign="right">
         {item.diffRate && formatDecimal(item.diffRate * 100)}%
       </TableCell>
-      <TableCell textAlign="right" style={colStyle}>
+      <TableCell textAlign="right">
         <Label color={color}>{formatDecimal(item.lastRate * 100)}%</Label>
       </TableCell>
-      <TableCell textAlign="right" style={colStyle}>
-        {formatInteger(item.minPrice)}
-      </TableCell>
-      <TableCell textAlign="right" style={colStyle}>
-        {formatInteger(item.maxPrice)}
-      </TableCell>
-      <TableCell textAlign="right" style={colStyle}>
+      <TableCell textAlign="right">{formatInteger(item.minPrice)}</TableCell>
+      <TableCell textAlign="right">{formatInteger(item.maxPrice)}</TableCell>
+      <TableCell textAlign="right">
         {formatDecimal(item.totalRate * 100)}%
       </TableCell>
-      <TableCell style={colStyle}>
-        {formatTimestamp(item.maxTimestamp)}
-      </TableCell>
-      <TableCell style={colStyle}>
-        {formatTimestamp(item.minTimestamp)}
-      </TableCell>
+      <TableCell>{formatTimestamp(item.maxTimestamp)}</TableCell>
+      <TableCell>{formatTimestamp(item.minTimestamp)}</TableCell>
       <ChartModal
         item={item}
         open={open}
@@ -291,14 +213,6 @@ const Row = React.memo(function Row({ item }: { item: Item }): JSX.Element {
       />
     </TableRow>
   );
-});
-
-interface State {
-  sort: {
-    column: keyof Item;
-    direction: 'ascending' | 'descending';
-  };
-  filter: string;
 }
 
 function sortPredicate(column: string) {
@@ -334,9 +248,8 @@ function itemFilter(filter: string): (item: Item) => boolean {
   };
 }
 
-export default withESQuery(
-  'mercurius-trading',
-  {
+async function getItems(): Promise<Item[]> {
+  const res = await search('mercurius-trading', {
     size: 0,
     aggs: {
       name_buckets: {
@@ -371,175 +284,216 @@ export default withESQuery(
         },
       },
     },
-  },
-  5 * 1000,
-)(
-  class Analytics extends React.Component<ChildProps, State> {
-    constructor(props: ChildProps) {
-      super(props);
+  });
 
-      this.state = {
-        sort: {
-          column: 'totalRate',
-          direction: 'descending',
-        },
-        filter: 'all',
-      };
+  const domain = getDomain();
+  const items = res.aggregations.name_buckets.buckets.map(bucket => {
+    const dateBuckets = sortBy(bucket.date_buckets.buckets, b => -b.key);
+    const lastBucket = dateBuckets[0];
+
+    const totalStats = bucket.stats;
+    const lastStats = lastBucket ? lastBucket.stats : totalStats;
+
+    const name = bucket.key;
+
+    const lastPrice = lastStats.avg;
+    const maxPrice = bucket.stats.max;
+    const minPrice = bucket.stats.min;
+
+    const hourAsMillis = moment.duration(1, 'hour').asMilliseconds();
+    const dayAsMillis = moment.duration(1, 'day').asMilliseconds();
+    const prevBucket = dateBuckets.find(
+      b =>
+        b.stats.avg !== null &&
+        (lastBucket.key as any) - (b.key as any) > hourAsMillis * 6 &&
+        b.stats.avg !== lastPrice,
+    );
+    const prevPrice = prevBucket && prevBucket.stats.avg;
+    const diffRange =
+      prevBucket &&
+      ((lastBucket.key as any) - (prevBucket.key as any)) / dayAsMillis;
+
+    const diff =
+      prevPrice && diffRange ? (lastPrice - prevPrice) / diffRange : null;
+    const diffRate = prevPrice && diff ? diff / prevPrice : null;
+
+    const totalDiff = maxPrice - minPrice;
+    const totalRate = totalDiff === 0 ? 0 : (maxPrice - minPrice) / minPrice;
+    const lastRate = totalDiff === 0 ? 0 : (lastPrice - minPrice) / totalDiff;
+
+    // console.log(dateBuckets[0].key, ...domain.map(d => d.unix()));
+    const values = dateBuckets
+      .filter(
+        b =>
+          Number(b.key) >= domain[0].toDate().getTime() &&
+          Number(b.key) <= domain[1].toDate().getTime() &&
+          b.stats.avg,
+      )
+      .map(b => ({
+        timestamp: (b.key as unknown) as number,
+        value: b.stats.avg,
+      }));
+
+    const { min: minTimestamp, max: maxTimestamp } = bucket.timestampStats;
+
+    return {
+      name,
+      lastPrice,
+      maxPrice,
+      minPrice,
+      totalRate,
+      lastRate,
+      diff,
+      diffRate,
+      values,
+      minTimestamp,
+      maxTimestamp,
+    };
+  });
+
+  return items;
+}
+
+interface SortOptions {
+  column: keyof Item;
+  direction: 'ascending' | 'descending';
+}
+function sortItems(
+  items: Item[],
+  filter: string,
+  { column, direction }: SortOptions,
+): Item[] {
+  const filtered = items.filter(itemFilter(filter));
+  const sorted = sortBy(filtered, sortPredicate(column));
+
+  if (direction == 'ascending') return sorted;
+
+  const reversed = sorted.reverse();
+  const i = sorted.findIndex(
+    item => get(item, column) !== null && get(item, column) !== undefined,
+  );
+  if (i <= 0) return reversed;
+
+  return [...reversed.slice(i), ...reversed.slice(0, i)];
+}
+
+export default function Analytics(): JSX.Element {
+  const [itemsPerPage, setItemsPerPage] = useState<number>(25);
+  const [sort, setSort] = useState<SortOptions>({
+    column: 'totalRate',
+    direction: 'descending',
+  });
+  const [filter, setFilter] = useState<string>('all');
+  const [page, setPage] = useState<number>(0);
+  const [items, setItems] = useState<Item[] | null>(null);
+
+  useEffect((): void => {
+    if (!items) {
+      getItems().then(setItems, console.error);
     }
+  });
 
-    get items(): Item[] {
-      const items = this.props.value.aggregations.name_buckets.buckets
-        .map(bucket => {
-          const dateBuckets = sortBy(bucket.date_buckets.buckets, b => -b.key);
-          const lastBucket = dateBuckets[0];
+  const sorted = items && sortItems(items, filter, sort);
+  const pages = sorted ? Math.ceil(sorted.length / itemsPerPage) : 1;
 
-          const totalStats = bucket.stats;
-          const lastStats = lastBucket ? lastBucket.stats : totalStats;
+  const rows = sorted ? (
+    sorted
+      .slice(page * itemsPerPage, (page + 1) * itemsPerPage)
+      .map(item => <Row key={item.name} item={item} />)
+  ) : (
+    <TableRow>
+      <TableCell colSpan="10">
+        <Loader />
+      </TableCell>
+    </TableRow>
+  );
 
-          const name = bucket.key;
+  const headerCell = (
+    column: keyof Item,
+    label: string | JSX.Element,
+    textAlign?: 'center',
+  ): JSX.Element => {
+    const sorted = sort.column === column ? sort.direction : undefined;
+    const onClick = (): void => {
+      setSort({
+        column,
+        direction:
+          sort.column === column && sort.direction === 'descending'
+            ? 'ascending'
+            : 'descending',
+      });
+    };
 
-          const lastPrice = lastStats.avg;
-          const maxPrice = bucket.stats.max;
-          const minPrice = bucket.stats.min;
+    return (
+      <TableHeaderCell sorted={sorted} textAlign={textAlign} onClick={onClick}>
+        {label}
+      </TableHeaderCell>
+    );
+  };
 
-          const hourAsMillis = moment.duration(1, 'hour').asMilliseconds();
-          const dayAsMillis = moment.duration(1, 'day').asMilliseconds();
-          const prevBucket = dateBuckets.find(
-            b =>
-              b.stats.avg !== null &&
-              (lastBucket.key as any) - (b.key as any) > hourAsMillis * 6 &&
-              b.stats.avg !== lastPrice,
-          );
-          const prevPrice = prevBucket && prevBucket.stats.avg;
-          const diffRange =
-            prevBucket &&
-            ((lastBucket.key as any) - (prevBucket.key as any)) / dayAsMillis;
-
-          const diff =
-            prevPrice && diffRange ? (lastPrice - prevPrice) / diffRange : null;
-          const diffRate = prevPrice && diff ? diff / prevPrice : null;
-
-          const totalDiff = maxPrice - minPrice;
-          const totalRate =
-            totalDiff === 0 ? 0 : (maxPrice - minPrice) / minPrice;
-          const lastRate =
-            totalDiff === 0 ? 0 : (lastPrice - minPrice) / totalDiff;
-
-          const values = dateBuckets
-            .filter(b => b.stats.avg)
-            .map(b => ({
-              timestamp: (b.key as unknown) as number,
-              value: b.stats.avg,
-            }));
-
-          const {
-            min: minTimestamp,
-            max: maxTimestamp,
-          } = bucket.timestampStats;
-
-          return {
-            name,
-            lastPrice,
-            maxPrice,
-            minPrice,
-            totalRate,
-            lastRate,
-            diff,
-            diffRate,
-            values,
-            minTimestamp,
-            maxTimestamp,
-          };
-        })
-        .filter(itemFilter(this.state.filter));
-
-      const { column, direction } = this.state.sort;
-      const sorted = sortBy(items, sortPredicate(column));
-      if (direction == 'ascending') return sorted;
-
-      const reversed = sorted.reverse();
-      const i = sorted.findIndex(
-        item => get(item, column) !== null && get(item, column) !== undefined,
-      );
-      if (i <= 0) return reversed;
-
-      return [...reversed.slice(i), ...reversed.slice(0, i)];
-    }
-
-    render(): JSX.Element {
-      const rows = this.items.map(item => <Row key={item.name} item={item} />);
-
-      const headerCell = (
-        column: keyof Item,
-        label: string | JSX.Element,
-        textAlign?: 'center',
-      ): JSX.Element => {
-        const sorted =
-          this.state.sort.column === column
-            ? this.state.sort.direction
-            : undefined;
-        const onClick = (): void => {
-          this.setState(({ sort }) => ({
-            sort: {
-              column,
-              direction:
-                sort.column === column && sort.direction === 'descending'
-                  ? 'ascending'
-                  : 'descending',
-            },
-          }));
-        };
-        return (
-          <TableHeaderCell
-            sorted={sorted}
-            textAlign={textAlign}
-            onClick={onClick}
-          >
-            {label}
-          </TableHeaderCell>
-        );
-      };
-
-      return (
-        <Container>
-          <Segment>
-            <Form>
-              <FormSelect
-                value={this.state.filter}
-                options={[
-                  { value: 'all', text: 'すべて' },
-                  { value: 'high', text: '高値' },
-                  { value: 'low', text: '安値' },
-                  { value: 'increase', text: '上昇' },
-                  { value: 'decrease', text: '下降' },
-                  { value: 'sell', text: '売り' },
-                  { value: 'buy', text: '買い' },
-                ]}
-                onChange={(_e, { value }) =>
-                  this.setState({ filter: value as any })
-                }
-              ></FormSelect>
-            </Form>
-          </Segment>
-          <Table sortable>
-            <TableHeader>
-              <TableRow>
-                {headerCell('diffRate', <Icon name="line graph" />, 'center')}
-                {headerCell('name', 'アイテム名')}
-                {headerCell('lastPrice', '現価')}
-                {headerCell('diffRate', '増減率')}
-                {headerCell('lastRate', '')}
-                {headerCell('minPrice', '底値')}
-                {headerCell('maxPrice', '高値')}
-                {headerCell('totalRate', '変動幅')}
-                {headerCell('maxTimestamp', '最終更新日時')}
-                {headerCell('minTimestamp', '登録日時')}
-              </TableRow>
-            </TableHeader>
-            <TableBody>{rows}</TableBody>
-          </Table>
-        </Container>
-      );
-    }
-  },
-);
+  return (
+    <Container>
+      <Segment>
+        <Form>
+          <FormSelect
+            label="フィルター"
+            value={filter}
+            options={[
+              { value: 'all', text: 'すべて' },
+              { value: 'high', text: '高値' },
+              { value: 'low', text: '安値' },
+              { value: 'increase', text: '上昇' },
+              { value: 'decrease', text: '下降' },
+              { value: 'sell', text: '売り' },
+              { value: 'buy', text: '買い' },
+            ]}
+            onChange={(_e, { value }): void => setFilter(`${value || 'all'}`)}
+          />
+          <FormInput
+            type="number"
+            label="1ページの表示件数"
+            value={itemsPerPage}
+            onChange={(_e, { value }): void => {
+              const next = Number(value);
+              if (next > 0) setItemsPerPage(next);
+            }}
+          />
+        </Form>
+      </Segment>
+      <Table sortable stackable={false}>
+        <TableHeader>
+          <TableRow>
+            {headerCell('diffRate', <Icon name="line graph" />, 'center')}
+            {headerCell('name', 'アイテム名')}
+            {headerCell('lastPrice', '現価')}
+            {headerCell('diffRate', '増減率')}
+            {headerCell('lastRate', '')}
+            {headerCell('minPrice', '底値')}
+            {headerCell('maxPrice', '高値')}
+            {headerCell('totalRate', '変動幅')}
+            {headerCell('maxTimestamp', '最終更新日時')}
+            {headerCell('minTimestamp', '登録日時')}
+          </TableRow>
+        </TableHeader>
+        <TableBody>{rows}</TableBody>
+      </Table>
+      <Pagination
+        totalPages={pages}
+        activePage={page + 1}
+        firstItem={{
+          content: <Icon name="angle double left" />,
+          icon: true,
+        }}
+        lastItem={{
+          content: <Icon name="angle double right" />,
+          icon: true,
+        }}
+        prevItem={{ content: <Icon name="angle left" />, icon: true }}
+        nextItem={{ content: <Icon name="angle right" />, icon: true }}
+        onPageChange={(_e, { activePage }): void =>
+          setPage(Number(activePage) - 1 || 0)
+        }
+      />
+    </Container>
+  );
+}

@@ -1,9 +1,14 @@
-import { Configuration } from 'webpack';
+import { Configuration, Plugin } from 'webpack';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
 import WorkboxPlugin from 'workbox-webpack-plugin';
 import firebaseInitMiddleware from './src/build/firebaseInitMiddleware'
 
+function isPlugin(plugin: Plugin | null): plugin is Plugin {
+  return plugin !== null;
+}
+
 export default async function config(): Promise<Configuration> {
+  const production = process.env.NODE_ENV === 'production';
   const initMiddleware = await firebaseInitMiddleware();
   return {
     devServer: {
@@ -15,7 +20,7 @@ export default async function config(): Promise<Configuration> {
     },
     devtool: 'cheap-eval-source-map',
     entry: './src/index.tsx',
-    mode: 'development',
+    mode: production ? 'production' : 'development',
     module: {
       rules: [
         {
@@ -48,8 +53,8 @@ export default async function config(): Promise<Configuration> {
       new HtmlWebpackPlugin({
         title: 'Mercurius',
       }),
-      new WorkboxPlugin.GenerateSW({}),
-    ],
+      production ? new WorkboxPlugin.GenerateSW({}) : null,
+    ].filter<Plugin>(isPlugin),
     resolve: {
       extensions: ['.ts', '.tsx', '.js', '.jsx'],
     },
