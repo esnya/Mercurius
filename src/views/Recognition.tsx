@@ -260,24 +260,28 @@ export default withESQuery('mercurius-trading', {
             },
           });
 
-          if (diffRate && Math.abs(diffRate) > 0.5) {
+          if (!diffRate) {
+            throw new Error('Failed to calc difference');
+          }
+
+          if (diffRate && Math.abs(diffRate) > ErrorThreshold) {
             throw new Error('Difference too big');
           }
 
-          if (diffRate !== undefined && isValid(result)) {
-            await index('mercurius-trading', {
-              timestamp,
-              name: result.name,
-              value: result.value,
-              drawing: result.drawing,
-            });
-            await this.setState(({ tasks }) => ({
-              tasks: tasks.filter(t => t.id !== id),
-            }));
-            this.playSound('succeeded');
-          } else {
-            this.playSound('failed');
+          if (!isValid(result)) {
+            throw new Error('Could not recognize');
           }
+
+          await index('mercurius-trading', {
+            timestamp,
+            name: result.name,
+            value: result.value,
+            drawing: result.drawing,
+          });
+          await this.setState(({ tasks }) => ({
+            tasks: tasks.filter(t => t.id !== id),
+          }));
+          this.playSound('succeeded');
         } catch (error) {
           updateTask({ id, errors: [error.toString()] });
           this.playSound('failed');

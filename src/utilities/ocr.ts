@@ -90,7 +90,7 @@ export default class Ocr {
       .value();
 
     const front = nameCandidates[0];
-    const name = front && front.score < 0.2 ? front.name : undefined;
+    const name = front && front.score < 0.3 ? front.name : undefined;
     const value =
       Number(lines[drawing ? 2 : 1].replace(/^0|[^0-9]+/g, '')) || undefined;
 

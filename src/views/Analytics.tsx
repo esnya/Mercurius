@@ -318,6 +318,16 @@ function itemFilter(filter: string): (item: Item) => boolean {
           ((!item.diffRate || item.diffRate > 0) && item.lastRate >= 0.4) ||
           false
         );
+      case 'high':
+        return item.lastRate > 0.9;
+      case 'low':
+        return item.lastRate < 0.1;
+      case 'increase':
+        return (item.diffRate && item.diffRate > 0.01) || false;
+      case 'decrease':
+        return (item.diffRate && item.diffRate < -0.01) || false;
+      case 'flat':
+        return (item.diffRate && Math.abs(item.diffRate) < 0.01) || false;
       default:
         return true;
     }
@@ -498,6 +508,10 @@ export default withESQuery(
                 value={this.state.filter}
                 options={[
                   { value: 'all', text: 'すべて' },
+                  { value: 'high', text: '高値' },
+                  { value: 'low', text: '安値' },
+                  { value: 'increase', text: '上昇' },
+                  { value: 'decrease', text: '下降' },
                   { value: 'sell', text: '売り' },
                   { value: 'buy', text: '買い' },
                 ]}
