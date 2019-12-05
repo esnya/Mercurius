@@ -73,15 +73,19 @@ const filters: Filter[] = [
     allowNoStats: true,
   },
   {
-    text: '現価/変動幅 10%以下',
-    filter: ({ endByFluctuationRate }: PriceStats) =>
-      endByFluctuationRate <= 0.1,
+    text: '買い',
+    filter: ({ variationRate, endByFluctuationRate }: PriceStats) =>
+      variationRate !== undefined &&
+      variationRate > 0.01 &&
+      endByFluctuationRate <= 0.2,
   },
   {
-    text: '現価/変動幅 50%以上',
-    filter: ({ endByFluctuationRate }: PriceStats) =>
-      endByFluctuationRate >= 0.1,
+    text: '売り',
+    filter: ({ variationRate, endByFluctuationRate }: PriceStats) =>
+      (!variationRate || variationRate > 0.01) && endByFluctuationRate >= 0.5,
   },
+  { text: '最高値', filter: ({ end, max }: PriceStats) => end === max },
+  { text: '最安値', filter: ({ end, min }: PriceStats) => end === min },
   {
     text: '横ばい',
     filter: ({ variationRate }: PriceStats) =>
@@ -97,17 +101,15 @@ const filters: Filter[] = [
     filter: ({ variationRate }: PriceStats) =>
       variationRate !== undefined && variationRate <= -0.01,
   },
-  { text: '最高値', filter: ({ end, max }: PriceStats) => end === max },
-  { text: '最安値', filter: ({ end, min }: PriceStats) => end === min },
   {
-    text: '買い',
-    filter: ({ variationRate, endByFluctuationRate }: PriceStats) =>
-      (!variationRate || variationRate > -0.01) && endByFluctuationRate < 0.1,
+    text: '現価/変動幅 10%以下',
+    filter: ({ endByFluctuationRate }: PriceStats) =>
+      endByFluctuationRate <= 0.1,
   },
   {
-    text: '売り',
-    filter: ({ variationRate, endByFluctuationRate }: PriceStats) =>
-      (!variationRate || variationRate > 0.01) && endByFluctuationRate >= 0.5,
+    text: '現価/変動幅 50%以上',
+    filter: ({ endByFluctuationRate }: PriceStats) =>
+      endByFluctuationRate >= 0.1,
   },
 ];
 
