@@ -50,6 +50,7 @@ export default function ItemTableRow({
   const rowStyle = {
     backgroundImage: chartUrl ? `url(${chartUrl})` : null,
     backgroundSize: '100% 100%',
+    imageRendering: '-webkit-optimize-contrast',
   };
 
   return (
