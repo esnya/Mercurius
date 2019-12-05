@@ -32,6 +32,7 @@ export default function ItemTableHeader({
   return (
     <TableHeader>
       <TableRow>
+        <TableHeaderCell />
         <TableHeaderCell
           sorted={sortBy === 'name' ? sortOrder : undefined}
           textAlign="center"

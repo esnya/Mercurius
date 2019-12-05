@@ -6,5 +6,6 @@ export default interface StatField {
   format: (value: number) => string;
   factor?: number;
   colorFactor?: number;
+  colorBias?: number;
   textAlign?: 'right' | 'left' | 'center';
 }

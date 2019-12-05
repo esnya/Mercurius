@@ -2,7 +2,14 @@ import React, { useEffect, useState } from 'react';
 import _ from 'lodash';
 import withUser, { WithUserProps } from '../enhancers/withUser';
 import withFirebaseApp from '../enhancers/withFirebaseApp';
-import { Loader, Container, Pagination } from 'semantic-ui-react';
+import {
+  Loader,
+  Container,
+  Pagination,
+  Segment,
+  FormSelect,
+  Form,
+} from 'semantic-ui-react';
 import { projectId } from '../firebase';
 import { formatZeny, formatPercent } from '../utilities/format';
 import ItemTable, { TableItem, isTableItem } from '../components/ItemTable';
@@ -16,9 +23,11 @@ const statFields: StatField[] = [
     format: formatZeny,
   },
   {
-    text: '前日比',
+    text: '増減',
     path: 'variationRate',
     format: formatPercent,
+    colorFactor: 0.5,
+    colorBias: 1,
     factor: 100,
   },
   {
@@ -27,25 +36,77 @@ const statFields: StatField[] = [
     format: formatPercent,
     factor: 100,
     colorFactor: 1,
+    colorBias: 0,
     textAlign: 'center',
   },
   {
-    text: '底値',
+    text: '最低',
     path: 'min',
     format: formatZeny,
   },
   {
-    text: '天井',
+    text: '最高',
     path: 'max',
     format: formatZeny,
   },
   {
-    text: '変動率',
+    text: '変動幅',
     path: 'fluctuationRate',
     format: formatPercent,
     factor: 100,
     colorFactor: 100 / 500,
+    colorBias: 1,
     textAlign: 'center',
+  },
+];
+
+interface Filter {
+  text: string;
+  filter: (priceStats: PriceStats) => boolean;
+  allowNoStats?: boolean;
+}
+const filters: Filter[] = [
+  {
+    text: 'すべて',
+    filter: () => true,
+    allowNoStats: true,
+  },
+  {
+    text: '現価/変動幅 10%以下',
+    filter: ({ endByFluctuationRate }: PriceStats) =>
+      endByFluctuationRate <= 0.1,
+  },
+  {
+    text: '現価/変動幅 50%以上',
+    filter: ({ endByFluctuationRate }: PriceStats) =>
+      endByFluctuationRate >= 0.1,
+  },
+  {
+    text: '横ばい',
+    filter: ({ variationRate }: PriceStats) =>
+      variationRate !== undefined && Math.abs(variationRate) < 0.01,
+  },
+  {
+    text: '上げ',
+    filter: ({ variationRate }: PriceStats) =>
+      variationRate !== undefined && variationRate >= 0.01,
+  },
+  {
+    text: '下げ',
+    filter: ({ variationRate }: PriceStats) =>
+      variationRate !== undefined && variationRate <= -0.01,
+  },
+  { text: '最高値', filter: ({ end, max }: PriceStats) => end === max },
+  { text: '最安値', filter: ({ end, min }: PriceStats) => end === min },
+  {
+    text: '買い',
+    filter: ({ variationRate, endByFluctuationRate }: PriceStats) =>
+      (!variationRate || variationRate > -0.01) && endByFluctuationRate < 0.1,
+  },
+  {
+    text: '売り',
+    filter: ({ variationRate, endByFluctuationRate }: PriceStats) =>
+      (!variationRate || variationRate > 0.01) && endByFluctuationRate >= 0.5,
   },
 ];
 
@@ -62,6 +123,8 @@ export default withFirebaseApp(
     );
 
     const [items, setItems] = useState<TableItem[]>([]);
+
+    const [selectedFilter, setSelectedFilter] = useState<number>(0);
 
     useEffect((): (() => void) => {
       return app
@@ -84,7 +147,12 @@ export default withFirebaseApp(
       return <Loader />;
     }
 
-    const totalPages = items ? Math.ceil(items.length / itemsPerPage) : 1;
+    const filtered: TableItem[] = items.filter(({ item: { priceStats } }) => {
+      const { filter, allowNoStats } = filters[selectedFilter];
+
+      return priceStats ? filter(priceStats) : Boolean(allowNoStats);
+    });
+    const totalPages = items ? Math.ceil(filtered.length / itemsPerPage) : 1;
 
     const sortIteratee = ({
       item: { name, priceStats },
@@ -98,7 +166,7 @@ export default withFirebaseApp(
       return value;
     };
 
-    const itemsInPage: TableItem[] = _(items)
+    const itemsInPage: TableItem[] = _(filtered)
       .sortBy(sortIteratee)
       .thru(items => (sortOrder === 'ascending' ? items : items.reverse()))
       .partition(item => sortIteratee(item) !== null)
@@ -107,8 +175,21 @@ export default withFirebaseApp(
       .take(itemsPerPage)
       .value();
 
+    const filterOptions = filters.map((f, i) => ({ text: f.text, value: i }));
     return (
       <Container>
+        <Segment>
+          <Form>
+            <FormSelect
+              label="フィルター"
+              options={filterOptions}
+              value={selectedFilter}
+              onChange={(_e, { value }): void =>
+                setSelectedFilter(value as number)
+              }
+            />
+          </Form>
+        </Segment>
         <ItemTable
           statFields={statFields}
           items={itemsInPage}

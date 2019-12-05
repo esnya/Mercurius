@@ -44,15 +44,16 @@ export function calculate(
       timestamp: timestamp.toMillis(),
     }))
     .filter(({ timestamp }) => domainFilter(domain)(timestamp))
-    .sortBy(({ timestamp }) => timestamp)
+    .sortBy(({ timestamp }) => -timestamp)
     .value();
 
   const count = filtered.length;
   if (count === 0) return null;
 
-  const begin = filtered[0].price;
-  const endPrice = filtered[count - 1];
+  const endPrice = filtered[0];
   const end = endPrice.price;
+  const beginPrice = filtered[count - 1];
+  const begin = beginPrice.price;
 
   const { min, max, sum, sumOfSquares } = filtered.reduce(
     (prev, { price }) => ({
@@ -77,25 +78,41 @@ export function calculate(
   const fluctuationRate = fluctuation / min;
   const endByFluctuationRate = fluctuation ? (end - min) / fluctuation : 1;
 
-  const lastDayDomain: [number, number] = [
+  const lastPriceDomain: [number, number] = [
     domain[0],
     moment(endPrice.timestamp)
-      .subtract(1, 'days')
-      .endOf('day')
+      .subtract(24, 'hours')
       .valueOf(),
   ];
-  const lastDayPrice = _(filtered)
-    .filter(({ timestamp }) => domainFilter(lastDayDomain)(timestamp))
+  const lastPrice = _(filtered)
+    .filter(({ timestamp }) => domainFilter(lastPriceDomain)(timestamp))
     .first();
+  const lastDayDomain: [number, number] | undefined = lastPrice && [
+    moment(lastPrice.timestamp)
+      .subtract(24, 'hours')
+      .valueOf(),
+    lastPrice.timestamp,
+  ];
+  const lastDayPrices =
+    lastDayDomain &&
+    filtered.filter(({ timestamp }) => domainFilter(lastDayDomain)(timestamp));
+  const lastDayPrice =
+    lastDayPrices &&
+    lastDayPrices.reduce((p, { price }) => p + price / lastDayPrices.length, 0);
+  console.log(
+    lastDayPrice,
+    lastDayDomain && lastDayDomain.map(a => new Date(a)),
+  );
+
   const variationDuration =
-    lastDayPrice && endPrice.timestamp - lastDayPrice.timestamp;
-  const variation = lastDayPrice && endPrice.price - lastDayPrice.price;
+    lastPrice && endPrice.timestamp - lastPrice.timestamp;
+  const variation = lastDayPrice && endPrice.price - lastDayPrice;
   const variationPerDay =
     variation &&
     variationDuration &&
     variation / (variationDuration / duration(1, 'day').asMilliseconds());
   const variationRate =
-    variationPerDay && lastDayPrice && variationPerDay / lastDayPrice.price;
+    variationPerDay && lastDayPrice && variationPerDay / lastDayPrice;
 
   return {
     begin,

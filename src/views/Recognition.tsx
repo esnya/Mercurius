@@ -296,12 +296,14 @@ export default withFirebaseApp(function AutoInput({ app }): JSX.Element {
 
           const itemsSnapshot = await itemsRef.where('name', '==', name).get();
           const itemSnapshot = itemsSnapshot.docs[0];
-          const itemRef = itemSnapshot
-            ? itemSnapshot.ref
-            : await itemsRef.add({
-                name: name,
-                type: 'item',
-              });
+          const itemRef = itemSnapshot ? itemSnapshot.ref : itemsRef.doc(name);
+
+          if (!itemSnapshot) {
+            itemRef.set({
+              name,
+              type: 'item',
+            });
+          }
 
           const pricesRef = itemRef.collection('prices');
           await pricesRef.add({

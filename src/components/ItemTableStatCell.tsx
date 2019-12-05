@@ -11,7 +11,7 @@ export interface ItemTableStatCellProps {
 
 export default function ItemTableStatCell({
   stats,
-  field: { path, factor, format, colorFactor, textAlign },
+  field: { path, factor, format, colorFactor, colorBias, textAlign },
 }: ItemTableStatCellProps): JSX.Element {
   const value = stats && stats[path];
   const text = stats ? (
@@ -22,8 +22,12 @@ export default function ItemTableStatCell({
     <Loader />
   );
   const child =
-    colorFactor && value !== undefined ? (
-      <Label color={getColorName(value * colorFactor)}>{text}</Label>
+    colorFactor !== undefined &&
+    colorBias !== undefined &&
+    value !== undefined ? (
+      <Label color={getColorName((value + colorBias) * colorFactor)}>
+        {text}
+      </Label>
     ) : (
       text
     );

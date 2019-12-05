@@ -4,6 +4,7 @@ import ItemTableStatCell from './ItemTableStatCell';
 import { TableRow, TableCell, Button, Icon } from 'semantic-ui-react';
 import StatField from '../types/StatField';
 import ItemChartModal from './ItemChartModal';
+import DiffIcon from './DiffIcon';
 
 export default function ItemTableRow({
   item,
@@ -51,6 +52,9 @@ export default function ItemTableRow({
 
   return (
     <TableRow style={rowStyle}>
+      <TableCell textAlign="center">
+        <DiffIcon diffRate={(priceStats && priceStats.variationRate) || null} />
+      </TableCell>
       <TableCell>{name}</TableCell>
       {cells}
       <TableCell>
