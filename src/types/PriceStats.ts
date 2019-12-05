@@ -24,11 +24,8 @@ export function getDomain(timeRange: number): [number, number] {
   return [
     moment()
       .subtract(timeRange, 'days')
-      .startOf('days')
       .valueOf(),
-    moment()
-      .endOf('days')
-      .valueOf(),
+    moment().valueOf(),
   ];
 }
 
