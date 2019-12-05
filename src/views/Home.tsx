@@ -9,6 +9,7 @@ import {
   Segment,
   FormSelect,
   Form,
+  FormInput,
 } from 'semantic-ui-react';
 import { projectId } from '../firebase';
 import { formatZeny, formatPercent } from '../utilities/format';
@@ -113,7 +114,7 @@ const filters: Filter[] = [
 export default withFirebaseApp(
   withUser(function Home({ app }: WithUserProps): JSX.Element {
     const [activePage, setActivePage] = useState(1);
-    const [itemsPerPage] = useState(50);
+    const [itemsPerPage, setItemsPerPage] = useState(50);
 
     const [sortBy, setSortBy] = useState<keyof PriceStats | 'name'>(
       'fluctuationRate',
@@ -187,6 +188,13 @@ export default withFirebaseApp(
               onChange={(_e, { value }): void =>
                 setSelectedFilter(value as number)
               }
+            />
+            <FormInput
+              label="表示件数"
+              value={itemsPerPage}
+              onChange={(_e, { value }): void => {
+                setItemsPerPage(Number(value) || 0);
+              }}
             />
           </Form>
         </Segment>
