@@ -1,29 +1,23 @@
-import React from 'react';
-import {
-  Container,
-  Segment,
-  TextArea,
-  CardGroup,
-  Card,
-  CardContent,
-} from 'semantic-ui-react';
-import shortid from 'shortid';
-import { ChildProps, withESQuery } from '../enhancers/withESQuery';
+import React, { useState, useEffect, useRef } from 'react';
+import { Container, Segment, CardGroup } from 'semantic-ui-react';
 import defaultsDeep from 'lodash/defaultsDeep';
-import { index, search } from '../elasticsearch';
-import ActionButton from '../components/ActionButton';
 import RecognitionTask, {
   Task,
   Result,
   isValid,
 } from '../components/RecognitionTask';
-import { formatTimestamp } from '../utilities/format';
 import Ocr from '../utilities/ocr';
-import Decision22 from '../assets/decision22.mp3';
-import Decision24 from '../assets/decision24.mp3';
-import Warning1 from '../assets/warning1.mp3';
+import withFirebaseApp from '../enhancers/withFirebaseApp';
+import { isItem } from '../types/Item';
+import ActionButton from '../components/ActionButton';
+import shortid from 'shortid';
+import { formatTimestamp } from '../utilities/format';
+import firebase, { projectId } from '../firebase';
+import moment, { duration } from 'moment';
+import { isPrice } from '../types/Price';
 import { ErrorThreshold } from '../components/DiffIcon';
-import moment from 'moment';
+import { succeeded, failed, notice } from '../utilities/sounds';
+import _ from 'lodash';
 
 interface State {
   video?: HTMLVideoElement;
@@ -64,385 +58,281 @@ const defaultRecognitionOptions = {
 };
 const optionsKey = 'mercurius-trading:recognition-options';
 
-export default withESQuery('mercurius-trading', {
-  size: 0,
-  aggs: {
-    names: {
-      terms: {
-        field: 'name.keyword',
-        size: 10000,
-        order: {
-          maxTimestamp: 'desc',
-        },
-      },
-      aggs: {
-        maxTimestamp: {
-          max: {
-            field: 'timestamp',
-          },
-        },
-      },
+function useAsyncEffect(effect: () => Promise<void>, dependsOn?: any[]): void {
+  useEffect(() => {
+    effect();
+  }, dependsOn);
+}
+
+export default withFirebaseApp(function AutoInput({ app }): JSX.Element {
+  const [options, setOptions] = useState<RecognitionOptions>(
+    (): RecognitionOptions => {
+      const json = localStorage.getItem(optionsKey);
+      return defaultsDeep(
+        json ? JSON.parse(json) : {},
+        defaultRecognitionOptions,
+      );
     },
-  },
-})(
-  class Recognition extends React.Component<ChildProps, State> {
-    constructor(props: ChildProps) {
-      super(props);
+  );
+  const [ocr, setOcr] = useState<Ocr>();
+  const [video, setVideo] = useState<HTMLVideoElement>();
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [names, setNames] = useState<string[]>([]);
 
-      const options = localStorage.getItem(optionsKey);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvas = canvasRef.current;
+  const context = canvas && canvas.getContext('2d');
 
-      this.state = {
-        options: defaultsDeep(
-          options ? JSON.parse(options) : {},
-          defaultRecognitionOptions,
-        ),
-        tasks: [],
-      };
+  useAsyncEffect(async (): Promise<void> => {
+    const itemsSnapshot = await app
+      .firestore()
+      .collection('projects')
+      .doc(projectId)
+      .collection('items')
+      .get();
+    const names = itemsSnapshot.docs
+      .map(d => d.data())
+      .filter(isItem)
+      .map(i => i.name);
+    setNames(names);
+    setOcr(new Ocr(names));
+  }, [app]);
 
-      this.ocr = new Ocr(this.names);
-
-      let prevTriggered = false;
-      this.renderInterval = setInterval(() => {
-        const canvas = this.canvasRef.current;
-        const { context, video } = this.state;
-        if (!canvas || !context || !video) return;
-
-        const { videoWidth: sw, videoHeight: sh } = video;
-        const { x, y, width, height, mask, trigger } = this.options;
-
-        const s = Math.min(sw, sh);
-        const dw = s * width;
-        const dh = s * height;
-
-        canvas.width = dw;
-        canvas.height = dh;
-
-        context.drawImage(
-          video,
-          (sw - dw) / 2 + s * x,
-          (sh - dh) / 2 + s * y,
-          dw,
-          dh,
-          0,
-          0,
-          dw,
-          dh,
-        );
-
-        mask.forEach(m => {
-          context.fillStyle = m.style;
-          context.fillRect(
-            dw / 2 + s * m.x,
-            dh / 2 + s * m.y,
-            s * m.width,
-            s * m.height,
-          );
-        });
-
-        if (trigger.preview) {
-          context.strokeStyle = 'red';
-          context.ellipse(
-            dw / 2 + s * trigger.x,
-            dh / 2 + s * trigger.y,
-            3,
-            3,
-            0,
-            0,
-            360,
-          );
-          context.stroke();
-        }
-        const triggerPixel = context.getImageData(
-          dw / 2 + s * trigger.x,
-          dh / 2 + s * trigger.y,
-          1,
-          1,
-        );
-        const triggered =
-          trigger.color.reduce(
-            (p, c, i) => p + Math.abs(triggerPixel.data[i] - c),
-            0,
-          ) /
-            3 <
-          5;
-        if (triggered && !prevTriggered) {
-          setTimeout(() => {
-            this.recognize();
-          });
-        }
-        prevTriggered = triggered;
-      }, 1000 / this.state.options.fps);
+  useEffect(() => {
+    if (names.length > 0) {
+      setOcr(new Ocr(names));
     }
+  }, [names]);
 
-    renderInterval: ReturnType<typeof setInterval>;
-    ocr: Ocr;
-    canvasRef = React.createRef<HTMLCanvasElement>();
+  const itemsRef = app
+    .firestore()
+    .collection('projects')
+    .doc(projectId)
+    .collection('items');
 
-    async recognize(): Promise<void> {
-      this.playSound('triggered');
-      const canvas = this.canvasRef.current;
-      if (!canvas) throw new Error('Failed to get canvas');
+  async function recognize(ocr: Ocr, image: Blob): Promise<void> {
+    const id = shortid();
+    const timestamp = formatTimestamp();
 
-      const image = await new Promise<Blob | null>(r => canvas.toBlob(r));
-      if (!image) throw new Error('Failed to get image');
+    setTasks(tasks => [
+      {
+        id,
+        image,
+        timestamp,
+      },
+      ...tasks,
+    ]);
 
-      const id = shortid();
-
-      const timestamp = formatTimestamp();
-
-      this.setState(({ tasks }) => ({
-        tasks: [
-          {
-            id,
-            image,
-            timestamp,
-          },
-          ...tasks.filter(t => t.id !== id),
-        ],
-      }));
-
-      const updateTask = (task: Partial<Task> & { id: string }): void => {
-        this.setState(({ tasks }) => ({
-          tasks: tasks.map(t => (t.id === id ? { ...t, ...task } : t)),
-        }));
-      };
-
-      setTimeout(async () => {
-        try {
-          const result = await this.ocr.recognize(image, this.names);
-          updateTask({ id, result });
-
-          const res =
-            result.name &&
-            (await search('mercurius-trading', {
-              // size: 0,
-              query: {
-                bool: {
-                  must: [
-                    {
-                      match: {
-                        'name.keyword': result.name,
-                      },
-                    },
-                    {
-                      range: {
-                        timestamp: {
-                          gt: moment()
-                            .subtract(1, 'days')
-                            .unix(),
-                        },
-                      },
-                    },
-                  ],
-                },
-              },
-              aggs: {
-                avg: {
-                  avg: {
-                    field: 'value',
-                  },
-                },
-              },
-            } as any));
-
-          const prevValue = res && res.aggregations.avg.value;
-
-          const diffRate =
-            result && result.value && prevValue
-              ? (result.value - prevValue) / result.value
-              : undefined;
-
-          updateTask({
-            id,
-            result: {
-              ...result,
-              diffRate,
-            },
-          });
-
-          if (!diffRate) {
-            throw new Error('Failed to calc difference');
-          }
-
-          if (diffRate && Math.abs(diffRate) > ErrorThreshold) {
-            throw new Error('Difference too big');
-          }
-
-          if (!isValid(result)) {
-            throw new Error('Could not recognize');
-          }
-
-          await index('mercurius-trading', {
-            timestamp,
-            name: result.name,
-            value: result.value,
-            drawing: result.drawing,
-          });
-          await this.setState(({ tasks }) => ({
-            tasks: tasks.filter(t => t.id !== id),
-          }));
-          this.playSound('succeeded');
-        } catch (error) {
-          updateTask({ id, errors: [error.toString()] });
-          this.playSound('failed');
-        }
-      });
-    }
-
-    get options(): RecognitionOptions {
-      return this.state.options;
-    }
-
-    set options(options: RecognitionOptions) {
-      this.setState({ options }, () => {
-        localStorage.setItem(optionsKey, JSON.stringify(options));
-      });
-    }
-
-    get names(): string[] {
-      return this.props.value.aggregations.names.buckets.map(({ key }) => key);
-    }
-
-    soundRefs = {
-      triggered: React.createRef<HTMLVideoElement>(),
-      succeeded: React.createRef<HTMLVideoElement>(),
-      failed: React.createRef<HTMLVideoElement>(),
-    };
-
-    playSound(type: keyof Recognition['soundRefs']): void {
-      const audio = this.soundRefs[type].current;
-      if (!audio) return;
-      audio.pause();
-      audio.currentTime = 0;
-      audio.play();
-    }
-
-    componentWillUnmount(): void {
-      clearInterval(this.renderInterval);
-      const { video } = this.state;
-      if (video) video.remove();
-    }
-
-    render(): JSX.Element {
-      const onSubmit = async (): Promise<void> => {
-        await Promise.all(
-          this.state.tasks.map(
-            async (task): Promise<void> => {
-              const { result } = task;
-              if (!isValid(result)) return;
-
-              const { name, value, drawing } = result;
-
-              await index('mercurius-trading', {
-                timestamp: task.timestamp,
-                name,
-                value,
-                drawing,
-              });
-            },
-          ),
-        );
-        this.setState({ tasks: [] });
-      };
-
-      const onRecognize = async (): Promise<void> => this.recognize();
-
-      const onTaskEdit = ({ id }: Task, value: Partial<Result>): void => {
-        this.setState(({ tasks }) => ({
-          tasks: tasks.map(task =>
-            task.id === id && task.result
-              ? { ...task, result: { ...task.result, ...value } }
-              : task,
-          ),
-        }));
-      };
-
-      const onTaskDelete = ({ id }: Task): Promise<void> =>
-        new Promise(resolve =>
-          this.setState(
-            ({ tasks }) => ({
-              tasks: tasks.filter(t => t.id !== id),
-            }),
-            resolve,
-          ),
-        );
-
-      const onSelectSource = async (): Promise<void> => {
-        if (this.state.video) this.state.video.remove();
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const stream = await (navigator.mediaDevices as any).getDisplayMedia({
-          video: true,
-        });
-
-        const video = document.createElement('video');
-        video.srcObject = stream;
-        await video.play();
-
-        const canvas = this.canvasRef.current;
-        if (!canvas) throw new Error('Failed to get canvas');
-        const context = canvas.getContext('2d');
-        if (!context) throw new Error('Failed to get context');
-
-        await new Promise(resolve =>
-          this.setState({ video, context }, resolve),
-        );
-      };
-
-      const tasks = this.state.tasks.map(task => (
-        <RecognitionTask
-          key={task.id}
-          names={this.names}
-          task={task}
-          onEdit={(value): void => onTaskEdit(task, value)}
-          onDelete={onTaskDelete}
-        />
-      ));
-
-      return (
-        <Container>
-          <Segment>
-            <TextArea
-              value={JSON.stringify(this.options, null, 2)}
-              onChange={(e, { value }): void => {
-                this.options = JSON.parse(`${value || ''}`);
-              }}
-            />
-          </Segment>
-          <CardGroup>
-            <Card>
-              <canvas ref={this.canvasRef} />
-              <CardContent extra>
-                <ActionButton color="blue" action={onSelectSource}>
-                  画面選択
-                </ActionButton>
-                <ActionButton color="blue" action={onRecognize}>
-                  認識
-                </ActionButton>
-                <ActionButton
-                  color="blue"
-                  disabled={tasks.length === 0}
-                  action={onSubmit}
-                >
-                  登録
-                </ActionButton>
-              </CardContent>
-            </Card>
-            {tasks}
-          </CardGroup>
-          <audio
-            src={Decision22}
-            ref={this.soundRefs.triggered}
-            preload="true"
-          />
-          <audio
-            src={Decision24}
-            ref={this.soundRefs.succeeded}
-            preload="true"
-          />
-          <audio src={Warning1} ref={this.soundRefs.failed} preload="true" />
-        </Container>
+    function updateTask(value: {}): void {
+      setTasks(tasks =>
+        tasks.map(task => (task.id === id ? _.merge(value, task) : task)),
       );
     }
-  },
-);
+
+    const result = await ocr.recognize(image);
+    updateTask({ result });
+
+    const { name, value } = result;
+
+    if (!name || !value) {
+      console.log('failed to recognize text');
+      failed.play();
+      return;
+    }
+
+    const itemsSnapshot = await itemsRef.where('name', '==', name).get();
+    const itemSnapshot = itemsSnapshot.docs[0];
+    if (!itemSnapshot) {
+      console.log('failed to find item');
+      failed.play();
+      return;
+    }
+
+    const pricesRef = itemSnapshot.ref.collection('prices');
+    const pricesSnapshot = await pricesRef
+      .orderBy('timestamp', 'desc')
+      // .startAt(
+      //   moment()
+      //     .subtract(1, 'day')
+      //     .valueOf(),
+      // )
+      .limit(1)
+      .get();
+    const lastPrice = pricesSnapshot.docs.map(d => d.data()).filter(isPrice)[0];
+
+    if (!lastPrice) {
+      console.log('failed to find last price');
+      failed.play();
+      return;
+    }
+
+    const fluctuation = value - lastPrice.price;
+    const days =
+      (Date.now() - lastPrice.timestamp.toMillis()) /
+      duration(1, 'day').asMilliseconds();
+    const fluctuationPerDay = fluctuation / days;
+    const fluctuationRate = fluctuationPerDay / lastPrice.price;
+
+    updateTask({
+      result: {
+        diffRate: fluctuationRate,
+      },
+    });
+
+    if (Math.abs(fluctuationRate) > ErrorThreshold) {
+      console.log('fluctuation too large');
+      failed.play();
+      return;
+    }
+
+    succeeded.play();
+    await pricesRef.add({
+      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+      price: value,
+      drawing: Boolean(result.drawing),
+    });
+
+    setTasks(tasks => tasks.filter(task => task.id !== id));
+  }
+
+  useEffect(() => {
+    if (!ocr || !video || !canvas || !context) return;
+
+    let prevTriggered = false;
+    const renderInterval = setInterval(async () => {
+      const { videoWidth: sw, videoHeight: sh } = video;
+      const { x, y, width, height, mask, trigger } = options;
+
+      const s = Math.min(sw, sh);
+      const dw = s * width;
+      const dh = s * height;
+
+      canvas.width = dw;
+      canvas.height = dh;
+
+      context.drawImage(
+        video,
+        (sw - dw) / 2 + s * x,
+        (sh - dh) / 2 + s * y,
+        dw,
+        dh,
+        0,
+        0,
+        dw,
+        dh,
+      );
+
+      mask.forEach(m => {
+        context.fillStyle = m.style;
+        context.fillRect(
+          dw / 2 + s * m.x,
+          dh / 2 + s * m.y,
+          s * m.width,
+          s * m.height,
+        );
+      });
+
+      if (trigger.preview) {
+        context.strokeStyle = 'red';
+        context.ellipse(
+          dw / 2 + s * trigger.x,
+          dh / 2 + s * trigger.y,
+          3,
+          3,
+          0,
+          0,
+          360,
+        );
+        context.stroke();
+      }
+      const triggerPixel = context.getImageData(
+        dw / 2 + s * trigger.x,
+        dh / 2 + s * trigger.y,
+        1,
+        1,
+      );
+      const triggered =
+        trigger.color.reduce(
+          (p, c, i) => p + Math.abs(triggerPixel.data[i] - c),
+          0,
+        ) /
+          3 <
+        5;
+      if (triggered && !prevTriggered) {
+        notice.play();
+        const image = await new Promise<Blob | null>(r => canvas.toBlob(r));
+        if (!image) throw new Error('Failed to get image');
+        setTimeout(() => recognize(ocr, image));
+      }
+      // eslint-disable-next-line require-atomic-updates
+      prevTriggered = triggered;
+    }, 1000 / options.fps);
+
+    return () => clearInterval(renderInterval);
+  }, [app, video, canvas, options, ocr]);
+
+  const selectSource = async (): Promise<void> => {
+    const stream: MediaStream = await (navigator.mediaDevices as any).getDisplayMedia();
+    const video = document.createElement('video');
+    video.srcObject = stream;
+    video.play();
+
+    setVideo(video);
+  };
+
+  const taskViews = tasks.map(task => {
+    return (
+      <RecognitionTask
+        task={task}
+        key={task.id}
+        names={names}
+        onSubmit={async (task: Task): Promise<void> => {
+          const { result } = task;
+          if (!isValid(result)) {
+            throw new Error('名前と価格は必須');
+          }
+
+          const { value, name, drawing } = result;
+
+          const itemsSnapshot = await itemsRef.where('name', '==', name).get();
+          const itemSnapshot = itemsSnapshot.docs[0];
+          const itemRef = itemSnapshot
+            ? itemSnapshot.ref
+            : await itemsRef.add({
+                name: name,
+                type: 'item',
+              });
+
+          const pricesRef = itemRef.collection('prices');
+          await pricesRef.add({
+            price: value,
+            lottery: Boolean(drawing),
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+          });
+
+          setTasks(a => a.filter(b => b.id !== task.id));
+        }}
+        onEdit={(result: Partial<Result>): void =>
+          setTasks(a =>
+            a.map(b =>
+              b.id === task.id
+                ? { ...b, result: b.result && { ...b.result, ...result } }
+                : b,
+            ),
+          )
+        }
+        onDelete={() => setTasks(a => a.filter(b => b.id !== task.id))}
+      />
+    );
+  });
+
+  return (
+    <Container>
+      <Segment>
+        <canvas ref={canvasRef} />
+        <ActionButton action={selectSource}>画面選択</ActionButton>
+      </Segment>
+      <CardGroup>{taskViews}</CardGroup>
+    </Container>
+  );
+});

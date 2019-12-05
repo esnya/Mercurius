@@ -31,7 +31,7 @@ import {
 } from '../utilities/format';
 import moment, { Moment } from 'moment';
 import DiffIcon from '../components/DiffIcon';
-import renderChart from '../chart';
+import renderChart from '../utilities/chart';
 import { search } from '../elasticsearch';
 
 interface Item {

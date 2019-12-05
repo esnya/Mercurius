@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Card,
   CardContent,
@@ -11,11 +11,12 @@ import {
   Icon,
   Loader,
   Dimmer,
+  Button,
 } from 'semantic-ui-react';
-import ActionButton from './ActionButton';
 import shortid from 'shortid';
 import { formatDecimal, formatInteger } from '../utilities/format';
 import DiffIcon from './DiffIcon';
+import ActionButton from './ActionButton';
 
 export interface Result {
   name?: string;
@@ -53,7 +54,8 @@ export interface RecognitionTaskProps {
   task: Task;
   names: string[];
   onEdit: (value: Partial<Result>) => void;
-  onDelete: (task: Task) => Promise<void>;
+  onDelete: () => void;
+  onSubmit: (task: Task) => Promise<void>;
 }
 
 const datalistIdPrefix = shortid();
@@ -167,6 +169,7 @@ export default React.memo(function RecognitionTask({
   names,
   onEdit,
   onDelete,
+  onSubmit,
 }: RecognitionTaskProps): JSX.Element {
   const error = task.errors ? (
     <CardContent>
@@ -191,9 +194,12 @@ export default React.memo(function RecognitionTask({
       </CardContent>
       {error}
       <CardContent>
-        <ActionButton color="red" action={(): Promise<void> => onDelete(task)}>
-          削除
+        <ActionButton color="blue" action={(): Promise<void> => onSubmit(task)}>
+          登録
         </ActionButton>
+        <Button color="red" onClick={(): void => onDelete()}>
+          削除
+        </Button>
       </CardContent>
     </Card>
   );

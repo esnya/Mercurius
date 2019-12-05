@@ -47,6 +47,7 @@ export default class ActionButton extends React.Component<
           error: null,
         });
       } catch (error) {
+        console.error(error);
         this.setState({
           acting: false,
           error: error.toString(),

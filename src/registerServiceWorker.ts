@@ -1,9 +1,4 @@
-import React from 'react';
-import { render } from 'react-dom';
-import 'semantic-ui-css/semantic.css';
-import App from './App';
-
-if ('serviceWorker' in navigator) {
+if (process.env.NODE_ENV === 'prodeuction' && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker
       .register('/service-worker.js')
@@ -15,9 +10,3 @@ if ('serviceWorker' in navigator) {
       });
   });
 }
-
-const div = document.createElement('div');
-div.id = 'app';
-document.body.appendChild(div);
-
-render(<App />, div);

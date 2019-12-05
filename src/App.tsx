@@ -9,8 +9,9 @@ import {
 import Input from './views/Input';
 import Recognition from './views/Recognition';
 import NotFound from './views/NotFound';
-import Analytics from './views/Analytics';
-import { Menu, MenuItem } from 'semantic-ui-react';
+import { Menu, MenuItem, Container } from 'semantic-ui-react';
+import Home from './views/Home';
+import SignOutButton from './components/SignOutButton';
 
 const menuItems = [
   { path: '/', text: 'ホーム' },
@@ -30,6 +31,9 @@ function AppMenu(): JSX.Element {
   return (
     <Menu pointing secondary>
       {items}
+      <MenuItem position="right">
+        <SignOutButton />
+      </MenuItem>
     </Menu>
   );
 }
@@ -46,7 +50,7 @@ export default function App(): JSX.Element {
           <Recognition />
         </Route>
         <Route exact path="/">
-          <Analytics />
+          <Home />
         </Route>
         <Route path="*">
           <NotFound />

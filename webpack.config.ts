@@ -1,7 +1,7 @@
 import { Configuration, Plugin } from 'webpack';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
 import WorkboxPlugin from 'workbox-webpack-plugin';
-import firebaseInitMiddleware from './src/build/firebaseInitMiddleware'
+import firebaseInitMiddleware from './src/build/firebaseInitMiddleware';
 
 function isPlugin(plugin: Plugin | null): plugin is Plugin {
   return plugin !== null;
@@ -14,12 +14,12 @@ export default async function config(): Promise<Configuration> {
     devServer: {
       host: '0.0.0.0',
       historyApiFallback: true,
-      before: (app) => {
+      before: app => {
         app.use(initMiddleware);
       },
     },
     devtool: 'cheap-eval-source-map',
-    entry: './src/index.tsx',
+    entry: './src/index.ts',
     mode: production ? 'production' : 'development',
     module: {
       rules: [
@@ -51,7 +51,7 @@ export default async function config(): Promise<Configuration> {
     },
     plugins: [
       new HtmlWebpackPlugin({
-        title: 'Mercurius',
+        template: './src/views/template.html',
       }),
       production ? new WorkboxPlugin.GenerateSW({}) : null,
     ].filter<Plugin>(isPlugin),

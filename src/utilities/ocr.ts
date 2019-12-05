@@ -14,7 +14,7 @@ import {
 import _ from 'lodash';
 
 export default class Ocr {
-  constructor(words: string[], lang = 'jpn+eng', nWorkers = 1) {
+  constructor(readonly words: string[], lang = 'jpn+eng', nWorkers = 1) {
     this.pScheduler = this.init(words, lang);
 
     this.addWorkers(words, lang, nWorkers - 1);
@@ -56,7 +56,6 @@ export default class Ocr {
 
   async recognize(
     image: Blob,
-    names: string[],
   ): Promise<{
     name?: string;
     value?: number;
@@ -77,7 +76,7 @@ export default class Ocr {
     const drawing = lines.length === 3;
 
     const [n1, n2] = lines;
-    const nameCandidates = _(names)
+    const nameCandidates = _(this.words)
       .map(name => [
         { name, score: WinkDistance.string.jaroWinkler(name, n1) },
         ...(drawing

@@ -13,3 +13,12 @@ export const formatDecimal = formatter({
   round: 2,
   padRight: 2,
 });
+export const formatZeny = formatter({
+  round: 0,
+  suffix: ' Zeny',
+});
+export const formatPercent = formatter({
+  round: 2,
+  padRight: 2,
+  suffix: ' %',
+});

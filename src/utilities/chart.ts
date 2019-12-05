@@ -1,6 +1,31 @@
 import defaultsDeep from 'lodash/defaultsDeep';
 import { View, parse, changeset } from 'vega';
 import { TopLevelSpec, compile } from 'vega-lite';
+import { SemanticCOLORS } from 'semantic-ui-react/dist/commonjs/generic';
+
+const Colors: SemanticCOLORS[] = [
+  'red',
+  'orange',
+  'yellow',
+  'olive',
+  'green',
+  'teal',
+  'blue',
+  'violet',
+  'purple',
+];
+
+export function getColorName(rate: number): SemanticCOLORS {
+  return Colors[
+    Math.floor((Colors.length - 1) * Math.max(Math.min(rate, 1), 0))
+  ];
+}
+
+export function getColorCode(value: number): SemanticCOLORS | string {
+  const color = getColorName(value);
+  if (color === 'yellow') return '#FFD700';
+  return color;
+}
 
 const DefaultSpec: TopLevelSpec = {
   width: 1024,
@@ -18,12 +43,12 @@ const DefaultSpec: TopLevelSpec = {
         format: '%m/%d %H:%M',
       },
     },
-    y: { field: 'value', type: 'quantitative' },
+    y: { field: 'price', type: 'quantitative' },
     strokeWidth: { value: 1 },
     tooltip: {
       format: ',',
       formatType: 'number',
-      field: 'value',
+      field: 'price',
       type: 'quantitative',
     },
   },
@@ -34,10 +59,7 @@ const DefaultSpec: TopLevelSpec = {
   },
 };
 
-export default async function renderChart<T>(
-  spec: {},
-  data: T[],
-): Promise<string> {
+export async function renderView<T>(spec: {}, data: T[]): Promise<View> {
   const view = new View(parse(compile(defaultsDeep(spec, DefaultSpec)).spec));
   view.change(
     'data',
@@ -46,5 +68,13 @@ export default async function renderChart<T>(
       .insert(data),
   );
   await view.runAsync();
+  return view;
+}
+
+export default async function renderChart<T>(
+  spec: {},
+  data: T[],
+): Promise<string> {
+  const view = await renderView(spec, data);
   return await view.toImageURL('png');
 }
