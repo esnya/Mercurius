@@ -189,7 +189,7 @@ export default withFirebaseApp(function AutoInput({ app }): JSX.Element {
     await pricesRef.add({
       timestamp: firebase.firestore.FieldValue.serverTimestamp(),
       price: value,
-      drawing: Boolean(result.drawing),
+      lottery: Boolean(result.drawing),
     });
 
     setTasks(tasks => tasks.filter(task => task.id !== id));

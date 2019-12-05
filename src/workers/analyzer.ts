@@ -135,7 +135,7 @@ async function run(): Promise<void> {
   setInterval(() => {
     const task = tasks.pop();
     if (task) task();
-  }, 1000);
+  }, 500);
 
   const app = await initializeApp();
   const projectRef = app
@@ -147,11 +147,11 @@ async function run(): Promise<void> {
   const unsubscribeMap = new Map<string, () => void>();
 
   itemsRef.onSnapshot(itemsSnapshot => {
-    itemsSnapshot.docChanges().map((itemChange): void => {
-      const item = itemChange.doc.data();
+    itemsSnapshot.docs.map((doc): void => {
+      const item = doc.data();
       if (!isItem(item)) return;
 
-      const itemRef = itemChange.doc.ref;
+      const itemRef = doc.ref;
       const path = itemRef.path;
 
       const u = unsubscribeMap.get(path);
@@ -160,7 +160,6 @@ async function run(): Promise<void> {
         unsubscribeMap.delete(path);
       }
 
-      if (itemChange.type === 'removed') return;
       const pricesRef = itemRef.collection('prices');
       const unsubscribe = pricesRef
         .orderBy('timestamp', 'desc')
@@ -171,7 +170,9 @@ async function run(): Promise<void> {
 
           if (
             !item.updatedAt ||
-            item.updatedAt.toMillis() < price.timestamp.toMillis()
+            item.updatedAt.toMillis() < price.timestamp.toMillis() ||
+            !item.backgroundChartUpdatedAt ||
+            !item.chartUpdatedAt
           ) {
             tasks.push(
               async (): Promise<void> => {

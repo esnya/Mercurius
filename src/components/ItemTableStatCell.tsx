@@ -22,7 +22,7 @@ export default function ItemTableStatCell({
     <Loader />
   );
   const child =
-    colorFactor && value ? (
+    colorFactor && value !== undefined ? (
       <Label color={getColorName(value * colorFactor)}>{text}</Label>
     ) : (
       text

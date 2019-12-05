@@ -14,12 +14,13 @@ export default function ItemTableRow({
   itemRef: firebase.firestore.DocumentReference;
   statFields: StatField[];
 }): JSX.Element {
-  const { name, priceStats, backgroundChartUpdatedAt } = item;
+  const { name, priceStats, backgroundChartUpdatedAt, chartUpdatedAt } = item;
 
   const [chartModalOpen, setChartModalOpen] = useState(false);
   const [chartUrl, setChartUrl] = useState<string>();
 
   useEffect(() => {
+    if (!backgroundChartUpdatedAt) return;
     itemRef.firestore.app
       .storage()
       .ref(itemRef.path)
@@ -34,7 +35,7 @@ export default function ItemTableRow({
     ),
   );
 
-  const chartModal = priceStats && (
+  const chartModal = priceStats && chartUpdatedAt && (
     <ItemChartModal
       itemRef={itemRef}
       item={item}
