@@ -5,6 +5,8 @@ import { TableRow, TableCell, Button, Icon } from 'semantic-ui-react';
 import StatField from '../types/StatField';
 import ItemChartModal from './ItemChartModal';
 import DiffIcon from './DiffIcon';
+import ActionButton from './ActionButton';
+import firebase from '../firebase';
 
 export default function ItemTableRow({
   item,
@@ -65,6 +67,16 @@ export default function ItemTableRow({
         >
           <Icon name="chart bar" />
         </Button>
+        <ActionButton
+          icon
+          action={(): Promise<void> =>
+            itemRef.update({
+              updatedAt: firebase.firestore.FieldValue.delete(),
+            })
+          }
+        >
+          <Icon name="sync" />
+        </ActionButton>
         {chartModal}
       </TableCell>
     </TableRow>
