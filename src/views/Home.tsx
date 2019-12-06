@@ -16,6 +16,7 @@ import { formatZeny, formatPercent } from '../utilities/format';
 import ItemTable, { TableItem, isTableItem } from '../components/ItemTable';
 import StatField from '../types/StatField';
 import PriceStats from '../types/PriceStats';
+import { isItem } from '../types/Item';
 
 const statFields: StatField[] = [
   {
@@ -118,9 +119,9 @@ export default withFirebaseApp(
     const [activePage, setActivePage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(50);
 
-    const [sortBy, setSortBy] = useState<keyof PriceStats | 'name'>(
-      'fluctuationRate',
-    );
+    const [sortBy, setSortBy] = useState<
+      keyof PriceStats | 'name' | 'updatedAt'
+    >('fluctuationRate');
     const [sortOrder, setSortOrder] = useState<'ascending' | 'descending'>(
       'descending',
     );
@@ -136,14 +137,13 @@ export default withFirebaseApp(
         .doc(projectId)
         .collection('items')
         .orderBy('name')
-        .onSnapshot(({ docs }) =>
-          setItems(
-            _(docs)
-              .map(doc => ({ itemRef: doc.ref, item: doc.data() }))
-              .filter(isTableItem)
-              .value(),
-          ),
-        );
+        .onSnapshot(({ docs }) => {
+          const items = _(docs)
+            .map(doc => ({ itemRef: doc.ref, item: doc.data() }))
+            .filter(isTableItem)
+            .value();
+          setItems(items);
+        });
     }, [app]);
 
     if (!items) {
@@ -158,9 +158,11 @@ export default withFirebaseApp(
     const totalPages = items ? Math.ceil(filtered.length / itemsPerPage) : 1;
 
     const sortIteratee = ({
-      item: { name, priceStats },
+      item: { name, priceStats, updatedAt },
     }: TableItem): number | string | null => {
       if (sortBy === 'name') return name;
+      if (sortBy === 'updatedAt')
+        return updatedAt ? updatedAt.toMillis() : null;
       if (!priceStats) return null;
 
       const value = priceStats[sortBy];

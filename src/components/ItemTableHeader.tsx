@@ -5,9 +5,9 @@ import PriceStats from '../types/PriceStats';
 
 export interface ItemTableHeaderProps {
   statFields: StatField[];
-  sortBy: keyof PriceStats | 'name';
+  sortBy: keyof PriceStats | 'name' | 'updatedAt';
   sortOrder: 'ascending' | 'descending';
-  onSortChange: (path: keyof PriceStats | 'name') => void;
+  onSortChange: (path: keyof PriceStats | 'name' | 'updatedAt') => void;
 }
 
 export default function ItemTableHeader({
@@ -41,6 +41,13 @@ export default function ItemTableHeader({
           アイテム
         </TableHeaderCell>
         {headerCells}
+        <TableHeaderCell
+          sorted={sortBy === 'updatedAt' ? sortOrder : undefined}
+          textAlign="center"
+          onClick={(): void => onSortChange('updatedAt')}
+        >
+          更新日時
+        </TableHeaderCell>
         <TableHeaderCell></TableHeaderCell>
       </TableRow>
     </TableHeader>

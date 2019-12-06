@@ -4,6 +4,9 @@ import formatter from 'format-number';
 export function formatTimestamp(value?: Moment | Date | number): string {
   return moment(value).format('Y/MM/DD HH:mm:ss');
 }
+export function formatTimestampShort(value?: Moment | Date | number): string {
+  return moment(value).format('MM/DD HH:mm');
+}
 
 export const formatNumber = formatter();
 export const formatInteger = formatter({

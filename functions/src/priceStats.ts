@@ -226,17 +226,21 @@ async function calculatePriceStats(
 
   const variationDuration =
     endOfLastPrice &&
-    endOfLastPrice.timestamp.toMillis() - prices[0].timestamp.toMillis();
+    prices[0].timestamp.toMillis() - endOfLastPrice.timestamp.toMillis();
   const variation = lastPriceAverage && end - lastPriceAverage;
   const variationPerDay =
     variation &&
     variationDuration &&
     variation /
       (variationDuration / moment.duration(1, 'day').asMilliseconds());
+  const variationRate =
+    variationPerDay && lastPriceAverage && variationPerDay / lastPriceAverage;
 
   const priceStats = {
     begin,
     end,
+    min,
+    max,
     sum,
     sumOfSquares,
     average,
@@ -249,6 +253,7 @@ async function calculatePriceStats(
     variationDuration,
     variation,
     variationPerDay,
+    variationRate,
   };
 
   const data = {
