@@ -4,15 +4,24 @@ import {
   DocumentSnapshot,
   CollectionReference,
 } from '@google-cloud/firestore';
+import firebase from 'firebase-admin';
 import moment = require('moment');
 import _ = require('lodash');
+import { renderChart, backgroundChartSpec, chartSpec } from './chart';
 
-class Item {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function isTimestamp(value: any): value is Timestamp {
+  return typeof value === 'object' && typeof value.toMillis === 'function';
+}
+
+export class Item {
   constructor(
     readonly ref: DocumentReference,
     readonly name: string,
     readonly type: string,
     readonly updatedAt?: Timestamp,
+    readonly backgroundChartUpdatedAt?: Timestamp,
+    readonly chartUpdatedAt?: Timestamp,
   ) {}
 
   static parse(snapshot: DocumentSnapshot): Item | null {
@@ -23,17 +32,23 @@ class Item {
 
     const type = snapshot.get('type');
     const updatedAt = snapshot.get('updatedAt');
+    const backgroundChartUpdatedAt = snapshot.get('backgroundChartUpdatedAt');
+    const chartUpdatedAt = snapshot.get('chartUpdatedAt');
 
     return new Item(
       snapshot.ref,
       name,
       typeof type === 'string' && type ? type : 'item',
-      updatedAt instanceof Timestamp ? updatedAt : undefined,
+      isTimestamp(updatedAt) ? updatedAt : undefined,
+      isTimestamp(backgroundChartUpdatedAt)
+        ? backgroundChartUpdatedAt
+        : undefined,
+      isTimestamp(chartUpdatedAt) ? chartUpdatedAt : undefined,
     );
   }
 }
 
-class Price {
+export class Price {
   constructor(
     readonly ref: DocumentReference,
     readonly price: number,
@@ -48,7 +63,7 @@ class Price {
     if (typeof price !== 'number') return null;
 
     const timestamp = snapshot.get('timestamp');
-    if (timestamp instanceof Timestamp) return null;
+    if (!isTimestamp(timestamp)) return null;
 
     const lottery = Boolean(snapshot.get('lottery'));
 
@@ -81,7 +96,7 @@ function domainFilter(
   };
 }
 
-export async function updatePriceStats(
+async function calculatePriceStats(
   itemRef: DocumentReference,
   {
     itemSnapshot,
@@ -92,17 +107,23 @@ export async function updatePriceStats(
     priceRef?: DocumentReference;
     priceSnapshot?: DocumentSnapshot;
   },
-): Promise<void> {
+): Promise<{
+  item: Item;
+  prices: Price[];
+  domain: number[];
+  priceStats?: { endByFluctuationRate: number };
+} | null> {
   console.debug(
-    'updating',
+    'calculating',
     itemRef.path,
     priceRef && priceRef.path,
     itemSnapshot && itemSnapshot.data(),
   );
+
   const item = Item.parse(itemSnapshot || (await itemRef.get()));
   if (!item) {
     console.debug('no item');
-    return;
+    return null;
   }
 
   const pricesRef = itemRef.collection('prices');
@@ -111,14 +132,18 @@ export async function updatePriceStats(
     : priceRef
     ? Price.parse(await priceRef.get())
     : await Price.getLast(pricesRef);
-  const lastPriceTimestamp = lastPrice && lastPrice.timestamp
-    ? lastPrice.timestamp
-    : Timestamp.fromDate(new Date());
+  const lastPriceTimestamp =
+    lastPrice && lastPrice.timestamp
+      ? lastPrice.timestamp
+      : Timestamp.fromDate(new Date());
 
-  const dirty = !item.updatedAt || item.updatedAt.toMillis() < lastPriceTimestamp.toMillis();
-  if (!dirty) {
+  const dirty =
+    !item.updatedAt ||
+    item.updatedAt.toMillis() < lastPriceTimestamp.toMillis();
+  const chartDirty = !item.backgroundChartUpdatedAt || !item.chartUpdatedAt;
+  if (!dirty && !chartDirty) {
     console.debug('non dirty');
-    return;
+    return null;
   }
 
   const domain = [
@@ -131,6 +156,7 @@ export async function updatePriceStats(
     .orderBy('timestamp', 'desc')
     .endAt(Math.min(...domain))
     .get();
+
   const prices = pricesSnapshot.docs
     .map(Price.parse)
     .filter(price => price !== null) as Price[];
@@ -138,7 +164,12 @@ export async function updatePriceStats(
   const count = prices.length;
   if (count === 0) {
     console.debug('no prices');
-    return;
+    return null;
+  }
+
+  if (!dirty) {
+    console.log('non dirty');
+    return chartDirty ? { item, prices, domain } : null;
   }
 
   const begin = prices[count - 1].price;
@@ -227,4 +258,39 @@ export async function updatePriceStats(
 
   await itemRef.update(data);
   console.debug('done', data);
+
+  return { item, prices, domain, priceStats };
+}
+
+export async function updatePriceStats(
+  itemRef: DocumentReference,
+  options: {
+    storage: firebase.storage.Storage;
+    itemSnapshot?: DocumentSnapshot;
+    priceRef?: DocumentReference;
+    priceSnapshot?: DocumentSnapshot;
+  },
+): Promise<void> {
+  const { storage, ...calculateOptions } = options;
+
+  const res = await calculatePriceStats(itemRef, calculateOptions);
+  if (!res) return;
+
+  const chartOptions = {
+    ...res,
+    storage,
+    itemRef,
+  };
+  await Promise.all([
+    renderChart({
+      ...chartOptions,
+      spec: backgroundChartSpec,
+      type: 'backgroundChart',
+    }),
+    renderChart({
+      ...chartOptions,
+      spec: chartSpec,
+      type: 'chart',
+    }),
+  ]);
 }
