@@ -16,7 +16,6 @@ import { formatZeny, formatPercent } from '../utilities/format';
 import ItemTable, { TableItem, isTableItem } from '../components/ItemTable';
 import StatField from '../types/StatField';
 import PriceStats from '../types/PriceStats';
-import { isItem } from '../types/Item';
 
 const statFields: StatField[] = [
   {
@@ -84,6 +83,20 @@ const filters: Filter[] = [
     text: '売り',
     filter: ({ variationRate, endByFluctuationRate }: PriceStats) =>
       (!variationRate || variationRate > 0.01) && endByFluctuationRate >= 0.5,
+  },
+  {
+    text: '底',
+    filter: ({ variationRate, endByFluctuationRate }: PriceStats) =>
+      variationRate !== undefined &&
+      variationRate > -0.01 &&
+      endByFluctuationRate <= 0.2,
+  },
+  {
+    text: '天井',
+    filter: ({ variationRate, endByFluctuationRate }: PriceStats) =>
+      variationRate !== undefined &&
+      variationRate < 0.01 &&
+      endByFluctuationRate >= 0.8,
   },
   { text: '最高値', filter: ({ end, max }: PriceStats) => end === max },
   { text: '最安値', filter: ({ end, min }: PriceStats) => end === min },
