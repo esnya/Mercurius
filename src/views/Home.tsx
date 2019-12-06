@@ -1,244 +1,42 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import _ from 'lodash';
 import withUser, { WithUserProps } from '../enhancers/withUser';
 import withFirebaseApp from '../enhancers/withFirebaseApp';
-import {
-  Loader,
-  Container,
-  Pagination,
-  Segment,
-  FormSelect,
-  Form,
-  FormInput,
-} from 'semantic-ui-react';
-import { projectId } from '../firebase';
-import { formatZeny, formatPercent } from '../utilities/format';
-import ItemTable, { TableItem, isTableItem } from '../components/ItemTable';
-import StatField from '../types/StatField';
-import PriceStats from '../types/PriceStats';
+import { Container, Segment, Form, FormInput } from 'semantic-ui-react';
+import ActionButton from '../components/ActionButton';
 
-const statFields: StatField[] = [
-  {
-    text: '現価',
-    path: 'end',
-    format: formatZeny,
-  },
-  {
-    text: '増減',
-    path: 'variationRate',
-    format: formatPercent,
-    colorFactor: 0.5,
-    colorBias: 1,
-    factor: 100,
-  },
-  {
-    text: '現価/変動幅',
-    path: 'endByFluctuationRate',
-    format: formatPercent,
-    factor: 100,
-    colorFactor: 1,
-    colorBias: 0,
-    textAlign: 'center',
-  },
-  {
-    text: '最低',
-    path: 'min',
-    format: formatZeny,
-  },
-  {
-    text: '最高',
-    path: 'max',
-    format: formatZeny,
-  },
-  {
-    text: '変動幅',
-    path: 'fluctuationRate',
-    format: formatPercent,
-    factor: 100,
-    colorFactor: 100 / 500,
-    colorBias: 1,
-    textAlign: 'center',
-  },
-];
+export default withFirebaseApp<{}>(
+  withUser<{}>(function Home({
+    user,
+    profile,
+    profileRef,
+  }: WithUserProps): JSX.Element {
+    const [name, setName] = useState(profile.name);
 
-interface Filter {
-  text: string;
-  filter: (priceStats: PriceStats) => boolean;
-  allowNoStats?: boolean;
-}
-const filters: Filter[] = [
-  {
-    text: 'すべて',
-    filter: () => true,
-    allowNoStats: true,
-  },
-  {
-    text: '買い',
-    filter: ({ variationRate, endByFluctuationRate }: PriceStats) =>
-      variationRate !== undefined &&
-      variationRate > 0.01 &&
-      endByFluctuationRate <= 0.2,
-  },
-  {
-    text: '売り',
-    filter: ({ variationRate, endByFluctuationRate }: PriceStats) =>
-      (!variationRate || variationRate > 0.01) && endByFluctuationRate >= 0.5,
-  },
-  {
-    text: '底',
-    filter: ({ variationRate, endByFluctuationRate }: PriceStats) =>
-      variationRate !== undefined &&
-      variationRate > -0.01 &&
-      endByFluctuationRate <= 0.2,
-  },
-  {
-    text: '天井',
-    filter: ({ variationRate, endByFluctuationRate }: PriceStats) =>
-      variationRate !== undefined &&
-      variationRate < 0.01 &&
-      endByFluctuationRate >= 0.8,
-  },
-  { text: '最高値', filter: ({ end, max }: PriceStats) => end === max },
-  { text: '最安値', filter: ({ end, min }: PriceStats) => end === min },
-  {
-    text: '横ばい',
-    filter: ({ variationRate }: PriceStats) =>
-      variationRate !== undefined && Math.abs(variationRate) < 0.01,
-  },
-  {
-    text: '上げ',
-    filter: ({ variationRate }: PriceStats) =>
-      variationRate !== undefined && variationRate >= 0.01,
-  },
-  {
-    text: '下げ',
-    filter: ({ variationRate }: PriceStats) =>
-      variationRate !== undefined && variationRate <= -0.01,
-  },
-  {
-    text: '現価/変動幅 10%以下',
-    filter: ({ endByFluctuationRate }: PriceStats) =>
-      endByFluctuationRate <= 0.1,
-  },
-  {
-    text: '現価/変動幅 50%以上',
-    filter: ({ endByFluctuationRate }: PriceStats) =>
-      endByFluctuationRate >= 0.1,
-  },
-];
-
-export default withFirebaseApp(
-  withUser(function Home({ app }: WithUserProps): JSX.Element {
-    const [activePage, setActivePage] = useState(1);
-    const [itemsPerPage, setItemsPerPage] = useState(50);
-
-    const [sortBy, setSortBy] = useState<
-      keyof PriceStats | 'name' | 'updatedAt'
-    >('fluctuationRate');
-    const [sortOrder, setSortOrder] = useState<'ascending' | 'descending'>(
-      'descending',
-    );
-
-    const [items, setItems] = useState<TableItem[]>([]);
-
-    const [selectedFilter, setSelectedFilter] = useState<number>(0);
-
-    useEffect((): (() => void) => {
-      return app
-        .firestore()
-        .collection('projects')
-        .doc(projectId)
-        .collection('items')
-        .orderBy('name')
-        .onSnapshot(({ docs }) => {
-          const items = _(docs)
-            .map(doc => ({ itemRef: doc.ref, item: doc.data() }))
-            .filter(isTableItem)
-            .value();
-          setItems(items);
-        });
-    }, [app]);
-
-    if (!items) {
-      return <Loader />;
-    }
-
-    const filtered: TableItem[] = items.filter(({ item: { priceStats } }) => {
-      const { filter, allowNoStats } = filters[selectedFilter];
-
-      return priceStats ? filter(priceStats) : Boolean(allowNoStats);
-    });
-    const totalPages = items ? Math.ceil(filtered.length / itemsPerPage) : 1;
-
-    const sortIteratee = ({
-      item: { name, priceStats, updatedAt },
-    }: TableItem): number | string | null => {
-      if (sortBy === 'name') return name;
-      if (sortBy === 'updatedAt')
-        return updatedAt ? updatedAt.toMillis() : null;
-      if (!priceStats) return null;
-
-      const value = priceStats[sortBy];
-      if (typeof value === 'undefined') return null;
-
-      return value;
-    };
-
-    const itemsInPage: TableItem[] = _(filtered)
-      .sortBy(sortIteratee)
-      .thru(items => (sortOrder === 'ascending' ? items : items.reverse()))
-      .partition(item => sortIteratee(item) !== null)
-      .thru(([a, b]) => [...a, ...b])
-      .drop((activePage - 1) * itemsPerPage)
-      .take(itemsPerPage)
-      .value();
-
-    const filterOptions = filters.map((f, i) => ({ text: f.text, value: i }));
     return (
       <Container>
         <Segment>
           <Form>
-            <FormSelect
-              label="フィルター"
-              options={filterOptions}
-              value={selectedFilter}
-              onChange={(_e, { value }): void =>
-                setSelectedFilter(value as number)
-              }
-            />
+            <FormInput label="ユーザーID" readOnly value={user.uid} />
             <FormInput
-              label="表示件数"
-              value={itemsPerPage}
-              onChange={(_e, { value }): void => {
-                setItemsPerPage(Number(value) || 0);
-              }}
+              label="ユーザー名"
+              value={name}
+              onChange={(_e, { value }): void => setName(value)}
             />
+            <ActionButton
+              action={async (): Promise<void> => {
+                if (!name) return;
+                await profileRef.update('name', name);
+              }}
+              color="blue"
+              disabled={!name || name === profile.name}
+            >
+              更新
+            </ActionButton>
           </Form>
         </Segment>
-        <ItemTable
-          statFields={statFields}
-          items={itemsInPage}
-          sortBy={sortBy}
-          sortOrder={sortOrder}
-          onSortChange={(path): void => {
-            if (path === sortBy) {
-              setSortOrder(
-                sortOrder === 'ascending' ? 'descending' : 'ascending',
-              );
-            } else {
-              setSortBy(path);
-              setSortOrder('descending');
-            }
-          }}
-        />
-        <Pagination
-          activePage={activePage}
-          totalPages={totalPages}
-          onPageChange={(_e, { activePage }): void =>
-            setActivePage(Number(activePage))
-          }
-        />
       </Container>
     );
-  }, true),
+  },
+  true),
 );

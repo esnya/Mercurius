@@ -6,9 +6,9 @@ import {
   ModalContent,
   Message,
   ButtonProps,
-  FormField,
   Form,
   FormInput,
+  Loader,
 } from 'semantic-ui-react';
 import firebase from 'firebase/app';
 import ActionButton from '../components/ActionButton';
@@ -19,6 +19,8 @@ export type User = firebase.User;
 
 export interface WithUserProps extends WithFirebaseProps {
   user: User;
+  profile: UserProfile;
+  profileRef: firebase.firestore.DocumentReference;
 }
 
 function ProfileModal({
@@ -60,11 +62,14 @@ function ProfileModal({
   );
 }
 
-export default function withUser(
-  Component: ComponentType<WithUserProps>,
+export default function withUser<T extends {} = {}>(
+  Component: ComponentType<WithUserProps & T>,
   showSignInForm = false,
-): ComponentType<WithFirebaseProps> {
-  return function WithUser({ app }: WithFirebaseProps): JSX.Element | null {
+): ComponentType<WithFirebaseProps & T> {
+  return function WithUser({
+    app,
+    ...others
+  }: WithFirebaseProps & T): JSX.Element | null {
     const auth = app.auth();
 
     const [user, setUser] = useState<firebase.User | null>(auth.currentUser);
@@ -141,7 +146,11 @@ export default function withUser(
       );
     }
 
-    if (profileRef && !profile) {
+    if (!profileRef) {
+      return <Loader />;
+    }
+
+    if (!profile) {
       return (
         <ProfileModal
           onSubmit={(profile: UserProfile) => profileRef.set(profile)}
@@ -149,6 +158,14 @@ export default function withUser(
       );
     }
 
-    return <Component app={app} user={user} />;
+    return (
+      <Component
+        app={app}
+        user={user}
+        profileRef={profileRef}
+        profile={profile}
+        {...(others as any)}
+      />
+    );
   };
 }

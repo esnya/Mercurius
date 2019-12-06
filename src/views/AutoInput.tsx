@@ -7,24 +7,21 @@ import RecognitionTask, {
   isValid,
 } from '../components/RecognitionTask';
 import Ocr from '../utilities/ocr';
-import withFirebaseApp from '../enhancers/withFirebaseApp';
+import withFirebaseApp, {
+  WithFirebaseProps,
+} from '../enhancers/withFirebaseApp';
 import { isItem } from '../types/Item';
 import ActionButton from '../components/ActionButton';
 import shortid from 'shortid';
 import { formatTimestamp } from '../utilities/format';
-import firebase, { projectId } from '../firebase';
-import moment, { duration } from 'moment';
+import firebase from '../firebase';
+import { duration } from 'moment';
 import { isPrice } from '../types/Price';
 import { ErrorThreshold } from '../components/DiffIcon';
 import { succeeded, failed, notice } from '../utilities/sounds';
 import _ from 'lodash';
-
-interface State {
-  video?: HTMLVideoElement;
-  context?: CanvasRenderingContext2D;
-  options: RecognitionOptions;
-  tasks: Task[];
-}
+import { useParams } from 'react-router';
+import AppMenu from '../components/AppMenu';
 
 interface Rect {
   x: number;
@@ -64,7 +61,12 @@ function useAsyncEffect(effect: () => Promise<void>, dependsOn?: any[]): void {
   }, dependsOn);
 }
 
-export default withFirebaseApp(function AutoInput({ app }): JSX.Element {
+export default withFirebaseApp<{}>(function AutoInput({
+  app,
+}: WithFirebaseProps): JSX.Element | null {
+  const { projectId } = useParams();
+  if (typeof projectId !== 'string') return null;
+
   const [options, setOptions] = useState<RecognitionOptions>(
     (): RecognitionOptions => {
       const json = localStorage.getItem(optionsKey);
@@ -330,6 +332,7 @@ export default withFirebaseApp(function AutoInput({ app }): JSX.Element {
 
   return (
     <Container>
+      <AppMenu />
       <Segment>
         <canvas ref={canvasRef} />
         <ActionButton action={selectSource}>画面選択</ActionButton>

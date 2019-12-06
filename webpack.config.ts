@@ -18,6 +18,9 @@ export default async function config(): Promise<Configuration> {
         app.use(initMiddleware);
       },
     },
+    output: {
+      publicPath: '/',
+    },
     devtool: 'cheap-eval-source-map',
     entry: './src/index.ts',
     mode: production ? 'production' : 'development',

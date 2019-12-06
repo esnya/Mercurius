@@ -20,5 +20,3 @@ export const initializeApp = memoize(
 
 export default firebase;
 export const { auth, firestore, storage } = firebase;
-
-export const projectId = '2Tu5ixUoI2DnD55s7uYs';

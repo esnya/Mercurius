@@ -8,11 +8,11 @@ export interface WithFirebaseProps {
   app: App;
 }
 
-export default function withFirebaseApp(
-  Component: ComponentType<WithFirebaseProps>,
+export default function withFirebaseApp<T = {}>(
+  Component: ComponentType<WithFirebaseProps & T>,
   name?: string,
-): ComponentType {
-  return function WithFirebaseApp(): JSX.Element {
+): ComponentType<T> {
+  return function WithFirebaseApp(props: T): JSX.Element {
     const [app, setApp] = useState<App>();
     const [error, setError] = useState<Error>();
     const [started, setStarted] = useState(false);
@@ -32,6 +32,6 @@ export default function withFirebaseApp(
       return <Loader />;
     }
 
-    return <Component app={app} />;
+    return <Component app={app} {...props} />;
   };
 }
