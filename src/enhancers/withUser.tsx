@@ -6,15 +6,58 @@ import {
   ModalContent,
   Message,
   ButtonProps,
+  FormField,
+  Form,
+  FormInput,
 } from 'semantic-ui-react';
 import firebase from 'firebase/app';
 import ActionButton from '../components/ActionButton';
 import { WithFirebaseProps } from './withFirebaseApp';
+import UserProfile, { isUserProfile } from '../types/UserProfile';
 
 export type User = firebase.User;
 
 export interface WithUserProps extends WithFirebaseProps {
   user: User;
+}
+
+function ProfileModal({
+  onSubmit,
+}: {
+  onSubmit: (profile: UserProfile) => Promise<void>;
+}): JSX.Element {
+  const [profile, setProfile] = useState<Partial<UserProfile>>({});
+
+  async function handleSubmit(): Promise<void> {
+    if (!isUserProfile(profile)) return;
+    await onSubmit(profile);
+  }
+
+  return (
+    <Modal open>
+      <ModalHeader>プロフィール登録</ModalHeader>
+      <ModalContent>
+        <Form onSubmit={handleSubmit}>
+          <FormInput
+            label="ユーザー名"
+            value={profile.name}
+            onChange={(_e, { value }) =>
+              setProfile(p => ({ ...p, name: `${value}` || undefined }))
+            }
+          />
+        </Form>
+      </ModalContent>
+      <ModalActions>
+        <ActionButton
+          action={handleSubmit}
+          disabled={!isUserProfile(profile)}
+          color="blue"
+        >
+          登録
+        </ActionButton>
+      </ModalActions>
+    </Modal>
+  );
 }
 
 export default function withUser(
@@ -25,11 +68,23 @@ export default function withUser(
     const auth = app.auth();
 
     const [user, setUser] = useState<firebase.User | null>(auth.currentUser);
+    const [profile, setProfile] = useState<UserProfile | null>(null);
     const [error, setError] = useState<Error | null>(null);
 
     useEffect(() => {
       return auth.onAuthStateChanged((user): void => setUser(user));
     }, [app]);
+
+    const firestore = app.firestore();
+    const profileRef = user && firestore.collection('users').doc(user.uid);
+
+    useEffect(() => {
+      if (!profileRef) return;
+      return profileRef.onSnapshot(snapshot => {
+        const data = snapshot.data();
+        setProfile(isUserProfile(data) ? data : null);
+      });
+    }, [profileRef]);
 
     if (!user) {
       if (!showSignInForm) return null;
@@ -83,6 +138,14 @@ export default function withUser(
           {errorMessage}
           <ModalActions>{signInButtons}</ModalActions>
         </Modal>
+      );
+    }
+
+    if (profileRef && !profile) {
+      return (
+        <ProfileModal
+          onSubmit={(profile: UserProfile) => profileRef.set(profile)}
+        />
       );
     }
 
