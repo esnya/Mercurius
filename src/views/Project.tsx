@@ -77,8 +77,8 @@ const filters: Filter[] = [
     text: '買い',
     filter: ({ variationRate, endByFluctuationRate }: PriceStats) =>
       variationRate !== undefined &&
-      variationRate > 0.01 &&
-      endByFluctuationRate <= 0.2,
+      ((variationRate > 0.01 && endByFluctuationRate <= 0.2) ||
+        (variationRate > -0.1 && endByFluctuationRate <= 0.05)),
   },
   {
     text: '売り',
