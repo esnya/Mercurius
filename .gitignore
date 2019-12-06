@@ -3,7 +3,7 @@ node_modules
 
 /services
 
-/dist
-/lib
+dist
+lib
 
 *.log

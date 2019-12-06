@@ -1,3 +1,3 @@
 import './registerServiceWorker';
 import './render';
-import './workers/analyzer';
+// import './workers/analyzer';

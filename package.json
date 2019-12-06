@@ -46,6 +46,7 @@
     "wink-distance": "^2.0.0"
   },
   "devDependencies": {
+    "@firebase/testing": "^0.16.1",
     "@types/ajv": "^1.0.0",
     "@types/format-number": "^3.0.0",
     "@types/html-webpack-plugin": "^3.2.1",
