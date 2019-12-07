@@ -2,21 +2,30 @@ import { Configuration, Plugin } from 'webpack';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
 import WorkboxPlugin from 'workbox-webpack-plugin';
 import firebaseInitMiddleware from './src/build/firebaseInitMiddleware';
+import e from 'express';
 
 function isPlugin(plugin: Plugin | null): plugin is Plugin {
   return plugin !== null;
 }
 
+async function devServerBefore(): Promise<((app: e.Application) => void) | undefined> {
+  try {
+    const initMiddleware = await firebaseInitMiddleware();
+    return (app: e.Application) => {
+      app.use(initMiddleware);
+    }
+  } catch {
+    return;
+  }
+};
+
 export default async function config(): Promise<Configuration> {
   const production = process.env.NODE_ENV === 'production';
-  const initMiddleware = await firebaseInitMiddleware();
   return {
     devServer: {
       host: '0.0.0.0',
       historyApiFallback: true,
-      before: app => {
-        app.use(initMiddleware);
-      },
+      before: await devServerBefore(),
     },
     output: {
       publicPath: '/',
