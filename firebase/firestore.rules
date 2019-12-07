@@ -16,8 +16,14 @@ service cloud.firestore {
       allow read: if request.auth.uid != null;
       allow write: if request.auth.uid != null && (isOwner() || canWrite());
 
-			match /{collectionId}/{documentId} {
+			match /items/{itemId} {
     		allow read: if request.auth.uid != null && (isOwner() || canRead());
+      	allow write: if request.auth.uid != null && (isOwner() || canWrite());
+
+        match /prices/{priceId} {
+          allow read: if request.auth.uid != null && (isOwner() || canRead());
+          allow write: if request.auth.uid != null && (isOwner() || canWrite());
+        }
       }
     }
 
