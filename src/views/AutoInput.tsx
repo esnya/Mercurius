@@ -332,7 +332,6 @@ export default withFirebaseApp<{}>(function AutoInput({
 
   return (
     <Container>
-      <AppMenu />
       <Segment>
         <canvas ref={canvasRef} />
         <ActionButton action={selectSource}>画面選択</ActionButton>

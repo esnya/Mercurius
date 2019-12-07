@@ -84,7 +84,6 @@ export default withFirebaseApp<{}>(
 
     return (
       <div>
-        <Divider hidden />
         <Container text>
           <Header dividing>プロフィール</Header>
           <Form>
@@ -103,6 +102,9 @@ export default withFirebaseApp<{}>(
               disabled={!name || name === profile.name}
             >
               更新
+            </ActionButton>
+            <ActionButton action={(): Promise<void> => app.auth().signOut()}>
+              サインアウト
             </ActionButton>
           </Form>
         </Container>

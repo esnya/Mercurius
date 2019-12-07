@@ -200,7 +200,6 @@ export default withFirebaseApp<{}>(
     const filterOptions = filters.map((f, i) => ({ text: f.text, value: i }));
     return (
       <Container>
-        <AppMenu />
         <Segment>
           <Form>
             <FormSelect

@@ -1,9 +1,5 @@
-node_modules
 .firebase
-
-/services
-
+*.log
 dist
 lib
-
-*.log
+node_modules
