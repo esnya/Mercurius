@@ -44,7 +44,7 @@ export default function ItemTableRow({
       itemRef={itemRef}
       item={item}
       open={chartModalOpen}
-      onClose={() => setChartModalOpen(false)}
+      onClose={(): void => setChartModalOpen(false)}
     />
   );
 

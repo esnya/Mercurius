@@ -43,7 +43,7 @@ function ProfileModal({
           <FormInput
             label="ユーザー名"
             value={profile.name}
-            onChange={(_e, { value }) =>
+            onChange={(_e, { value }): void =>
               setProfile(p => ({ ...p, name: `${value}` || undefined }))
             }
           />
@@ -62,14 +62,11 @@ function ProfileModal({
   );
 }
 
-export default function withUser<T extends {} = {}>(
-  Component: ComponentType<WithUserProps & T>,
+export default function withUser(
+  Component: ComponentType<WithUserProps>,
   showSignInForm = false,
-): ComponentType<WithFirebaseProps & T> {
-  return function WithUser({
-    app,
-    ...others
-  }: WithFirebaseProps & T): JSX.Element | null {
+): ComponentType<WithFirebaseProps> {
+  return function WithUser({ app }: WithFirebaseProps): JSX.Element | null {
     const auth = app.auth();
 
     const [user, setUser] = useState<firebase.User | null>(auth.currentUser);
@@ -153,7 +150,9 @@ export default function withUser<T extends {} = {}>(
     if (!profile) {
       return (
         <ProfileModal
-          onSubmit={(profile: UserProfile) => profileRef.set(profile)}
+          onSubmit={(profile: UserProfile): Promise<void> =>
+            profileRef.set(profile)
+          }
         />
       );
     }
@@ -164,7 +163,6 @@ export default function withUser<T extends {} = {}>(
         user={user}
         profileRef={profileRef}
         profile={profile}
-        {...(others as any)}
       />
     );
   };

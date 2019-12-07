@@ -15,7 +15,6 @@ import { formatZeny, formatPercent } from '../utilities/format';
 import ItemTable, { TableItem, isTableItem } from '../components/ItemTable';
 import StatField from '../types/StatField';
 import PriceStats from '../types/PriceStats';
-import AppMenu from '../components/AppMenu';
 import { useParams } from 'react-router';
 
 const statFields: StatField[] = [
@@ -70,60 +69,66 @@ interface Filter {
 const filters: Filter[] = [
   {
     text: 'すべて',
-    filter: () => true,
+    filter: (): boolean => true,
     allowNoStats: true,
   },
   {
     text: '買い',
-    filter: ({ variationRate, endByFluctuationRate }: PriceStats) =>
+    filter: ({ variationRate, endByFluctuationRate }: PriceStats): boolean =>
       variationRate !== undefined &&
       ((variationRate > 0.01 && endByFluctuationRate <= 0.2) ||
         (variationRate > -0.1 && endByFluctuationRate <= 0.05)),
   },
   {
     text: '売り',
-    filter: ({ variationRate, endByFluctuationRate }: PriceStats) =>
+    filter: ({ variationRate, endByFluctuationRate }: PriceStats): boolean =>
       (!variationRate || variationRate > 0.01) && endByFluctuationRate >= 0.5,
   },
   {
     text: '底',
-    filter: ({ variationRate, endByFluctuationRate }: PriceStats) =>
+    filter: ({ variationRate, endByFluctuationRate }: PriceStats): boolean =>
       variationRate !== undefined &&
       variationRate > -0.01 &&
       endByFluctuationRate <= 0.2,
   },
   {
     text: '天井',
-    filter: ({ variationRate, endByFluctuationRate }: PriceStats) =>
+    filter: ({ variationRate, endByFluctuationRate }: PriceStats): boolean =>
       variationRate !== undefined &&
       variationRate < 0.01 &&
       endByFluctuationRate >= 0.8,
   },
-  { text: '最高値', filter: ({ end, max }: PriceStats) => end === max },
-  { text: '最安値', filter: ({ end, min }: PriceStats) => end === min },
+  {
+    text: '最高値',
+    filter: ({ end, max }: PriceStats): boolean => end === max,
+  },
+  {
+    text: '最安値',
+    filter: ({ end, min }: PriceStats): boolean => end === min,
+  },
   {
     text: '横ばい',
-    filter: ({ variationRate }: PriceStats) =>
+    filter: ({ variationRate }: PriceStats): boolean =>
       variationRate !== undefined && Math.abs(variationRate) < 0.01,
   },
   {
     text: '上げ',
-    filter: ({ variationRate }: PriceStats) =>
+    filter: ({ variationRate }: PriceStats): boolean =>
       variationRate !== undefined && variationRate >= 0.01,
   },
   {
     text: '下げ',
-    filter: ({ variationRate }: PriceStats) =>
+    filter: ({ variationRate }: PriceStats): boolean =>
       variationRate !== undefined && variationRate <= -0.01,
   },
   {
     text: '現価/変動幅 10%以下',
-    filter: ({ endByFluctuationRate }: PriceStats) =>
+    filter: ({ endByFluctuationRate }: PriceStats): boolean =>
       endByFluctuationRate <= 0.1,
   },
   {
     text: '現価/変動幅 50%以上',
-    filter: ({ endByFluctuationRate }: PriceStats) =>
+    filter: ({ endByFluctuationRate }: PriceStats): boolean =>
       endByFluctuationRate >= 0.1,
   },
 ];

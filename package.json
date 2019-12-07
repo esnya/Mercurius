@@ -12,7 +12,7 @@
     "clean": "rimraf dist lib",
     "deploy": "firebase deploy",
     "serve": "cross-env TS_NODE_FILES=true webpack-dev-server",
-    "lint": "eslint src/**/*.ts src/**/*.tsx",
+    "lint": "eslint src/**/*.ts src/**/*.tsx functions/src/**/*.ts",
     "lint-fix": "npm run -s lint -- --fix",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

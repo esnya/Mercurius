@@ -1,16 +1,13 @@
 import React, { useState } from 'react';
-import _ from 'lodash';
 import withUser, { WithUserProps } from '../enhancers/withUser';
 import withFirebaseApp from '../enhancers/withFirebaseApp';
 import {
   Container,
-  Segment,
   Form,
   FormInput,
   ItemGroup,
   Item,
   ItemHeader,
-  SegmentGroup,
   Header,
   Divider,
 } from 'semantic-ui-react';
@@ -23,6 +20,7 @@ interface Project {
   title: string;
   owner: string;
 }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function isProject(value: any): value is Project {
   return (
     value &&
@@ -33,8 +31,8 @@ function isProject(value: any): value is Project {
   );
 }
 
-export default withFirebaseApp<{}>(
-  withUser<{}>(function Home({
+export default withFirebaseApp(
+  withUser(function Home({
     app,
     user,
     profile,

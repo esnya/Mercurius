@@ -21,7 +21,7 @@ import { ErrorThreshold } from '../components/DiffIcon';
 import { succeeded, failed, notice } from '../utilities/sounds';
 import _ from 'lodash';
 import { useParams } from 'react-router';
-import AppMenu from '../components/AppMenu';
+import useAsyncEffect from '../hooks/useAsyncEffect';
 
 interface Rect {
   x: number;
@@ -55,19 +55,13 @@ const defaultRecognitionOptions = {
 };
 const optionsKey = 'mercurius-trading:recognition-options';
 
-function useAsyncEffect(effect: () => Promise<void>, dependsOn?: any[]): void {
-  useEffect(() => {
-    effect();
-  }, dependsOn);
-}
-
 export default withFirebaseApp<{}>(function AutoInput({
   app,
 }: WithFirebaseProps): JSX.Element | null {
   const { projectId } = useParams();
   if (typeof projectId !== 'string') return null;
 
-  const [options, setOptions] = useState<RecognitionOptions>(
+  const [options] = useState<RecognitionOptions>(
     (): RecognitionOptions => {
       const json = localStorage.getItem(optionsKey);
       return defaultsDeep(
@@ -270,10 +264,11 @@ export default withFirebaseApp<{}>(function AutoInput({
       prevTriggered = triggered;
     }, 1000 / options.fps);
 
-    return () => clearInterval(renderInterval);
+    return (): void => clearInterval(renderInterval);
   }, [app, video, canvas, options, ocr]);
 
   const selectSource = async (): Promise<void> => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const stream: MediaStream = await (navigator.mediaDevices as any).getDisplayMedia();
     const video = document.createElement('video');
     video.srcObject = stream;
@@ -325,7 +320,7 @@ export default withFirebaseApp<{}>(function AutoInput({
             ),
           )
         }
-        onDelete={() => setTasks(a => a.filter(b => b.id !== task.id))}
+        onDelete={(): void => setTasks(a => a.filter(b => b.id !== task.id))}
       />
     );
   });

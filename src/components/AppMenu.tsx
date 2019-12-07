@@ -1,5 +1,5 @@
 import React from 'react';
-import { useRouteMatch, useParams } from 'react-router';
+import { useRouteMatch } from 'react-router';
 import { MenuItem, Menu } from 'semantic-ui-react';
 import { Link } from 'react-router-dom';
 

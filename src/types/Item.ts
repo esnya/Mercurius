@@ -14,7 +14,7 @@ export default interface Item {
   backgroundChartUpdatedAt?: Timestamp;
   chartUpdatedAt?: Timestamp;
 }
-
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function isItem(value: any): value is Item {
   return (
     typeof value === 'object' &&
