@@ -140,6 +140,7 @@ export default withFirebaseApp<{}>(
 
     const [activePage, setActivePage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(50);
+    const [search, setSearch] = useState<string | null>(null);
 
     const [sortBy, setSortBy] = useState<
       keyof PriceStats | 'name' | 'updatedAt'
@@ -172,11 +173,15 @@ export default withFirebaseApp<{}>(
       return <Loader />;
     }
 
-    const filtered: TableItem[] = items.filter(({ item: { priceStats } }) => {
-      const { filter, allowNoStats } = filters[selectedFilter];
+    const filtered: TableItem[] = items
+      .filter(({ item: { priceStats } }) => {
+        const { filter, allowNoStats } = filters[selectedFilter];
 
-      return priceStats ? filter(priceStats) : Boolean(allowNoStats);
-    });
+        return priceStats ? filter(priceStats) : Boolean(allowNoStats);
+      })
+      .filter(({ item: { name } }): boolean =>
+        Boolean(!search || name.match(search)),
+      );
     const totalPages = items ? Math.ceil(filtered.length / itemsPerPage) : 1;
 
     const sortIteratee = ({
@@ -207,6 +212,11 @@ export default withFirebaseApp<{}>(
       <Container>
         <Segment>
           <Form>
+            <FormInput
+              label="検索"
+              value={search}
+              onChange={(_e, { value }): void => setSearch(value || null)}
+            />
             <FormSelect
               label="フィルター"
               options={filterOptions}
@@ -217,6 +227,7 @@ export default withFirebaseApp<{}>(
             />
             <FormInput
               label="表示件数"
+              type="number"
               value={itemsPerPage}
               onChange={(_e, { value }): void => {
                 setItemsPerPage(Number(value) || 0);
