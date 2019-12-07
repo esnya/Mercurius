@@ -111,12 +111,12 @@ export default withFirebaseApp<{}>(function AutoInput({
     const timestamp = formatTimestamp();
 
     setTasks(tasks => [
+      ...tasks,
       {
         id,
         image,
         timestamp,
       },
-      ...tasks,
     ]);
 
     function updateTask(value: {}): void {
