@@ -3,21 +3,24 @@ import HtmlWebpackPlugin from 'html-webpack-plugin';
 import WorkboxPlugin from 'workbox-webpack-plugin';
 import firebaseInitMiddleware from './src/build/firebaseInitMiddleware';
 import e from 'express';
+import FaviconsWebpackPlugin from 'favicons-webpack-plugin';
 
 function isPlugin(plugin: Plugin | null): plugin is Plugin {
   return plugin !== null;
 }
 
-async function devServerBefore(): Promise<((app: e.Application) => void) | undefined> {
+async function devServerBefore(): Promise<
+  ((app: e.Application) => void) | undefined
+> {
   try {
     const initMiddleware = await firebaseInitMiddleware();
     return (app: e.Application) => {
       app.use(initMiddleware);
-    }
+    };
   } catch {
     return;
   }
-};
+}
 
 export default async function config(): Promise<Configuration> {
   const production = process.env.NODE_ENV === 'production';
@@ -66,6 +69,15 @@ export default async function config(): Promise<Configuration> {
         template: './src/views/template.html',
       }),
       production ? new WorkboxPlugin.GenerateSW({}) : null,
+      new FaviconsWebpackPlugin({
+        logo: './src/assets/icon.png',
+        favicons: {
+          lang: 'ja-JP',
+          // eslint-disable-next-line @typescript-eslint/camelcase
+          theme_color: '#1976d2',
+          orientation: 'portrait',
+        },
+      }),
     ].filter<Plugin>(isPlugin),
     resolve: {
       extensions: ['.ts', '.tsx', '.js', '.jsx'],
