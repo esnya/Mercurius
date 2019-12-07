@@ -2,20 +2,91 @@ import React, { useState } from 'react';
 import _ from 'lodash';
 import withUser, { WithUserProps } from '../enhancers/withUser';
 import withFirebaseApp from '../enhancers/withFirebaseApp';
-import { Container, Segment, Form, FormInput } from 'semantic-ui-react';
+import {
+  Container,
+  Segment,
+  Form,
+  FormInput,
+  ItemGroup,
+  Item,
+  ItemHeader,
+  SegmentGroup,
+  Header,
+  Divider,
+} from 'semantic-ui-react';
 import ActionButton from '../components/ActionButton';
+import useAsyncEffect from '../hooks/useAsyncEffect';
+import { Link } from 'react-router-dom';
+
+interface Project {
+  id: string;
+  title: string;
+  owner: string;
+}
+function isProject(value: any): value is Project {
+  return (
+    value &&
+    typeof value === 'object' &&
+    typeof value.id === 'string' &&
+    typeof value.title === 'string' &&
+    typeof value.owner === 'string'
+  );
+}
 
 export default withFirebaseApp<{}>(
   withUser<{}>(function Home({
+    app,
     user,
     profile,
     profileRef,
   }: WithUserProps): JSX.Element {
     const [name, setName] = useState(profile.name);
 
+    const [projects, setProjects] = useState<Project[]>();
+
+    useAsyncEffect(async () => {
+      const projectsRef = app.firestore().collection('projects');
+      const snapshot = await projectsRef.get();
+      const projects = await Promise.all(
+        snapshot.docs.map(async doc => {
+          try {
+            const project = {
+              ...doc.data(),
+              id: doc.ref.id,
+            };
+
+            if (doc.get('owner') === user.uid) return project;
+
+            const memberSnapshot = await doc.ref
+              .collection('members')
+              .doc(user.uid)
+              .get();
+            if (!memberSnapshot.get('read')) return null;
+
+            return project;
+          } catch {
+            return null;
+          }
+        }),
+      );
+      setProjects(projects.filter(a => a).filter(isProject));
+    }, [user.uid]);
+
+    const items =
+      projects &&
+      projects.map(({ id, title }) => (
+        <Item key={id}>
+          <ItemHeader as={Link} to={`/projects/${id}`}>
+            {title}
+          </ItemHeader>
+        </Item>
+      ));
+
     return (
-      <Container>
-        <Segment>
+      <div>
+        <Divider hidden />
+        <Container text>
+          <Header dividing>プロフィール</Header>
           <Form>
             <FormInput label="ユーザーID" readOnly value={user.uid} />
             <FormInput
@@ -34,8 +105,13 @@ export default withFirebaseApp<{}>(
               更新
             </ActionButton>
           </Form>
-        </Segment>
-      </Container>
+        </Container>
+        <Divider hidden />
+        <Container text>
+          <Header dividing>プロジェクト</Header>
+          <ItemGroup>{items}</ItemGroup>
+        </Container>
+      </div>
     );
   },
   true),
