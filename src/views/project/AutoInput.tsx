@@ -5,23 +5,23 @@ import RecognitionTask, {
   Task,
   Result,
   isValid,
-} from '../components/RecognitionTask';
-import Ocr from '../utilities/ocr';
+} from '../../components/RecognitionTask';
+import Ocr from '../../utilities/ocr';
 import withFirebaseApp, {
   WithFirebaseProps,
-} from '../enhancers/withFirebaseApp';
-import { isItem } from '../types/Item';
-import ActionButton from '../components/ActionButton';
+} from '../../enhancers/withFirebaseApp';
+import { isItem } from '../../types/Item';
+import ActionButton from '../../components/ActionButton';
 import shortid from 'shortid';
-import { formatTimestamp } from '../utilities/format';
-import firebase from '../firebase';
+import { formatTimestamp } from '../../utilities/format';
+import firebase from '../../firebase';
 import { duration } from 'moment';
-import { isPrice } from '../types/Price';
-import { ErrorThreshold } from '../components/DiffIcon';
-import { succeeded, failed, notice } from '../utilities/sounds';
+import { isPrice } from '../../types/Price';
+import { ErrorThreshold } from '../../components/DiffIcon';
+import { succeeded, failed, notice } from '../../utilities/sounds';
 import _ from 'lodash';
 import { useParams } from 'react-router';
-import useAsyncEffect from '../hooks/useAsyncEffect';
+import useAsyncEffect from '../../hooks/useAsyncEffect';
 
 interface Rect {
   x: number;

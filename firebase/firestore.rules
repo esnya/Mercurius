@@ -27,6 +27,10 @@ service cloud.firestore {
           allow write: if request.auth.uid != null && (isOwner() || canWrite());
         }
       }
+
+      match /members/{uid} {
+      	allow write: if request.auth.uid != null && (isOwner() || canWrite());
+      }
     }
 
     match /users/{uid} {

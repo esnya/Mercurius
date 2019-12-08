@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 
 const menuItems = [
   { path: '/', text: 'プロジェクト' },
+  { path: '/members', text: 'メンバー' },
   { path: '/auto', text: '自動入力' },
 ];
 

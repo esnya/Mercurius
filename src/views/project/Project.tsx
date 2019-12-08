@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import _ from 'lodash';
-import withUser, { WithUserProps } from '../enhancers/withUser';
-import withFirebaseApp from '../enhancers/withFirebaseApp';
+import withUser, { WithUserProps } from '../../enhancers/withUser';
+import withFirebaseApp from '../../enhancers/withFirebaseApp';
 import {
   Loader,
   Container,
@@ -11,10 +11,10 @@ import {
   Form,
   FormInput,
 } from 'semantic-ui-react';
-import { formatZeny, formatPercent } from '../utilities/format';
-import ItemTable, { TableItem, isTableItem } from '../components/ItemTable';
-import StatField from '../types/StatField';
-import PriceStats from '../types/PriceStats';
+import { formatZeny, formatPercent } from '../../utilities/format';
+import ItemTable, { TableItem, isTableItem } from '../../components/ItemTable';
+import StatField from '../../types/StatField';
+import PriceStats from '../../types/PriceStats';
 import { useParams } from 'react-router';
 
 const statFields: StatField[] = [
