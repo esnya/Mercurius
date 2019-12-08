@@ -9,6 +9,7 @@ import ActionButton from './ActionButton';
 import firebase from '../firebase';
 import { formatTimestampShort } from '../utilities/format';
 import PriceTable from './PriceTable';
+import moment, { duration } from 'moment';
 
 export default function ItemTableRow({
   item,
@@ -50,14 +51,23 @@ export default function ItemTableRow({
     />
   );
 
+  const updatedAt =
+    item.updatedAt && formatTimestampShort(item.updatedAt.toMillis());
+
+  const backgroundLeft =
+    item.updatedAt &&
+    ((Date.now() - item.updatedAt.toMillis()) /
+      duration(14, 'days').asMilliseconds()) *
+      100;
+
   const rowStyle = {
     backgroundImage: chartUrl ? `url(${chartUrl})` : null,
     backgroundSize: '100% 100%',
+    backgroundOrigin: 'content-box',
+    backgroundRepeat: 'no-repeat',
+    paddingLeft: backgroundLeft && `${backgroundLeft}%`,
     imageRendering: '-webkit-optimize-contrast',
   };
-
-  const updatedAt =
-    item.updatedAt && formatTimestampShort(item.updatedAt.toMillis());
 
   return (
     <TableRow style={rowStyle}>
