@@ -1,11 +1,28 @@
 import moment, { Moment } from 'moment';
 import formatter from 'format-number';
+import { Timestamp } from '../firebase';
 
-export function formatTimestamp(value?: Moment | Date | number): string {
-  return moment(value).format('Y/MM/DD HH:mm:ss');
+export function decodeTimestamp(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  value?: any,
+): Moment | Date | number | undefined {
+  return value &&
+    typeof value === 'object' &&
+    'toMillis' in value &&
+    typeof value.toMillis === 'function'
+    ? value.toMillis()
+    : value;
 }
-export function formatTimestampShort(value?: Moment | Date | number): string {
-  return moment(value).format('MM/DD HH:mm');
+
+export function formatTimestamp(
+  value?: Moment | Date | number | Timestamp,
+): string {
+  return moment(decodeTimestamp(value)).format('Y/MM/DD HH:mm:ss');
+}
+export function formatTimestampShort(
+  value?: Moment | Date | number | Timestamp,
+): string {
+  return moment(decodeTimestamp(value)).format('MM/DD HH:mm');
 }
 
 export const formatNumber = formatter();

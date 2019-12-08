@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import Item from '../types/Item';
 import ItemTableStatCell from './ItemTableStatCell';
-import { TableRow, TableCell, Button, Icon } from 'semantic-ui-react';
+import { TableRow, TableCell, Button, Icon, Modal } from 'semantic-ui-react';
 import StatField from '../types/StatField';
 import ItemChartModal from './ItemChartModal';
 import DiffIcon from './DiffIcon';
 import ActionButton from './ActionButton';
 import firebase from '../firebase';
 import { formatTimestampShort } from '../utilities/format';
+import PriceTable from './PriceTable';
 
 export default function ItemTableRow({
   item,
@@ -21,6 +22,7 @@ export default function ItemTableRow({
   const { name, priceStats, backgroundChartUpdatedAt, chartUpdatedAt } = item;
 
   const [chartModalOpen, setChartModalOpen] = useState(false);
+  const [priceModalOpen, setPriceModalOpen] = useState(false);
   const [chartUrl, setChartUrl] = useState<string>();
 
   useEffect(() => {
@@ -71,7 +73,10 @@ export default function ItemTableRow({
           disabled={!chartModal}
           onClick={(): void => setChartModalOpen(true)}
         >
-          <Icon name="chart bar" />
+          <Icon name="chart bar" size="small" />
+        </Button>
+        <Button icon onClick={(): void => setPriceModalOpen(true)}>
+          <Icon name="table" size="small" />
         </Button>
         <ActionButton
           icon
@@ -81,9 +86,20 @@ export default function ItemTableRow({
             })
           }
         >
-          <Icon name="sync" />
+          <Icon name="sync" size="small" />
         </ActionButton>
         {chartModal}
+        <Modal
+          open={priceModalOpen}
+          onClose={(): void => setPriceModalOpen(false)}
+        >
+          <PriceTable pricesRef={itemRef.collection('prices')} />
+          <Modal.Actions>
+            <Button color="blue" onClick={(): void => setPriceModalOpen(false)}>
+              閉じる
+            </Button>
+          </Modal.Actions>
+        </Modal>
       </TableCell>
     </TableRow>
   );

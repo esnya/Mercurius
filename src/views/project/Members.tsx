@@ -21,10 +21,11 @@ import {
 } from 'semantic-ui-react';
 import useAsyncEffect from '../../hooks/useAsyncEffect';
 import ActionButton from '../../components/ActionButton';
-
-type CollectionReference = firebase.firestore.CollectionReference;
-type DocumentSnapshot = firebase.firestore.DocumentSnapshot;
-type QuerySnapshot = firebase.firestore.QuerySnapshot;
+import {
+  CollectionReference,
+  DocumentSnapshot,
+  QuerySnapshot,
+} from '../../firebase';
 
 function AddForm({
   membersRef,
