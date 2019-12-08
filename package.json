@@ -76,6 +76,8 @@
     "quicktype": "^15.0.207",
     "rimraf": "^3.0.0",
     "style-loader": "^1.0.0",
+    "stylus": "^0.54.7",
+    "stylus-loader": "^3.0.2",
     "ts-loader": "^6.2.1",
     "ts-node": "^8.5.0",
     "typescript": "^3.7.2",

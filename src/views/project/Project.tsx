@@ -19,6 +19,15 @@ import { useParams } from 'react-router';
 
 const statFields: StatField[] = [
   {
+    text: '現価/変動幅',
+    path: 'endByFluctuationRate',
+    format: formatPercent,
+    factor: 100,
+    colorFactor: 1,
+    colorBias: 0,
+    textAlign: 'center',
+  },
+  {
     text: '現価',
     path: 'end',
     format: formatZeny,
@@ -30,15 +39,6 @@ const statFields: StatField[] = [
     colorFactor: 0.5,
     colorBias: 1,
     factor: 100,
-  },
-  {
-    text: '現価/変動幅',
-    path: 'endByFluctuationRate',
-    format: formatPercent,
-    factor: 100,
-    colorFactor: 1,
-    colorBias: 0,
-    textAlign: 'center',
   },
   {
     text: '最低',

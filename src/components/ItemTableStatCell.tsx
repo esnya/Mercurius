@@ -3,6 +3,7 @@ import PriceStats from '../types/PriceStats';
 import { Loader, TableCell, Label } from 'semantic-ui-react';
 import { getColorName } from '../utilities/chart';
 import StatField from '../types/StatField';
+import styles from './ItemTableCell.styl';
 
 export interface ItemTableStatCellProps {
   stats?: PriceStats;
@@ -31,5 +32,12 @@ export default function ItemTableStatCell({
     ) : (
       text
     );
-  return <TableCell textAlign={textAlign || 'right'}>{child}</TableCell>;
+  return (
+    <TableCell
+      className={styles.ItemTableCell}
+      textAlign={textAlign || 'right'}
+    >
+      {child}
+    </TableCell>
+  );
 }

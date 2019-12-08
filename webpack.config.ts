@@ -14,7 +14,7 @@ async function devServerBefore(): Promise<
 > {
   try {
     const initMiddleware = await firebaseInitMiddleware();
-    return (app: e.Application) => {
+    return (app: e.Application): void => {
       app.use(initMiddleware);
     };
   } catch {
@@ -47,12 +47,27 @@ export default async function config(): Promise<Configuration> {
           },
         },
         {
-          test: /\.tsx?/,
+          test: /\.tsx?$/,
           loader: 'ts-loader',
         },
         {
-          test: /\.css?/,
+          test: /\.css$/,
           loaders: ['style-loader', 'css-loader'],
+        },
+        {
+          test: /\.styl$/,
+          loaders: [
+            'style-loader',
+            {
+              loader: 'css-loader',
+              options: {
+                modules: {
+                  localIdentName: '[path][name]-[local]-[hash:base64]',
+                },
+              },
+            },
+            'stylus-loader',
+          ],
         },
         {
           test: /\.ya?ml$/,
@@ -66,7 +81,7 @@ export default async function config(): Promise<Configuration> {
     },
     plugins: [
       new HtmlWebpackPlugin({
-        template: './src/views/template.html',
+        template: './src/template.html',
       }),
       production ? new WorkboxPlugin.GenerateSW({}) : null,
       new FaviconsWebpackPlugin({

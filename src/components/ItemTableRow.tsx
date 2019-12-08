@@ -9,7 +9,8 @@ import ActionButton from './ActionButton';
 import firebase from '../firebase';
 import { formatTimestampShort } from '../utilities/format';
 import PriceTable from './PriceTable';
-import moment, { duration } from 'moment';
+import { duration } from 'moment';
+import styles from './ItemTableCell.styl';
 
 export default function ItemTableRow({
   item,
@@ -74,30 +75,32 @@ export default function ItemTableRow({
       <TableCell textAlign="center">
         <DiffIcon diffRate={(priceStats && priceStats.variationRate) || null} />
       </TableCell>
-      <TableCell>{name}</TableCell>
+      <TableCell className={styles.ItemTableCell}>{name}</TableCell>
       {cells}
-      <TableCell>{updatedAt}</TableCell>
-      <TableCell>
-        <Button
-          icon
-          disabled={!chartModal}
-          onClick={(): void => setChartModalOpen(true)}
-        >
-          <Icon name="chart bar" size="small" />
-        </Button>
-        <Button icon onClick={(): void => setPriceModalOpen(true)}>
-          <Icon name="table" size="small" />
-        </Button>
-        <ActionButton
-          icon
-          action={(): Promise<void> =>
-            itemRef.update({
-              updatedAt: firebase.firestore.FieldValue.delete(),
-            })
-          }
-        >
-          <Icon name="sync" size="small" />
-        </ActionButton>
+      <TableCell className={styles.ItemTableCell}>{updatedAt}</TableCell>
+      <TableCell textAlign="center">
+        <Button.Group>
+          <Button
+            icon
+            disabled={!chartModal}
+            onClick={(): void => setChartModalOpen(true)}
+          >
+            <Icon name="chart bar" size="small" />
+          </Button>
+          <Button icon onClick={(): void => setPriceModalOpen(true)}>
+            <Icon name="table" size="small" />
+          </Button>
+          <ActionButton
+            icon
+            action={(): Promise<void> =>
+              itemRef.update({
+                updatedAt: firebase.firestore.FieldValue.delete(),
+              })
+            }
+          >
+            <Icon name="sync" size="small" />
+          </ActionButton>
+        </Button.Group>
         {chartModal}
         <Modal
           open={priceModalOpen}
