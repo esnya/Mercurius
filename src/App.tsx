@@ -6,6 +6,7 @@ import Home from './views/Home';
 import Project from './views/project/Project';
 import AppMenu from './components/AppMenu';
 import Members from './views/project/Members';
+import './App.styl';
 
 export default function App(): JSX.Element {
   return (

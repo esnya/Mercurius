@@ -10,6 +10,7 @@ import {
   FormSelect,
   Form,
   FormInput,
+  Grid,
 } from 'semantic-ui-react';
 import { formatZeny, formatPercent } from '../../utilities/format';
 import ItemTable, { TableItem, isTableItem } from '../../components/ItemTable';
@@ -235,6 +236,17 @@ export default withFirebaseApp<{}>(
             />
           </Form>
         </Segment>
+        <Grid centered>
+          <Grid.Column textAlign="center">
+            <Pagination
+              activePage={activePage}
+              totalPages={totalPages}
+              onPageChange={(_e, { activePage }): void =>
+                setActivePage(Number(activePage))
+              }
+            />
+          </Grid.Column>
+        </Grid>
         <ItemTable
           statFields={statFields}
           items={itemsInPage}
@@ -251,13 +263,17 @@ export default withFirebaseApp<{}>(
             }
           }}
         />
-        <Pagination
-          activePage={activePage}
-          totalPages={totalPages}
-          onPageChange={(_e, { activePage }): void =>
-            setActivePage(Number(activePage))
-          }
-        />
+        <Grid centered>
+          <Grid.Column textAlign="center">
+            <Pagination
+              activePage={activePage}
+              totalPages={totalPages}
+              onPageChange={(_e, { activePage }): void =>
+                setActivePage(Number(activePage))
+              }
+            />
+          </Grid.Column>
+        </Grid>
       </Container>
     );
   }, true),
