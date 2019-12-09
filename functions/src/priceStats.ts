@@ -8,6 +8,7 @@ import firebase from 'firebase-admin';
 import moment = require('moment');
 import _ = require('lodash');
 import { renderChart, backgroundChartSpec, chartSpec } from './chart';
+import { lastPricePeriod, totalStatsPeriod } from './config';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function isTimestamp(value: any): value is Timestamp {
@@ -148,7 +149,7 @@ async function calculatePriceStats(
 
   const domain = [
     moment()
-      .subtract(14, 'days')
+      .subtract(totalStatsPeriod)
       .valueOf(),
     Date.now(),
   ];
@@ -208,7 +209,7 @@ async function calculatePriceStats(
   const endOfLastPrice = prices.find(domainFilter(previousDomain));
   const lastPricesDomain = endOfLastPrice && [
     moment(endOfLastPrice.timestamp.toMillis())
-      .subtract(1, 'day')
+      .subtract(lastPricePeriod)
       .valueOf(),
     endOfLastPrice.timestamp.toMillis(),
   ];
