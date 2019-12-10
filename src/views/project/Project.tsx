@@ -7,16 +7,16 @@ import {
   Container,
   Pagination,
   Segment,
-  FormSelect,
   Form,
-  FormInput,
   Grid,
+  Accordion,
 } from 'semantic-ui-react';
 import { formatZeny, formatPercent } from '../../utilities/format';
 import ItemTable, { TableItem, isTableItem } from '../../components/ItemTable';
 import StatField from '../../types/StatField';
 import PriceStats from '../../types/PriceStats';
 import { useParams } from 'react-router';
+import mingo from 'mingo';
 
 const statFields: StatField[] = [
   {
@@ -151,8 +151,22 @@ export default withFirebaseApp<{}>(
     );
 
     const [items, setItems] = useState<TableItem[]>([]);
-
     const [selectedFilter, setSelectedFilter] = useState<number>(0);
+    const [filterActive, setFilterActive] = useState(false);
+    const [mingoQuery, setMingoQuery] = useState<mingo.Query>();
+    const [mingoQueryJson, setMingoQueryJson] = useState<string>();
+
+    useEffect((): void => {
+      if (!mingoQueryJson) {
+        setMingoQuery(undefined);
+      } else {
+        try {
+          setMingoQuery(new mingo.Query(JSON.parse(mingoQueryJson)));
+        } catch (e) {
+          console.log(e);
+        }
+      }
+    }, [mingoQueryJson]);
 
     useEffect((): (() => void) => {
       return app
@@ -181,8 +195,15 @@ export default withFirebaseApp<{}>(
         return priceStats ? filter(priceStats) : Boolean(allowNoStats);
       })
       .filter(({ item: { name } }): boolean =>
-        Boolean(!search || search.split(/\s/g).some(keyword => name.match(keyword))),
-      );
+        Boolean(
+          !search ||
+            search
+              .split(/\s+/g)
+              .filter(k => k)
+              .some(keyword => name.match(keyword)),
+        ),
+      )
+      .filter(({ item }): boolean => !mingoQuery || mingoQuery.test(item));
     const totalPages = items ? Math.ceil(filtered.length / itemsPerPage) : 1;
 
     const sortIteratee = ({
@@ -209,32 +230,54 @@ export default withFirebaseApp<{}>(
       .value();
 
     const filterOptions = filters.map((f, i) => ({ text: f.text, value: i }));
+
     return (
       <Container>
         <Segment>
-          <Form>
-            <FormInput
-              label="検索"
-              value={search}
-              onChange={(_e, { value }): void => setSearch(value || null)}
-            />
-            <FormSelect
-              label="フィルター"
-              options={filterOptions}
-              value={selectedFilter}
-              onChange={(_e, { value }): void =>
-                setSelectedFilter(value as number)
-              }
-            />
-            <FormInput
-              label="表示件数"
-              type="number"
-              value={itemsPerPage}
-              onChange={(_e, { value }): void => {
-                setItemsPerPage(Number(value) || 0);
-              }}
-            />
-          </Form>
+          <Accordion fluid>
+            <Accordion.Title
+              active={filterActive}
+              onClick={(): void => setFilterActive(b => !b)}
+            ></Accordion.Title>
+            <Accordion.Content active={filterActive}>
+              <Form id={`mercurius-project-${projectId}`}>
+                <Form.Input
+                  label="キーワード"
+                  name="search"
+                  value={search}
+                  onChange={(_e, { value }): void => setSearch(value || null)}
+                />
+                <Form.Select
+                  label="フィルター"
+                  name="filter"
+                  options={filterOptions}
+                  value={selectedFilter}
+                  onChange={(_e, { value }): void =>
+                    setSelectedFilter(value as number)
+                  }
+                />
+                <Form.Input
+                  label="表示件数"
+                  name="items-per-page"
+                  type="number"
+                  value={itemsPerPage}
+                  onChange={(_e, { value }): void => {
+                    setItemsPerPage(Number(value) || 0);
+                  }}
+                />
+                <Form.TextArea
+                  label="高度な検索 (mingo)"
+                  name="mingo"
+                  value={mingoQueryJson || ''}
+                  onChange={(_e, { value }): void =>
+                    setMingoQueryJson(
+                      typeof value === 'string' ? value : undefined,
+                    )
+                  }
+                />
+              </Form>
+            </Accordion.Content>
+          </Accordion>
         </Segment>
         <Grid centered>
           <Grid.Column textAlign="center">

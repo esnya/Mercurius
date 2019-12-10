@@ -23,6 +23,7 @@
     "format-number": "^3.0.0",
     "js-yaml": "^3.13.1",
     "lodash": "^4.17.15",
+    "mingo": "^2.4.0",
     "moment": "^2.24.0",
     "react": "^16.12.0",
     "react-dom": "^16.11.0",
