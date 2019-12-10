@@ -121,9 +121,10 @@ export default class Ocr {
       .first();
     const value = _(results)
       .filter(({ name }) => name === 'price')
-      .map(({ text }) => Number(text))
+      .map(({ text }) => Number(text && text.replace(/[^0-9]/g, '')))
       .filter(v => v > 0)
       .first();
+    console.log(recognizedName, value, drawing);
 
     const nameCandidates = recognizedName
       ? _(this.words)

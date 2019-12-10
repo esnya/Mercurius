@@ -32,7 +32,7 @@ export default interface RecognitionPreset {
 const PresetKey = 'mercurius-recognition-preset-4';
 export function loadPreset(): RecognitionPreset {
   try {
-    const data = localStorage.get(PresetKey);
+    const data = localStorage.getItem(PresetKey);
 
     return defaultsDeep(data ? JSON.parse(data) : {}, DefaultRecognitionPreset);
   } catch {

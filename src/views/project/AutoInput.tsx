@@ -201,11 +201,13 @@ export default withFirebaseApp<{}>(function AutoInput({
     }
 
     succeeded.play();
-    await pricesRef.add({
+    const data = {
       timestamp: firebase.firestore.FieldValue.serverTimestamp(),
       price: value,
       lottery: Boolean(result.drawing),
-    });
+    };
+    await pricesRef.add(data);
+    console.log(name, value, Boolean(result.drawing));
 
     setTasks(tasks => tasks.filter(task => task.id !== id));
   }

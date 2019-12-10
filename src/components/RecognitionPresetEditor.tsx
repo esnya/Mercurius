@@ -84,7 +84,7 @@ export default function RecognitionPresetEditor({
           setPresetYaml(typeof value === 'string' ? value : '')
         }
       />
-      <FormButton onClick={() => savePreset(preset)}>保存</FormButton>
+      <FormButton onClick={(): void => savePreset(preset)}>保存</FormButton>
       <div
         style={{
           overflow: 'auto',
