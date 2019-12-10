@@ -181,7 +181,7 @@ export default withFirebaseApp<{}>(
         return priceStats ? filter(priceStats) : Boolean(allowNoStats);
       })
       .filter(({ item: { name } }): boolean =>
-        Boolean(!search || name.match(search)),
+        Boolean(!search || search.split(/\s/g).some(keyword => name.match(keyword))),
       );
     const totalPages = items ? Math.ceil(filtered.length / itemsPerPage) : 1;
 
