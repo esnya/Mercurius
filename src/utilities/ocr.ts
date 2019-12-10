@@ -12,9 +12,12 @@ import {
   Worker,
 } from 'tesseract.js';
 import _ from 'lodash';
+import RecognitionPreset from '../recognition/RecognitionPreset';
+import { getScales } from '../recognition';
+import { imageDataToBlob } from './image';
 
 export default class Ocr {
-  constructor(readonly words: string[], lang = 'jpn+eng', nWorkers = 1) {
+  constructor(readonly words: string[], lang = 'jpn+eng', nWorkers = 4) {
     this.pScheduler = this.init(words, lang);
 
     this.addWorkers(words, lang, nWorkers - 1);
@@ -55,57 +58,93 @@ export default class Ocr {
   }
 
   async recognize(
-    image: Blob,
+    canvas: HTMLCanvasElement,
+    preset: RecognitionPreset,
   ): Promise<{
     name?: string;
     value?: number;
     drawing: boolean;
     nameCandidates?: { name: string; score: number }[];
   }> {
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Failed to get canvas context');
+
     const scheduler = await this.pScheduler;
 
-    const res = (await scheduler.addJob('recognize', image)) as RecognizeResult;
+    const results = await Promise.all(
+      preset.recognitions.map(
+        async ({
+          name,
+          ...rect
+        }): Promise<{ name: string; text: string | null }> => {
+          try {
+            const { scale, center } = getScales(canvas);
 
-    const lines = res.data.lines.map(line => line.text.replace(/\s/g, ''));
-    console.log(lines);
-    if (lines.length < 2 || lines.length > 3) {
-      return {
-        drawing: false,
-      };
-    }
-    const drawing = lines.length === 3;
+            const x = rect.x * scale + center.x;
+            const y = rect.y * scale + center.y;
+            const width = rect.width * scale;
+            const height = rect.height * scale;
 
-    const [n1, n2] = lines;
-    const nameCandidates = _(this.words)
-      .map(name => [
-        { name, score: WinkDistance.string.jaroWinkler(name, n1) },
-        ...(drawing
-          ? [{ name, score: WinkDistance.string.jaroWinkler(name, n2) }]
-          : []),
-      ])
-      .flatten()
-      .filter(({ score }) => score < 0.6)
-      .sortBy(({ score }) => score)
-      .value();
+            const imageData = context.getImageData(x, y, width, height);
+            const image = await imageDataToBlob(imageData);
 
-    const front = nameCandidates[0];
-    const name = front && front.score < 0.3 ? front.name : undefined;
-    const value =
-      Number(lines[drawing ? 2 : 1].replace(/^0|[^0-9]+/g, '')) || undefined;
+            const res = (await scheduler.addJob(
+              'recognize',
+              image,
+            )) as RecognizeResult;
+
+            const text = res.data.text.replace(/\s/g, '');
+
+            if (!text) throw new Error(`Failed to recognize ${name}`);
+
+            return {
+              name,
+              text,
+            };
+          } catch (error) {
+            console.error(error);
+
+            return { name, text: null };
+          }
+        },
+      ),
+    );
+
+    const drawing =
+      _(results)
+        .filter(({ name }) => name === 'lottery')
+        .map(({ text }) => Boolean(text && text.match(/[0-9]/)))
+        .first() || false;
+    const recognizedName = _(results)
+      .filter(({ name }) => name === 'name')
+      .map(({ text }) => text)
+      .first();
+    const value = _(results)
+      .filter(({ name }) => name === 'price')
+      .map(({ text }) => Number(text))
+      .filter(v => v > 0)
+      .first();
+
+    const nameCandidates = recognizedName
+      ? _(this.words)
+          .map(name => ({
+            name,
+            score: WinkDistance.string.jaroWinkler(name, recognizedName),
+          }))
+          .filter(({ score }) => score < 0.6)
+          .sortBy(({ score }) => score)
+          .value()
+      : [];
+
+    const [first, second] = nameCandidates || [];
+    const name =
+      first && first.score < 0.3 && (!second || second.score !== first.score)
+        ? first.name
+        : undefined;
 
     return {
       name,
-      nameCandidates: [
-        ...(!name
-          ? []
-          : drawing
-          ? [
-              { name: n1, score: 1 },
-              { name: n2, score: 1 },
-            ]
-          : [{ name: n1, score: 1 }]),
-        ...nameCandidates,
-      ],
+      nameCandidates,
       value,
       drawing,
     };

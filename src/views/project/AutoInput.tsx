@@ -1,5 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Container, Segment, CardGroup } from 'semantic-ui-react';
+import {
+  Container,
+  Segment,
+  CardGroup,
+  Modal,
+  Button,
+} from 'semantic-ui-react';
 import defaultsDeep from 'lodash/defaultsDeep';
 import RecognitionTask, {
   Task,
@@ -22,6 +28,9 @@ import { succeeded, failed, notice } from '../../utilities/sounds';
 import _ from 'lodash';
 import { useParams } from 'react-router';
 import useAsyncEffect from '../../hooks/useAsyncEffect';
+import { loadPreset } from '../../recognition/RecognitionPreset';
+import { bounds, crop, videoToCanvas } from '../../utilities/image';
+import RecognitionPresetEditor from '../../components/RecognitionPresetEditor';
 
 interface Rect {
   x: number;
@@ -72,8 +81,10 @@ export default withFirebaseApp<{}>(function AutoInput({
   );
   const [ocr, setOcr] = useState<Ocr>();
   const [video, setVideo] = useState<HTMLVideoElement>();
+  const [stream, setStream] = useState<MediaStream>();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [names, setNames] = useState<string[]>([]);
+  const [editorOpen, setEditorOpen] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const canvas = canvasRef.current;
@@ -106,9 +117,17 @@ export default withFirebaseApp<{}>(function AutoInput({
     .doc(projectId)
     .collection('items');
 
-  async function recognize(ocr: Ocr, image: Blob): Promise<void> {
+  async function recognize(
+    ocr: Ocr,
+    context: CanvasRenderingContext2D,
+  ): Promise<void> {
     const id = shortid();
     const timestamp = formatTimestamp();
+
+    const { canvas } = context;
+    const preset = loadPreset();
+
+    const image = await crop(bounds(preset.recognitions), canvas, canvas);
 
     setTasks(tasks => [
       ...tasks,
@@ -125,7 +144,7 @@ export default withFirebaseApp<{}>(function AutoInput({
       );
     }
 
-    const result = await ocr.recognize(image);
+    const result = await ocr.recognize(canvas, loadPreset());
     updateTask({ result });
 
     const { name, value } = result;
@@ -256,9 +275,7 @@ export default withFirebaseApp<{}>(function AutoInput({
         5;
       if (triggered && !prevTriggered) {
         notice.play();
-        const image = await new Promise<Blob | null>(r => canvas.toBlob(r));
-        if (!image) throw new Error('Failed to get image');
-        setTimeout(() => recognize(ocr, image));
+        setTimeout(() => recognize(ocr, videoToCanvas(video)));
       }
       // eslint-disable-next-line require-atomic-updates
       prevTriggered = triggered;
@@ -270,6 +287,8 @@ export default withFirebaseApp<{}>(function AutoInput({
   const selectSource = async (): Promise<void> => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const stream: MediaStream = await (navigator.mediaDevices as any).getDisplayMedia();
+    setStream(stream);
+
     const video = document.createElement('video');
     video.srcObject = stream;
     video.play();
@@ -327,11 +346,42 @@ export default withFirebaseApp<{}>(function AutoInput({
 
   return (
     <Container>
-      <Segment>
-        <canvas ref={canvasRef} />
-        <ActionButton action={selectSource}>画面選択</ActionButton>
-      </Segment>
+      <Segment.Group>
+        <Segment>
+          <canvas ref={canvasRef} />
+        </Segment>
+        <Segment>
+          <Button
+            color="blue"
+            disabled={!ocr || !video}
+            onClick={(): void => {
+              if (!ocr || !video) return;
+              recognize(ocr, videoToCanvas(video));
+            }}
+          >
+            認識
+          </Button>
+          <ActionButton action={selectSource} floated="right">
+            画面選択
+          </ActionButton>
+          <Button
+            disabled={!stream}
+            floated="right"
+            onClick={(): void => setEditorOpen(true)}
+          >
+            設定
+          </Button>
+        </Segment>
+      </Segment.Group>
       <CardGroup>{taskViews}</CardGroup>
+      <Modal open={editorOpen} onClose={() => setEditorOpen(false)}>
+        <Modal.Content>
+          {stream && editorOpen && <RecognitionPresetEditor stream={stream} />}
+        </Modal.Content>
+        <Modal.Actions>
+          <Button onClick={() => setEditorOpen(false)}>閉じる</Button>
+        </Modal.Actions>
+      </Modal>
     </Container>
   );
 });

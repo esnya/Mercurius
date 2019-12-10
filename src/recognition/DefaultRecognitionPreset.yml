@@ -1,0 +1,27 @@
+recognitions:
+  - name: name
+    type: text
+    x: -0.39
+    y: -0.47
+    width: 0.515
+    height: 0.08
+  - name: lottery
+    type: number
+    x: 0.15
+    y: -0.46
+    width: 0.13
+    height: 0.06
+  - name: price
+    type: number
+    x: -0.13
+    y: -0.375
+    width: 0.4
+    height: 0.08
+triggers:
+  - x: 0.26
+    y: -0.33
+    color: [219, 241, 255]
+  # - x: 0.26
+  #   y: -0.27
+  #   color: [255, 255, 255]
+fps: 10
