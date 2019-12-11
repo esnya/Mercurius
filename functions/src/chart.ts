@@ -36,7 +36,25 @@ export const defaultSpec = {
   $schema: 'https://vega.github.io/schema/vega-lite/v4.0.0-beta.12.json',
   padding: 30,
   data: { name: 'data' },
-  layer: [{ mark: 'line' }, { mark: 'point' }],
+  layer: [
+    { mark: 'line' },
+    { mark: 'point' },
+    {
+      mark: 'bar',
+      encoding: {
+        color: {
+          value: 'red',
+          condition: {
+            test: '!datum.lottery',
+            value: null,
+          },
+        },
+        size: {
+          value: 1,
+        },
+      },
+    },
+  ],
   encoding: {
     x: {
       field: 'timestamp',
@@ -54,6 +72,7 @@ export const defaultSpec = {
       field: 'price',
       type: 'quantitative',
     },
+    size: { value: 1 },
   },
   config: {
     axis: {
