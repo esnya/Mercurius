@@ -17,6 +17,9 @@ import StatField from '../../types/StatField';
 import PriceStats from '../../types/PriceStats';
 import { useParams } from 'react-router';
 import mingo from 'mingo';
+import ActionButton from '../../components/ActionButton';
+import { Timestamp } from '../../firebase';
+import { formatDate } from 'tough-cookie';
 
 const statFields: StatField[] = [
   {
@@ -231,6 +234,52 @@ export default withFirebaseApp<{}>(
 
     const filterOptions = filters.map((f, i) => ({ text: f.text, value: i }));
 
+    const exportAsCsv = async (): Promise<void> => {
+      const firestore = app.firestore();
+      const items = await firestore
+        .collection('projects')
+        .doc(projectId)
+        .collection('items')
+        .get();
+
+      const lines = _.flatten(
+        await items.docs
+          .map(async itemSnapshot => {
+            const snapshot = await itemSnapshot.ref
+              .collection('prices')
+              .orderBy('timestamp', 'desc')
+              .get();
+            return snapshot.docs.map((priceSnapshot): string => {
+              const timestamp = priceSnapshot.get('timestamp') as Timestamp;
+              const name = itemSnapshot.get('name') as string;
+              const price = priceSnapshot.get('price') as number;
+              const lottery = priceSnapshot.get('lottery') as boolean;
+
+              return [
+                timestamp.toDate().toISOString(),
+                name,
+                price,
+                lottery,
+              ].join(',');
+            });
+          })
+          .reduce(async (p, c): Promise<string[][]> => {
+            return [...(await p), await c];
+          }, Promise.resolve([] as string[][])),
+      );
+
+      const csv = new File(
+        [['timestamp, name, price, lottery', ...lines].join('\n')],
+        'csv',
+        { type: 'text/csv' },
+      );
+
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(csv);
+      a.download = `${new Date().toISOString()}.csv`;
+      a.click();
+    };
+
     return (
       <Container>
         <Segment>
@@ -317,6 +366,9 @@ export default withFirebaseApp<{}>(
             />
           </Grid.Column>
         </Grid>
+        <Segment>
+          <ActionButton action={exportAsCsv}>CSVエクスポート</ActionButton>
+        </Segment>
       </Container>
     );
   }, true),
