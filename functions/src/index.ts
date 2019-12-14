@@ -9,11 +9,9 @@ export const onPriceChange = functions.firestore
   .document('projects/{projectId}/items/{itemId}/prices/{priceId}')
   .onWrite(
     async (change): Promise<void> => {
-      const priceSnapshot = change.after;
-      const priceRef = priceSnapshot.ref;
       const itemRef = change.after.ref.parent.parent;
       if (!itemRef) return;
-      await updatePriceStats(itemRef, { priceRef, priceSnapshot, storage });
+      await updatePriceStats(itemRef, { storage });
     },
   );
 

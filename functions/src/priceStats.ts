@@ -3,6 +3,7 @@ import {
   Timestamp,
   DocumentSnapshot,
   CollectionReference,
+  FieldValue,
 } from '@google-cloud/firestore';
 import firebase from 'firebase-admin';
 import moment = require('moment');
@@ -98,41 +99,25 @@ function domainFilter(
 }
 
 async function calculatePriceStats(
-  itemRef: DocumentReference,
-  {
-    itemSnapshot,
-    priceRef,
-    priceSnapshot,
-  }: {
-    itemSnapshot?: DocumentSnapshot;
-    priceRef?: DocumentReference;
-    priceSnapshot?: DocumentSnapshot;
-  },
+  itemSnapshot: DocumentSnapshot,
+  priceSnapshot?: DocumentSnapshot,
 ): Promise<{
   item: Item;
   prices: Price[];
   domain: number[];
   priceStats?: { endByFluctuationRate: number };
 } | null> {
-  console.debug(
-    'calculating',
-    itemRef.path,
-    priceRef && priceRef.path,
-    itemSnapshot && itemSnapshot.data(),
-  );
+  const itemRef = itemSnapshot.ref;
+  console.debug('calculating', itemRef.path, itemSnapshot.data());
 
-  const item = Item.parse(itemSnapshot || (await itemRef.get()));
+  const item = Item.parse(itemSnapshot);
   if (!item) {
     console.debug('no item');
     return null;
   }
 
   const pricesRef = itemRef.collection('prices');
-  const lastPrice = priceSnapshot
-    ? Price.parse(priceSnapshot)
-    : priceRef
-    ? Price.parse(await priceRef.get())
-    : await Price.getLast(pricesRef);
+  const lastPrice = priceSnapshot && Price.parse(priceSnapshot);
   const lastPriceTimestamp =
     lastPrice && lastPrice.timestamp
       ? lastPrice.timestamp
@@ -268,18 +253,120 @@ async function calculatePriceStats(
   return { item, prices, domain, priceStats };
 }
 
+function isDefined<T>(value?: T | null): value is T {
+  return value !== undefined && value !== null;
+}
+
+export async function calculateDailyStats(
+  itemSnapshot: DocumentSnapshot,
+): Promise<void> {
+  console.log('CalculatingDailyStats', itemSnapshot.ref.path);
+  if (!itemSnapshot.exists) return;
+
+  const updatedAt = itemSnapshot.get('dailyStats.updatedAt') as Timestamp | undefined;
+
+  const itemRef = itemSnapshot.ref;
+  const pricesRef = itemRef.collection('prices');
+  const pricesSnapshot = await pricesRef
+    .orderBy('timestamp', 'desc')
+    .endAt(
+      Timestamp.fromMillis(moment()
+        .subtract(3, 'days')
+        .endOf('day')
+        .valueOf()),
+    )
+    .get();
+    // console.log('Prices', pricesSnapshot.docs.map(doc => doc.id));
+
+  if (pricesSnapshot.empty || updatedAt && pricesSnapshot.docs[0].get('timestamp').toMillis() < updatedAt.toMillis()) {
+    return;
+  }
+
+  const now = Date.now();
+  const dayInMillis = moment.duration(1, 'day').asMilliseconds();
+  const today = Math.floor(moment(now).startOf('day').valueOf() / dayInMillis);
+  const dailyStats = _(pricesSnapshot.docs)
+    .map(snapshot => ({
+      timestamp: (snapshot.get('timestamp') as Timestamp).toMillis(),
+      price: snapshot.get('price') as number,
+    }))
+    .groupBy(({ timestamp }) => Math.floor(today - moment(timestamp).startOf('day').valueOf() / dayInMillis))
+    .mapValues((group, key) => {
+      // console.log('group', group);
+      if (group.length == 0) return;
+
+      const count = group.length;
+      const opening = _.last(group);
+      if (!opening) return;
+
+      const closing = _.first(group);
+      if (!closing) return;
+
+      const { min, max, sum, sumOfSq } = _(group)
+        .map(i => i.price)
+        .reduce(
+          (prev, curr) => ({
+            min: Math.min(prev.min, curr),
+            max: Math.max(prev.max, curr),
+            sum: prev.sum + curr,
+            sumOfSq: prev.sumOfSq + curr ** 2,
+          }),
+          {
+            min: opening.price,
+            max: opening.price,
+            sum: 0,
+            sumOfSq: 0,
+          },
+        );
+
+      return {
+        timestamp: Timestamp.fromMillis(moment(opening.timestamp).startOf('day').valueOf()),
+        opening: opening.price,
+        openingAt: Timestamp.fromMillis(opening.timestamp),
+        closing: closing.price,
+        closingAt: Timestamp.fromMillis(closing.timestamp),
+        count,
+        min,
+        max,
+        sum,
+        sumOfSq,
+        avg: sum / count,
+        verbose: (sumOfSq - sum ** 2) / count,
+        diff: min - max,
+        move: closing.price - opening.price
+      };
+    })
+    .pickBy(isDefined)
+    .value();
+
+  const data = {
+    ...dailyStats,
+    updatedAt: FieldValue.serverTimestamp(),
+  };
+  console.log(data);
+  await itemRef.update('dailyStats', data);
+}
+
 export async function updatePriceStats(
   itemRef: DocumentReference,
   options: {
     storage: firebase.storage.Storage;
     itemSnapshot?: DocumentSnapshot;
-    priceRef?: DocumentReference;
-    priceSnapshot?: DocumentSnapshot;
   },
 ): Promise<void> {
-  const { storage, ...calculateOptions } = options;
+  const { storage } = options;
 
-  const res = await calculatePriceStats(itemRef, calculateOptions);
+  const itemSnapshot = options.itemSnapshot || (await itemRef.get());
+  const {
+    docs: [priceSnapshot],
+  } = await itemSnapshot.ref
+    .collection('prices')
+    .orderBy('timestamp', 'desc')
+    .limit(1)
+    .get();
+
+  const res = await calculatePriceStats(itemSnapshot, priceSnapshot);
+  await calculateDailyStats(itemSnapshot);
   if (!res) return;
 
   const chartOptions = {

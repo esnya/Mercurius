@@ -11,7 +11,7 @@ import {
   Grid,
   Accordion,
 } from 'semantic-ui-react';
-import { formatZeny, formatPercent } from '../../utilities/format';
+import { formatPercent, formatInteger } from '../../utilities/format';
 import ItemTable, { TableItem, isTableItem } from '../../components/ItemTable';
 import StatField from '../../types/StatField';
 import PriceStats from '../../types/PriceStats';
@@ -19,12 +19,11 @@ import { useParams } from 'react-router';
 import mingo from 'mingo';
 import ActionButton from '../../components/ActionButton';
 import { Timestamp } from '../../firebase';
-import { formatDate } from 'tough-cookie';
 
 const statFields: StatField[] = [
   {
     text: '現価/変動幅',
-    path: 'endByFluctuationRate',
+    path: 'priceStats.endByFluctuationRate',
     format: formatPercent,
     factor: 100,
     colorFactor: 1,
@@ -33,12 +32,12 @@ const statFields: StatField[] = [
   },
   {
     text: '現価',
-    path: 'end',
-    format: formatZeny,
+    path: 'priceStats.end',
+    format: formatInteger,
   },
   {
     text: '増減',
-    path: 'variationRate',
+    path: 'priceStats.variationRate',
     format: formatPercent,
     colorFactor: 0.5,
     colorBias: 1,
@@ -46,22 +45,34 @@ const statFields: StatField[] = [
   },
   {
     text: '最低',
-    path: 'min',
-    format: formatZeny,
+    path: 'priceStats.min',
+    format: formatInteger,
   },
   {
     text: '最高',
-    path: 'max',
-    format: formatZeny,
+    path: 'priceStats.max',
+    format: formatInteger,
   },
   {
     text: '変動幅',
-    path: 'fluctuationRate',
+    path: 'priceStats.fluctuationRate',
     format: formatPercent,
     factor: 100,
     colorFactor: 100 / 500,
     colorBias: 1,
     textAlign: 'center',
+  },
+  {
+    text: '騰落率（前日）',
+    path: 'dailyStats.1.roid',
+    format: formatPercent,
+    factor: 100,
+  },
+  {
+    text: '騰落率（前々日）',
+    path: 'dailyStats.2.roid',
+    format: formatPercent,
+    factor: 100,
   },
 ];
 
@@ -146,9 +157,7 @@ export default withFirebaseApp<{}>(
     const [itemsPerPage, setItemsPerPage] = useState(50);
     const [search, setSearch] = useState<string | null>(null);
 
-    const [sortBy, setSortBy] = useState<
-      keyof PriceStats | 'name' | 'updatedAt'
-    >('fluctuationRate');
+    const [sortBy, setSortBy] = useState<string>('priceStats.fluctuationRate');
     const [sortOrder, setSortOrder] = useState<'ascending' | 'descending'>(
       'descending',
     );
@@ -182,6 +191,31 @@ export default withFirebaseApp<{}>(
           const items = _(docs)
             .map(doc => ({ itemRef: doc.ref, item: doc.data() }))
             .filter(isTableItem)
+            .map(({ item: { dailyStats, ...item }, ...others }) => ({
+              ...others,
+              item: {
+                ...item,
+                dailyStats:
+                  dailyStats &&
+                  _(dailyStats)
+                    .mapValues((value, key) => {
+                      if (!item.priceStats || !value.avg || key === '0')
+                        return value;
+                      const prevStats = dailyStats[`${Number(key) - 1}`];
+                      const prevPrice =
+                        key === '1'
+                          ? item.priceStats.end
+                          : prevStats && prevStats.avg;
+                      if (!prevPrice) return value;
+
+                      return {
+                        ...value,
+                        roid: (prevPrice - value.avg) / value.avg,
+                      };
+                    })
+                    .value(),
+              },
+            }))
             .value();
           setItems(items);
         });
@@ -210,14 +244,13 @@ export default withFirebaseApp<{}>(
     const totalPages = items ? Math.ceil(filtered.length / itemsPerPage) : 1;
 
     const sortIteratee = ({
-      item: { name, priceStats, updatedAt },
+      item: { name, updatedAt, ...item },
     }: TableItem): number | string | null => {
       if (sortBy === 'name') return name;
       if (sortBy === 'updatedAt')
         return updatedAt ? updatedAt.toMillis() : null;
-      if (!priceStats) return null;
 
-      const value = priceStats[sortBy];
+      const value = _.get(item, sortBy);
       if (typeof value === 'undefined') return null;
 
       return value;

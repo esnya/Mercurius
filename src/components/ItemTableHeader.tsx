@@ -5,9 +5,9 @@ import PriceStats from '../types/PriceStats';
 
 export interface ItemTableHeaderProps {
   statFields: StatField[];
-  sortBy: keyof PriceStats | 'name' | 'updatedAt';
+  sortBy: string;
   sortOrder: 'ascending' | 'descending';
-  onSortChange: (path: keyof PriceStats | 'name' | 'updatedAt') => void;
+  onSortChange: (path: string) => void;
 }
 
 export default function ItemTableHeader({

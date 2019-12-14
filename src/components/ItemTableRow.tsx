@@ -39,7 +39,7 @@ export default function ItemTableRow({
 
   const cells = statFields.map(
     (field, i): JSX.Element => (
-      <ItemTableStatCell key={i} stats={priceStats} field={field} />
+      <ItemTableStatCell key={i} item={item} field={field} />
     ),
   );
 

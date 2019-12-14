@@ -1,7 +1,7 @@
 import PriceStats from './PriceStats';
 
 export default interface StatField {
-  path: keyof PriceStats;
+  path: string;
   text: string;
   format: (value: number) => string;
   factor?: number;

@@ -13,6 +13,14 @@ export default interface Item {
   updatedAt?: Timestamp;
   backgroundChartUpdatedAt?: Timestamp;
   chartUpdatedAt?: Timestamp;
+  dailyStats?: {
+    [days: string]: {
+      avg: number;
+      opening: number;
+      closing: number;
+      rate?: number;
+    };
+  };
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function isItem(value: any): value is Item {
