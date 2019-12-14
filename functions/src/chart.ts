@@ -50,7 +50,7 @@ export const defaultSpec = {
           },
         },
         size: {
-          value: 1,
+          value: 5,
         },
       },
     },
