@@ -40,7 +40,7 @@ export const defaultSpec = {
     { mark: 'line' },
     { mark: 'point' },
     {
-      mark: 'bar',
+      mark: 'point',
       encoding: {
         color: {
           value: 'red',
