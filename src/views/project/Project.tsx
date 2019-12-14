@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Dispatch, SetStateAction } from 'react';
 import _ from 'lodash';
 import withUser, { WithUserProps } from '../../enhancers/withUser';
 import withFirebaseApp from '../../enhancers/withFirebaseApp';
@@ -20,65 +20,111 @@ import mingo from 'mingo';
 import ActionButton from '../../components/ActionButton';
 import { Timestamp } from '../../firebase';
 
-const statFields: StatField[] = [
-  {
+function isDefined<T>(value?: T | null): value is T {
+  return value !== undefined && value !== null;
+}
+
+function usePersistentState<S>(
+  key: string,
+  initialState?: S,
+): [S, Dispatch<SetStateAction<S>>] {
+  const [state, dispatch] = useState<S>(
+    (): S => {
+      const json = localStorage.getItem(key);
+      const parsed = json && JSON.parse(json);
+      return isDefined(parsed) ? parsed : initialState;
+    },
+  );
+
+  const save = _.debounce((value: S) => {
+    localStorage.setItem(key, JSON.stringify(value));
+  }, 1000);
+
+  useEffect(() => {
+    save(state);
+  }, [state]);
+
+  return [state, dispatch];
+}
+
+const statFieldDefinitions: Record<string, StatField> = {
+  価格: {
+    text: '価格',
+    path: 'priceStats.end',
+    format: formatInteger,
+    textAlign: 'right',
+  },
+  騰落率: {
+    text: '騰落率',
+    path: 'dailyStats.1.roid',
+    format: formatPercent,
+    factor: 100,
+    color: {
+      factor: 1 / 0.2 / 2,
+      minus: true,
+    },
+    textAlign: 'right',
+  },
+  前日騰落率: {
+    text: '前日騰落率',
+    path: 'dailyStats.2.roid',
+    format: formatPercent,
+    factor: 100,
+    color: {
+      factor: 1 / 0.2 / 2,
+      minus: true,
+    },
+    textAlign: 'right',
+  },
+  前日: {
+    text: '前日',
+    path: 'dailyStats.1.avg',
+    format: formatInteger,
+    textAlign: 'right',
+  },
+  前々日: {
+    text: '前々日',
+    path: 'dailyStats.1.avg',
+    format: formatInteger,
+    textAlign: 'right',
+  },
+  月間最安値: {
+    text: '月間最安値',
+    path: 'priceStats.min',
+    format: formatInteger,
+    textAlign: 'right',
+  },
+  月間最高値: {
+    text: '月間最高値',
+    path: 'priceStats.max',
+    format: formatInteger,
+    textAlign: 'right',
+  },
+  月間価格差: {
+    text: '月間価格差',
+    path: 'priceStats.fluctuationRate',
+    format: formatPercent,
+    factor: 100,
+    color: {
+      factor: 0.1,
+    },
+  },
+  '現価/変動幅': {
     text: '現価/変動幅',
     path: 'priceStats.endByFluctuationRate',
     format: formatPercent,
     factor: 100,
-    colorFactor: 1,
-    colorBias: 0,
+    color: {},
     textAlign: 'center',
   },
-  {
-    text: '現価',
-    path: 'priceStats.end',
-    format: formatInteger,
-  },
-  {
-    text: '増減',
-    path: 'priceStats.variationRate',
-    format: formatPercent,
-    colorFactor: 0.5,
-    colorBias: 1,
-    factor: 100,
-  },
-  {
-    text: '最低',
-    path: 'priceStats.min',
-    format: formatInteger,
-  },
-  {
-    text: '最高',
-    path: 'priceStats.max',
-    format: formatInteger,
-  },
-  {
-    text: '変動幅',
-    path: 'priceStats.fluctuationRate',
-    format: formatPercent,
-    factor: 100,
-    colorFactor: 100 / 500,
-    colorBias: 1,
-    textAlign: 'center',
-  },
-  {
-    text: '騰落率（前日）',
-    path: 'dailyStats.1.roid',
-    format: formatPercent,
-    factor: 100,
-  },
-  {
-    text: '騰落率（前々日）',
-    path: 'dailyStats.2.roid',
-    format: formatPercent,
-    factor: 100,
-  },
-];
+};
 
 interface Filter {
   text: string;
-  filter: (priceStats: PriceStats) => boolean;
+  filter: (
+    priceStats: PriceStats,
+    dailyStats?: Record<string, { avg: number; roid?: number }>,
+  ) => boolean;
   allowNoStats?: boolean;
 }
 const filters: Filter[] = [
@@ -89,10 +135,17 @@ const filters: Filter[] = [
   },
   {
     text: '買い',
-    filter: ({ variationRate, endByFluctuationRate }: PriceStats): boolean =>
-      variationRate !== undefined &&
-      ((variationRate > 0.01 && endByFluctuationRate <= 0.2) ||
-        (variationRate > -0.1 && endByFluctuationRate <= 0.05)),
+    filter: (
+      { endByFluctuationRate }: PriceStats,
+      dailyStats?: Record<string, { avg: number; roid?: number }>,
+    ): boolean =>
+      (dailyStats &&
+        dailyStats['1'] &&
+        dailyStats['1'].roid &&
+        endByFluctuationRate &&
+        dailyStats['1'].roid >= 0.1 &&
+        endByFluctuationRate < 0.25) ||
+      false,
   },
   {
     text: '売り',
@@ -151,20 +204,39 @@ const filters: Filter[] = [
 export default withFirebaseApp<{}>(
   withUser(function Home({ app }: WithUserProps): JSX.Element | null {
     const { projectId } = useParams();
-    if (typeof projectId !== 'string') return null;
 
-    const [activePage, setActivePage] = useState(1);
-    const [itemsPerPage, setItemsPerPage] = useState(50);
-    const [search, setSearch] = useState<string | null>(null);
+    const [selectedStatFields, setSelectedStatFields] = usePersistentState<
+      string[]
+    >('selectedStatFields', _.keys(statFieldDefinitions));
+    const statFields = selectedStatFields.map(key => statFieldDefinitions[key]);
 
-    const [sortBy, setSortBy] = useState<string>('priceStats.fluctuationRate');
-    const [sortOrder, setSortOrder] = useState<'ascending' | 'descending'>(
-      'descending',
+    const [activePage, setActivePage] = usePersistentState('activePage', 1);
+    const [itemsPerPage, setItemsPerPage] = usePersistentState(
+      'itemsPerPage',
+      50,
+    );
+    const [search, setSearch] = usePersistentState<string | null>(
+      'search',
+      null,
     );
 
+    const [sortBy, setSortBy] = usePersistentState<string>(
+      'sortBy',
+      'priceStats.fluctuationRate',
+    );
+    const [sortOrder, setSortOrder] = usePersistentState<
+      'ascending' | 'descending'
+    >('sortOrder', 'descending');
+
     const [items, setItems] = useState<TableItem[]>([]);
-    const [selectedFilter, setSelectedFilter] = useState<number>(0);
-    const [filterActive, setFilterActive] = useState(false);
+    const [selectedFilter, setSelectedFilter] = usePersistentState<number>(
+      'selectedFilter',
+      0,
+    );
+    const [filterActive, setFilterActive] = usePersistentState<boolean>(
+      'filterActive',
+      false,
+    );
     const [mingoQuery, setMingoQuery] = useState<mingo.Query>();
     const [mingoQueryJson, setMingoQueryJson] = useState<string>();
 
@@ -226,10 +298,12 @@ export default withFirebaseApp<{}>(
     }
 
     const filtered: TableItem[] = items
-      .filter(({ item: { priceStats } }) => {
+      .filter(({ item: { priceStats, dailyStats } }) => {
         const { filter, allowNoStats } = filters[selectedFilter];
 
-        return priceStats ? filter(priceStats) : Boolean(allowNoStats);
+        return priceStats
+          ? filter(priceStats, dailyStats)
+          : Boolean(allowNoStats);
       })
       .filter(({ item: { name } }): boolean =>
         Boolean(
@@ -346,6 +420,19 @@ export default withFirebaseApp<{}>(
                   onChange={(_e, { value }): void => {
                     setItemsPerPage(Number(value) || 0);
                   }}
+                />
+                <Form.Select
+                  label="カラム"
+                  multiple
+                  name="stat-fields"
+                  value={selectedStatFields}
+                  options={_.map(statFieldDefinitions, ({ text }, key) => ({
+                    text,
+                    value: key,
+                  }))}
+                  onChange={(_e, { value }): void =>
+                    setSelectedStatFields(value as string[])
+                  }
                 />
                 <Form.TextArea
                   label="高度な検索 (mingo)"

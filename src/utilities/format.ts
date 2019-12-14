@@ -30,15 +30,15 @@ export const formatInteger = formatter({
   round: 0,
 });
 export const formatDecimal = formatter({
-  round: 2,
-  padRight: 2,
+  round: 1,
+  padRight: 1,
 });
 export const formatZeny = formatter({
   round: 0,
   suffix: ' \u24CF',
 });
 export const formatPercent = formatter({
-  round: 2,
-  padRight: 2,
+  round: 1,
+  padRight: 1,
   suffix: ' %',
 });

@@ -19,6 +19,7 @@ export default interface Item {
       opening: number;
       closing: number;
       rate?: number;
+      roid?: number;
     };
   };
 }
