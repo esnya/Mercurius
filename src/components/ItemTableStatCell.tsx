@@ -28,7 +28,7 @@ export default function ItemTableStatCell({
 }: ItemTableStatCellProps): JSX.Element {
   const value = _.get(item, path);
   const text = value !== undefined ? format(value * (factor || 1)) : null;
-  const colorFactor = color && (color.factor || 0);
+  const colorFactor = color && (color.factor || 1);
   const colorMinus = (color && color.minus) || false;
 
   const colorValue =
@@ -37,11 +37,7 @@ export default function ItemTableStatCell({
   const child =
     colorValue !== undefined ? (
       <Label color={getColorName(colorValue)} style={{ whiteSpace: 'nowrap' }}>
-        {color && color.minus ? (
-          <Icon name={getIconName(colorValue * 2 - 0.5)} />
-        ) : (
-          undefined
-        )}
+        {color && color.minus ? <Icon name={getIconName(value)} /> : undefined}
         {text}
       </Label>
     ) : (
