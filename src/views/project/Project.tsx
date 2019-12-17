@@ -138,19 +138,28 @@ const filters: Filter[] = [
     filter: (
       { endByFluctuationRate }: PriceStats,
       dailyStats?: Record<string, { avg: number; roid?: number }>,
-    ): boolean =>
-      (dailyStats &&
-        dailyStats['1'] &&
-        dailyStats['1'].roid &&
-        endByFluctuationRate &&
-        dailyStats['1'].roid >= 0.1 &&
-        endByFluctuationRate < 0.25) ||
-      false,
+    ): boolean => {
+      const roid = _.get(dailyStats, '1.roid', NaN) as number;
+      return (
+        (endByFluctuationRate < 0.1 && roid > 0) ||
+        (endByFluctuationRate === 0 && roid > -0.1)
+      );
+    },
   },
   {
     text: '売り',
-    filter: ({ variationRate, endByFluctuationRate }: PriceStats): boolean =>
-      (!variationRate || variationRate > 0.01) && endByFluctuationRate >= 0.5,
+    filter: (
+      { endByFluctuationRate }: PriceStats,
+      dailyStats?: Record<string, { avg: number; roid?: number }>,
+    ): boolean => {
+      const roid1 = _.get(dailyStats, '1.roid', NaN) as number;
+      const roid2 = _.get(dailyStats, '2.roid', NaN) as number;
+
+      return (
+        (endByFluctuationRate > 0.4 && roid1 > -0.1) ||
+        (endByFluctuationRate > 0.1 && roid1 > 0.1 && roid2 > 0.1)
+      );
+    },
   },
   {
     text: '底',
