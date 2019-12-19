@@ -47,12 +47,15 @@ export function savePreset(preset: RecognitionPreset): void {
 export function drawPreset(
   context: CanvasRenderingContext2D,
   preset: RecognitionPreset,
+  rect?: Rect,
 ): void {
-  const { width, height } = context.canvas;
+  const width = rect?.width ?? context.canvas.width;
+  const height = rect?.height ?? context.canvas.height;
+  const ox = rect?.x ?? 0;
+  const oy = rect?.y ?? 0;
 
-  const cx = width / 2;
-  const cy = height / 2;
-
+  const cx = width / 2 + ox;
+  const cy = height / 2 + oy;
   const scale = 0.5 * height;
 
   preset.recognitions.forEach(r => {

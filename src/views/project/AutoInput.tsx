@@ -28,8 +28,8 @@ import { succeeded, failed, notice } from '../../utilities/sounds';
 import _ from 'lodash';
 import { useParams } from 'react-router';
 import useAsyncEffect from '../../hooks/useAsyncEffect';
-import { loadPreset } from '../../recognition/RecognitionPreset';
-import { bounds, crop, videoToCanvas } from '../../utilities/image';
+import { loadPreset, drawPreset } from '../../recognition/RecognitionPreset';
+import { bounds, crop, videoToCanvas, Size } from '../../utilities/image';
 import RecognitionPresetEditor from '../../components/RecognitionPresetEditor';
 
 interface Rect {
@@ -63,6 +63,19 @@ const defaultRecognitionOptions = {
   },
 };
 const optionsKey = 'mercurius-trading:recognition-options';
+
+function useCanvas(size?: Size): CanvasRenderingContext2D {
+  const canvas = document.createElement('canvas');
+  if (size) {
+    canvas.width = size.width;
+    canvas.height = size.height;
+  }
+
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('Failed to get context');
+
+  return context;
+}
 
 export default withFirebaseApp<{}>(function AutoInput({
   app,
@@ -213,77 +226,81 @@ export default withFirebaseApp<{}>(function AutoInput({
   }
 
   useEffect(() => {
-    if (!ocr || !video || !canvas || !context) return;
+    if (!ocr || !stream || !canvas || !context) return;
+
+    const track = stream.getVideoTracks()[0];
+    if (!track) return;
+
+    const bufferContext = useCanvas();
+    const triggerContext = useCanvas({ width: 1, height: 1 });
+    const capture = new ImageCapture(track);
+    const preset = loadPreset();
+    const { recognitions, triggers, fps } = preset;
 
     let prevTriggered = false;
-    const renderInterval = setInterval(async () => {
-      const { videoWidth: sw, videoHeight: sh } = video;
-      const { x, y, width, height, mask, trigger } = options;
+    const interval = setInterval(async () => {
+      const frame = await capture.grabFrame();
 
-      const s = Math.min(sw, sh);
-      const dw = s * width;
-      const dh = s * height;
+      const { height, width } = frame;
+      bufferContext.canvas.width = width;
+      bufferContext.canvas.width = height;
+      bufferContext.drawImage(frame, 0, 0);
 
-      canvas.width = dw;
-      canvas.height = dh;
+      const scale = 0.5 * height;
+      const cx = width / 2;
+      const cy = height / 2;
 
-      context.drawImage(
-        video,
-        (sw - dw) / 2 + s * x,
-        (sh - dh) / 2 + s * y,
-        dw,
-        dh,
-        0,
-        0,
-        dw,
-        dh,
-      );
-
-      mask.forEach(m => {
-        context.fillStyle = m.style;
-        context.fillRect(
-          dw / 2 + s * m.x,
-          dh / 2 + s * m.y,
-          s * m.width,
-          s * m.height,
-        );
+      const triggered = triggers.every((trigger): boolean => {
+        const x = trigger.x * scale + cx;
+        const y = trigger.y * scale + cy;
+        triggerContext.drawImage(frame, x, y, 1, 1, 0, 0, 1, 1);
+        const pixel = triggerContext.getImageData(0, 0, 1, 1);
+        return trigger.color.every((c, i) => Math.abs(c - pixel.data[i]) < 10);
       });
-
-      if (trigger.preview) {
-        context.strokeStyle = 'red';
-        context.ellipse(
-          dw / 2 + s * trigger.x,
-          dh / 2 + s * trigger.y,
-          3,
-          3,
-          0,
-          0,
-          360,
-        );
-        context.stroke();
-      }
-      const triggerPixel = context.getImageData(
-        dw / 2 + s * trigger.x,
-        dh / 2 + s * trigger.y,
-        1,
-        1,
-      );
-      const triggered =
-        trigger.color.reduce(
-          (p, c, i) => p + Math.abs(triggerPixel.data[i] - c),
-          0,
-        ) /
-          3 <
-        5;
       if (triggered && !prevTriggered) {
         notice.play();
-        setTimeout(() => recognize(ocr, videoToCanvas(video)));
+        const toRecognize = useCanvas({ width, height });
+        toRecognize.drawImage(frame, 0, 0);
+        setTimeout(() => recognize(ocr, toRecognize));
       }
-      // eslint-disable-next-line require-atomic-updates
       prevTriggered = triggered;
-    }, 1000 / options.fps);
 
-    return (): void => clearInterval(renderInterval);
+      const previewBBox = bounds(
+        [
+          ...recognitions,
+          ...triggers.map(t => ({ ...t, width: 1 / scale, height: 1 / scale })),
+        ].map(({ x, y, width, height }) => ({
+          x: x * scale + cx,
+          y: y * scale + cy,
+          width: width * scale,
+          height: height * scale,
+        })),
+      );
+      canvas.width = previewBBox.width;
+      canvas.height = previewBBox.height;
+
+      context.drawImage(
+        frame,
+        previewBBox.x,
+        previewBBox.y,
+        previewBBox.width,
+        previewBBox.height,
+        0,
+        0,
+        previewBBox.width,
+        previewBBox.height,
+      );
+      drawPreset(context, preset, {
+        x: -previewBBox.x,
+        y: -previewBBox.y,
+        width,
+        height,
+      });
+    }, 1000 / fps);
+
+    return (): void => {
+      clearInterval(interval);
+    };
   }, [app, video, canvas, options, ocr]);
 
   const selectSource = async (): Promise<void> => {
