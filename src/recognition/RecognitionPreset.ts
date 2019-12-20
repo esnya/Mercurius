@@ -29,7 +29,7 @@ export default interface RecognitionPreset {
   fps: number;
 }
 
-const PresetKey = 'mercurius-recognition-preset-4';
+const PresetKey = 'mercurius-recognition-preset-5';
 export function loadPreset(): RecognitionPreset {
   try {
     const data = localStorage.getItem(PresetKey);
