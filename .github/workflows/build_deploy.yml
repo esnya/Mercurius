@@ -13,8 +13,8 @@ jobs:
         uses: actions/checkout@master
       - name: Install Dependencies
         run: npm ci
-      - name: Instann Dependencies for functions
-        run: npm ci
+      - name: Bootstrap packages
+        run: npx lerna bootstrap
         working-directory: functions
       - name: Build
         run: npm run build:production
