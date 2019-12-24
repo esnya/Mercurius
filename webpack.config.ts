@@ -41,6 +41,7 @@ export default async function config(): Promise<Configuration> {
         {
           enforce: 'pre',
           test: /\.[tj]sx?$/,
+          exclude: /node_modules/,
           loader: 'eslint-loader',
           options: {
             fix: true,

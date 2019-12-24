@@ -30,7 +30,7 @@ export default function ItemChartModal({
       .storage()
       .ref(itemRef.path)
       .child('chart');
-    ref.getDownloadURL().then(setChartUrl, () => {});
+    ref.getDownloadURL().then(setChartUrl);
   }, [itemRef, chartUpdatedAt]);
 
   return (

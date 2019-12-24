@@ -21,12 +21,14 @@ export const initializeApp = memoize(
 export default firebase;
 export const { auth, firestore, storage } = firebase;
 
-export const Timestamp = firebase.firestore.Timestamp;
-export type Timestamp = firebase.firestore.Timestamp;
 export const FieldValue = firebase.firestore.FieldValue;
-export type FieldValue = firebase.firestore.FieldValue;
-export type DocumentReference = firebase.firestore.DocumentReference;
+export const Timestamp = firebase.firestore.Timestamp;
 export type CollectionReference = firebase.firestore.CollectionReference;
+export type DocumentData = firebase.firestore.DocumentData;
+export type DocumentReference = firebase.firestore.DocumentReference;
 export type DocumentSnapshot = firebase.firestore.DocumentSnapshot;
-export type QuerySnapshot = firebase.firestore.QuerySnapshot;
+export type FieldValue = firebase.firestore.FieldValue;
+export type Query = firebase.firestore.Query;
 export type QueryDocumentSnapshot = firebase.firestore.QueryDocumentSnapshot;
+export type QuerySnapshot = firebase.firestore.QuerySnapshot;
+export type Timestamp = firebase.firestore.Timestamp;

@@ -263,34 +263,54 @@ export async function calculateDailyStats(
   console.log('CalculatingDailyStats', itemSnapshot.ref.path);
   if (!itemSnapshot.exists) return;
 
-  const updatedAt = itemSnapshot.get('dailyStats.updatedAt') as Timestamp | undefined;
+  const updatedAt = itemSnapshot.get('dailyStats.updatedAt') as
+    | Timestamp
+    | undefined;
 
   const itemRef = itemSnapshot.ref;
   const pricesRef = itemRef.collection('prices');
   const pricesSnapshot = await pricesRef
     .orderBy('timestamp', 'desc')
     .endAt(
-      Timestamp.fromMillis(moment()
-        .subtract(3, 'days')
-        .endOf('day')
-        .valueOf()),
+      Timestamp.fromMillis(
+        moment()
+          .subtract(3, 'days')
+          .endOf('day')
+          .valueOf(),
+      ),
     )
     .get();
-    // console.log('Prices', pricesSnapshot.docs.map(doc => doc.id));
+  // console.log('Prices', pricesSnapshot.docs.map(doc => doc.id));
 
-  if (pricesSnapshot.empty || updatedAt && pricesSnapshot.docs[0].get('timestamp').toMillis() < updatedAt.toMillis()) {
+  if (
+    pricesSnapshot.empty ||
+    (updatedAt &&
+      pricesSnapshot.docs[0].get('timestamp').toMillis() < updatedAt.toMillis())
+  ) {
     return;
   }
 
   const now = Date.now();
   const dayInMillis = moment.duration(1, 'day').asMilliseconds();
-  const today = Math.floor(moment(now).startOf('day').valueOf() / dayInMillis);
+  const today = Math.floor(
+    moment(now)
+      .startOf('day')
+      .valueOf() / dayInMillis,
+  );
   const dailyStats = _(pricesSnapshot.docs)
     .map(snapshot => ({
       timestamp: (snapshot.get('timestamp') as Timestamp).toMillis(),
       price: snapshot.get('price') as number,
     }))
-    .groupBy(({ timestamp }) => Math.floor(today - moment(timestamp).startOf('day').valueOf() / dayInMillis))
+    .groupBy(({ timestamp }) =>
+      Math.floor(
+        today -
+          moment(timestamp)
+            .startOf('day')
+            .valueOf() /
+            dayInMillis,
+      ),
+    )
     .mapValues((group, key) => {
       // console.log('group', group);
       if (group.length == 0) return;
@@ -320,7 +340,11 @@ export async function calculateDailyStats(
         );
 
       return {
-        timestamp: Timestamp.fromMillis(moment(opening.timestamp).startOf('day').valueOf()),
+        timestamp: Timestamp.fromMillis(
+          moment(opening.timestamp)
+            .startOf('day')
+            .valueOf(),
+        ),
         opening: opening.price,
         openingAt: Timestamp.fromMillis(opening.timestamp),
         closing: closing.price,
@@ -333,7 +357,7 @@ export async function calculateDailyStats(
         avg: sum / count,
         verbose: (sumOfSq - sum ** 2) / count,
         diff: min - max,
-        move: closing.price - opening.price
+        move: closing.price - opening.price,
       };
     })
     .pickBy(isDefined)

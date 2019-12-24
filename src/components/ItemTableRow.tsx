@@ -34,7 +34,7 @@ export default function ItemTableRow({
       .ref(itemRef.path)
       .child('backgroundChart')
       .getDownloadURL()
-      .then(setChartUrl, () => {});
+      .then(setChartUrl);
   }, [itemRef, backgroundChartUpdatedAt]);
 
   const cells = statFields.map(

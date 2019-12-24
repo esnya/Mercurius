@@ -7,6 +7,7 @@ import Project from './views/project/Project';
 import AppMenu from './components/AppMenu';
 import Members from './views/project/Members';
 import './App.styl';
+import AI from './views/project/AI';
 
 export default function App(): JSX.Element {
   return (
@@ -21,6 +22,9 @@ export default function App(): JSX.Element {
         </Route>
         <Route exact path="/projects/:projectId/auto">
           <AutoInput />
+        </Route>
+        <Route exact path="/projects/:projectId/items/:itemId/ai">
+          <AI />
         </Route>
         <Route exact path="/">
           <Home />

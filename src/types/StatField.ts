@@ -5,7 +5,7 @@ export default interface StatField {
   factor?: number;
   color?: {
     factor?: number;
-    minus?: boolean,
+    minus?: boolean;
   };
   textAlign?: 'right' | 'left' | 'center';
 }

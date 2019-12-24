@@ -13,9 +13,6 @@
     "strict": true
   },
   "exclude": [
-    "grafana-*",
-    "kibana-*",
-    "logstash-*",
     "node_modules",
     "dist",
     "lib"

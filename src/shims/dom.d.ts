@@ -5,11 +5,10 @@ declare interface MediaDevices {
 }
 
 declare enum RecordingState {
-  "inactive",
-  "recording",
-  "paused"
+  'inactive',
+  'recording',
+  'paused',
 }
-
 
 declare class BlobEvent extends Event {
   readonly data: Blob;
@@ -17,12 +16,15 @@ declare class BlobEvent extends Event {
 }
 
 declare class MediaRecorder extends EventTarget {
-  constructor(stream: MediaStream, options?: {
-    mimeType?: string,
-    bitsPerSecond?: number,
-    videoBitsPerSecond?: number,
-    audioBitsPerSecond?: number,
-  });
+  constructor(
+    stream: MediaStream,
+    options?: {
+      mimeType?: string;
+      bitsPerSecond?: number;
+      videoBitsPerSecond?: number;
+      audioBitsPerSecond?: number;
+    },
+  );
 
   readonly stream: MediaStream;
   readonly mimeType: string;
@@ -44,7 +46,15 @@ declare class MediaRecorder extends EventTarget {
 
   static isTypeSupported(type: string): boolean;
 
-  addEventListener(event: 'dataavailable', listener: (event: BlobEvent) => void): MediaRecorder;
+  addEventListener(
+    event: string,
+    listener: EventListener | EventListenerObject | null,
+    options?: boolean | AddEventListenerOptions,
+  ): void;
+  addEventListener(
+    event: 'dataavailable',
+    listener: (event: BlobEvent) => void,
+  ): void;
 }
 
 declare interface PhotoCapabilities {
@@ -66,7 +76,7 @@ declare class ImageCapture extends EventTarget {
 
   readonly track: MediaStreamTrack;
   takePhoto(): Promise<Blob>;
-  getPhotoCapabilities(): Promise<PhotoCapabilities>
+  getPhotoCapabilities(): Promise<PhotoCapabilities>;
   getPhotoSettings(): Promise<PhotoSettings>;
   grabFrame(): Promise<ImageBitmap>;
 }
