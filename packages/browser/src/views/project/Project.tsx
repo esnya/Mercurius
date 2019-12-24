@@ -1,7 +1,5 @@
 import React, { useEffect, useState, Dispatch, SetStateAction } from 'react';
 import _ from 'lodash';
-import withUser, { WithUserProps } from '../../enhancers/withUser';
-import withFirebaseApp from '../../enhancers/withFirebaseApp';
 import {
   Loader,
   Container,
@@ -10,15 +8,21 @@ import {
   Form,
   Grid,
   Accordion,
+  Dimmer,
+  Message,
 } from 'semantic-ui-react';
 import { formatPercent, formatInteger } from '../../utilities/format';
-import ItemTable, { TableItem, isTableItem } from '../../components/ItemTable';
+import ItemTable, { TableItem } from '../../components/ItemTable';
 import StatField from '../../types/StatField';
 import PriceStats from '../../types/PriceStats';
 import { useParams } from 'react-router';
 import mingo from 'mingo';
 import ActionButton from '../../components/ActionButton';
 import { Timestamp } from '../../firebase';
+import { useDocumentSnapshot, useQuerySnapshot } from '../../hooks/useSnapshot';
+import { isItem } from '../../types/Item';
+import useFirebase from '../../hooks/useFirebase';
+import { isSucceeded, isFailed } from '../../utilities/types';
 
 function isDefined<T>(value?: T | null): value is T {
   return value !== undefined && value !== null;
@@ -210,295 +214,308 @@ const filters: Filter[] = [
   },
 ];
 
-export default withFirebaseApp<{}>(
-  withUser(function Home({ app }: WithUserProps): JSX.Element | null {
-    const { projectId } = useParams();
+export default function Project(): JSX.Element {
+  const { projectId } = useParams();
+  const app = useFirebase();
+  const project = useDocumentSnapshot(
+    (firestore, projectId) => firestore.collection('projects').doc(projectId),
+    (snapshot): { name: string; owner: string } | null => {
+      return snapshot.data() as { name: string; owner: string };
+    },
+    projectId,
+  );
+  const items = useQuerySnapshot(
+    (firestore, projectId) =>
+      firestore
+        .collection('projects')
+        .doc(projectId)
+        .collection('items'),
+    (snapshot): TableItem | null => {
+      const item = snapshot.data();
+      if (!isItem(item)) return null;
 
-    const [selectedStatFields, setSelectedStatFields] = usePersistentState<
-      string[]
-    >('selectedStatFields', _.keys(statFieldDefinitions));
-    const statFields = selectedStatFields.map(key => statFieldDefinitions[key]);
+      const { dailyStats } = item;
 
-    const [activePage, setActivePage] = usePersistentState('activePage', 1);
-    const [itemsPerPage, setItemsPerPage] = usePersistentState(
-      'itemsPerPage',
-      50,
-    );
-    const [search, setSearch] = usePersistentState<string | null>(
-      'search',
-      null,
-    );
+      return {
+        itemRef: snapshot.ref,
+        item: {
+          ...item,
+          dailyStats:
+            dailyStats &&
+            _.mapValues(dailyStats, (value, key) => {
+              if (!item.priceStats || !value.avg || key === '0') return value;
+              const prevStats = dailyStats[`${Number(key) - 1}`];
+              const prevPrice =
+                key === '1' ? item.priceStats.end : prevStats && prevStats.avg;
+              if (!prevPrice) return value;
 
-    const [sortBy, setSortBy] = usePersistentState<string>(
-      'sortBy',
-      'priceStats.fluctuationRate',
-    );
-    const [sortOrder, setSortOrder] = usePersistentState<
-      'ascending' | 'descending'
-    >('sortOrder', 'descending');
+              return {
+                ...value,
+                roid: (prevPrice - value.avg) / value.avg,
+              };
+            }),
+        },
+      };
+    },
+    projectId,
+  );
 
-    const [items, setItems] = useState<TableItem[]>([]);
-    const [selectedFilter, setSelectedFilter] = usePersistentState<number>(
-      'selectedFilter',
-      0,
-    );
-    const [filterActive, setFilterActive] = usePersistentState<boolean>(
-      'filterActive',
-      false,
-    );
-    const [mingoQuery, setMingoQuery] = useState<mingo.Query>();
-    const [mingoQueryJson, setMingoQueryJson] = useState<string>();
+  const [selectedStatFields, setSelectedStatFields] = usePersistentState<
+    string[]
+  >('selectedStatFields', _.keys(statFieldDefinitions));
+  const statFields = selectedStatFields.map(key => statFieldDefinitions[key]);
 
-    useEffect((): void => {
-      if (!mingoQueryJson) {
-        setMingoQuery(undefined);
-      } else {
-        try {
-          setMingoQuery(new mingo.Query(JSON.parse(mingoQueryJson)));
-        } catch (e) {
-          console.log(e);
-        }
+  const [activePage, setActivePage] = usePersistentState('activePage', 1);
+  const [itemsPerPage, setItemsPerPage] = usePersistentState(
+    'itemsPerPage',
+    50,
+  );
+  const [search, setSearch] = usePersistentState<string | null>('search', null);
+
+  const [sortBy, setSortBy] = usePersistentState<string>(
+    'sortBy',
+    'priceStats.fluctuationRate',
+  );
+  const [sortOrder, setSortOrder] = usePersistentState<
+    'ascending' | 'descending'
+  >('sortOrder', 'descending');
+
+  const [selectedFilter, setSelectedFilter] = usePersistentState<number>(
+    'selectedFilter',
+    0,
+  );
+  const [filterActive, setFilterActive] = usePersistentState<boolean>(
+    'filterActive',
+    false,
+  );
+  const [mingoQuery, setMingoQuery] = useState<mingo.Query>();
+  const [mingoQueryJson, setMingoQueryJson] = useState<string>();
+
+  useEffect((): void => {
+    if (!mingoQueryJson) {
+      setMingoQuery(undefined);
+    } else {
+      try {
+        setMingoQuery(new mingo.Query(JSON.parse(mingoQueryJson)));
+      } catch (e) {
+        console.log(e);
       }
-    }, [mingoQueryJson]);
-
-    useEffect((): (() => void) => {
-      return app
-        .firestore()
-        .collection('projects')
-        .doc(projectId)
-        .collection('items')
-        .orderBy('name')
-        .onSnapshot(({ docs }) => {
-          const items = _(docs)
-            .map(doc => ({ itemRef: doc.ref, item: doc.data() }))
-            .filter(isTableItem)
-            .map(({ item: { dailyStats, ...item }, ...others }) => ({
-              ...others,
-              item: {
-                ...item,
-                dailyStats:
-                  dailyStats &&
-                  _(dailyStats)
-                    .mapValues((value, key) => {
-                      if (!item.priceStats || !value.avg || key === '0')
-                        return value;
-                      const prevStats = dailyStats[`${Number(key) - 1}`];
-                      const prevPrice =
-                        key === '1'
-                          ? item.priceStats.end
-                          : prevStats && prevStats.avg;
-                      if (!prevPrice) return value;
-
-                      return {
-                        ...value,
-                        roid: (prevPrice - value.avg) / value.avg,
-                      };
-                    })
-                    .value(),
-              },
-            }))
-            .value();
-          setItems(items);
-        });
-    }, [app]);
-
-    if (!items) {
-      return <Loader />;
     }
+  }, [mingoQueryJson]);
 
-    const filtered: TableItem[] = items
-      .filter(({ item: { priceStats, dailyStats } }) => {
-        const { filter, allowNoStats } = filters[selectedFilter];
+  if (isFailed(project) || isFailed(items)) {
+    const messages = [project, items]
+      .filter((e): e is Error => e instanceof Error)
+      .map((e, i) => (
+        <Message key={i} negative>
+          {(e.stack || e).toString()}
+        </Message>
+      ));
+    return <Container>{messages}</Container>;
+  }
 
-        return priceStats
-          ? filter(priceStats, dailyStats)
-          : Boolean(allowNoStats);
-      })
-      .filter(({ item: { name } }): boolean =>
-        Boolean(
-          !search ||
-            search
-              .split(/\s+/g)
-              .filter(k => k)
-              .some(keyword => name.match(keyword)),
-        ),
-      )
-      .filter(({ item }): boolean => !mingoQuery || mingoQuery.test(item));
-    const totalPages = items ? Math.ceil(filtered.length / itemsPerPage) : 1;
-
-    const sortIteratee = ({
-      item: { name, updatedAt, ...item },
-    }: TableItem): number | string | null => {
-      if (sortBy === 'name') return name;
-      if (sortBy === 'updatedAt')
-        return updatedAt ? updatedAt.toMillis() : null;
-
-      const value = _.get(item, sortBy);
-      if (typeof value === 'undefined') return null;
-
-      return value;
-    };
-
-    const itemsInPage: TableItem[] = _(filtered)
-      .sortBy(sortIteratee)
-      .thru(items => (sortOrder === 'ascending' ? items : items.reverse()))
-      .partition(item => sortIteratee(item) !== null)
-      .thru(([a, b]) => [...a, ...b])
-      .drop((activePage - 1) * itemsPerPage)
-      .take(itemsPerPage)
-      .value();
-
-    const filterOptions = filters.map((f, i) => ({ text: f.text, value: i }));
-
-    const exportAsCsv = async (): Promise<void> => {
-      const firestore = app.firestore();
-      const items = await firestore
-        .collection('projects')
-        .doc(projectId)
-        .collection('items')
-        .get();
-
-      const lines = _.flatten(
-        await items.docs
-          .map(async itemSnapshot => {
-            const snapshot = await itemSnapshot.ref
-              .collection('prices')
-              .orderBy('timestamp', 'desc')
-              .get();
-            return snapshot.docs.map((priceSnapshot): string => {
-              const timestamp = priceSnapshot.get('timestamp') as Timestamp;
-              const name = itemSnapshot.get('name') as string;
-              const price = priceSnapshot.get('price') as number;
-              const lottery = priceSnapshot.get('lottery') as boolean;
-
-              return [
-                timestamp.toDate().toISOString(),
-                name,
-                price,
-                lottery,
-              ].join(',');
-            });
-          })
-          .reduce(async (p, c): Promise<string[][]> => {
-            return [...(await p), await c];
-          }, Promise.resolve([] as string[][])),
-      );
-
-      const csv = new File(
-        [['timestamp, name, price, lottery', ...lines].join('\n')],
-        'csv',
-        { type: 'text/csv' },
-      );
-
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(csv);
-      a.download = `${new Date().toISOString()}.csv`;
-      a.click();
-    };
-
+  if (!project || !items) {
     return (
-      <Container>
-        <Segment>
-          <Accordion fluid>
-            <Accordion.Title
-              active={filterActive}
-              onClick={(): void => setFilterActive(b => !b)}
-            ></Accordion.Title>
-            <Accordion.Content active={filterActive}>
-              <Form id={`mercurius-project-${projectId}`}>
-                <Form.Input
-                  label="キーワード"
-                  name="search"
-                  value={search}
-                  onChange={(_e, { value }): void => setSearch(value || null)}
-                />
-                <Form.Select
-                  label="フィルター"
-                  name="filter"
-                  options={filterOptions}
-                  value={selectedFilter}
-                  onChange={(_e, { value }): void =>
-                    setSelectedFilter(value as number)
-                  }
-                />
-                <Form.Input
-                  label="表示件数"
-                  name="items-per-page"
-                  type="number"
-                  value={itemsPerPage}
-                  onChange={(_e, { value }): void => {
-                    setItemsPerPage(Number(value) || 0);
-                  }}
-                />
-                <Form.Select
-                  label="カラム"
-                  multiple
-                  name="stat-fields"
-                  value={selectedStatFields}
-                  options={_.map(statFieldDefinitions, ({ text }, key) => ({
-                    text,
-                    value: key,
-                  }))}
-                  onChange={(_e, { value }): void =>
-                    setSelectedStatFields(value as string[])
-                  }
-                />
-                <Form.TextArea
-                  label="高度な検索 (mingo)"
-                  name="mingo"
-                  value={mingoQueryJson || ''}
-                  onChange={(_e, { value }): void =>
-                    setMingoQueryJson(
-                      typeof value === 'string' ? value : undefined,
-                    )
-                  }
-                />
-              </Form>
-            </Accordion.Content>
-          </Accordion>
-        </Segment>
-        <Grid centered>
-          <Grid.Column textAlign="center">
-            <Pagination
-              activePage={activePage}
-              totalPages={totalPages}
-              onPageChange={(_e, { activePage }): void =>
-                setActivePage(Number(activePage))
-              }
-            />
-          </Grid.Column>
-        </Grid>
-        <ItemTable
-          statFields={statFields}
-          items={itemsInPage}
-          sortBy={sortBy}
-          sortOrder={sortOrder}
-          onSortChange={(path): void => {
-            if (path === sortBy) {
-              setSortOrder(
-                sortOrder === 'ascending' ? 'descending' : 'ascending',
-              );
-            } else {
-              setSortBy(path);
-              setSortOrder('descending');
-            }
-          }}
-        />
-        <Grid centered>
-          <Grid.Column textAlign="center">
-            <Pagination
-              activePage={activePage}
-              totalPages={totalPages}
-              onPageChange={(_e, { activePage }): void =>
-                setActivePage(Number(activePage))
-              }
-            />
-          </Grid.Column>
-        </Grid>
-        <Segment>
-          <ActionButton action={exportAsCsv}>CSVエクスポート</ActionButton>
-        </Segment>
-      </Container>
+      <Dimmer active>
+        <Loader />
+      </Dimmer>
     );
-  }, true),
-);
+  }
+
+  const filtered: TableItem[] = items
+    .map(({ data }) => data)
+    .filter(({ item: { priceStats, dailyStats } }) => {
+      const { filter, allowNoStats } = filters[selectedFilter];
+
+      return priceStats
+        ? filter(priceStats, dailyStats)
+        : Boolean(allowNoStats);
+    })
+    .filter(({ item: { name } }): boolean =>
+      Boolean(
+        !search ||
+          search
+            .split(/\s+/g)
+            .filter(k => k)
+            .some(keyword => name.match(keyword)),
+      ),
+    )
+    .filter(({ item }): boolean => !mingoQuery || mingoQuery.test(item));
+  const totalPages = items ? Math.ceil(filtered.length / itemsPerPage) : 1;
+
+  const sortIteratee = ({
+    item: { name, updatedAt, ...item },
+  }: TableItem): number | string | null => {
+    if (sortBy === 'name') return name;
+    if (sortBy === 'updatedAt') return updatedAt ? updatedAt.toMillis() : null;
+
+    const value = _.get(item, sortBy);
+    if (typeof value === 'undefined') return null;
+
+    return value;
+  };
+
+  const itemsInPage: TableItem[] = _(filtered)
+    .sortBy(sortIteratee)
+    .thru(items => (sortOrder === 'ascending' ? items : items.reverse()))
+    .partition(item => sortIteratee(item) !== null)
+    .thru(([a, b]) => [...a, ...b])
+    .drop((activePage - 1) * itemsPerPage)
+    .take(itemsPerPage)
+    .value();
+
+  const filterOptions = filters.map((f, i) => ({ text: f.text, value: i }));
+
+  const exportAsCsv = async (): Promise<void> => {
+    if (!isSucceeded(app)) return;
+
+    const firestore = app.firestore();
+    const items = await firestore
+      .collection('projects')
+      .doc(projectId)
+      .collection('items')
+      .get();
+
+    const lines = _.flatten(
+      await items.docs
+        .map(async itemSnapshot => {
+          const snapshot = await itemSnapshot.ref
+            .collection('prices')
+            .orderBy('timestamp', 'desc')
+            .get();
+          return snapshot.docs.map((priceSnapshot): string => {
+            const timestamp = priceSnapshot.get('timestamp') as Timestamp;
+            const name = itemSnapshot.get('name') as string;
+            const price = priceSnapshot.get('price') as number;
+            const lottery = priceSnapshot.get('lottery') as boolean;
+
+            return [
+              timestamp.toDate().toISOString(),
+              name,
+              price,
+              lottery,
+            ].join(',');
+          });
+        })
+        .reduce(async (p, c): Promise<string[][]> => {
+          return [...(await p), await c];
+        }, Promise.resolve([] as string[][])),
+    );
+
+    const csv = new File(
+      [['timestamp, name, price, lottery', ...lines].join('\n')],
+      'csv',
+      { type: 'text/csv' },
+    );
+
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(csv);
+    a.download = `${new Date().toISOString()}.csv`;
+    a.click();
+  };
+
+  return (
+    <Container>
+      <Segment>
+        <Accordion fluid>
+          <Accordion.Title
+            active={filterActive}
+            onClick={(): void => setFilterActive(b => !b)}
+          ></Accordion.Title>
+          <Accordion.Content active={filterActive}>
+            <Form id={`mercurius-project-${projectId}`}>
+              <Form.Input
+                label="キーワード"
+                name="search"
+                value={search}
+                onChange={(_e, { value }): void => setSearch(value || null)}
+              />
+              <Form.Select
+                label="フィルター"
+                name="filter"
+                options={filterOptions}
+                value={selectedFilter}
+                onChange={(_e, { value }): void =>
+                  setSelectedFilter(value as number)
+                }
+              />
+              <Form.Input
+                label="表示件数"
+                name="items-per-page"
+                type="number"
+                value={itemsPerPage}
+                onChange={(_e, { value }): void => {
+                  setItemsPerPage(Number(value) || 0);
+                }}
+              />
+              <Form.Select
+                label="カラム"
+                multiple
+                name="stat-fields"
+                value={selectedStatFields}
+                options={_.map(statFieldDefinitions, ({ text }, key) => ({
+                  text,
+                  value: key,
+                }))}
+                onChange={(_e, { value }): void =>
+                  setSelectedStatFields(value as string[])
+                }
+              />
+              <Form.TextArea
+                label="高度な検索 (mingo)"
+                name="mingo"
+                value={mingoQueryJson || ''}
+                onChange={(_e, { value }): void =>
+                  setMingoQueryJson(
+                    typeof value === 'string' ? value : undefined,
+                  )
+                }
+              />
+            </Form>
+          </Accordion.Content>
+        </Accordion>
+      </Segment>
+      <Grid centered>
+        <Grid.Column textAlign="center">
+          <Pagination
+            activePage={activePage}
+            totalPages={totalPages}
+            onPageChange={(_e, { activePage }): void =>
+              setActivePage(Number(activePage))
+            }
+          />
+        </Grid.Column>
+      </Grid>
+      <ItemTable
+        statFields={statFields}
+        items={itemsInPage}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        onSortChange={(path): void => {
+          if (path === sortBy) {
+            setSortOrder(
+              sortOrder === 'ascending' ? 'descending' : 'ascending',
+            );
+          } else {
+            setSortBy(path);
+            setSortOrder('descending');
+          }
+        }}
+      />
+      <Grid centered>
+        <Grid.Column textAlign="center">
+          <Pagination
+            activePage={activePage}
+            totalPages={totalPages}
+            onPageChange={(_e, { activePage }): void =>
+              setActivePage(Number(activePage))
+            }
+          />
+        </Grid.Column>
+      </Grid>
+      <Segment>
+        <ActionButton action={exportAsCsv}>CSVエクスポート</ActionButton>
+      </Segment>
+    </Container>
+  );
+}

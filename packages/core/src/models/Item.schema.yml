@@ -1,0 +1,31 @@
+title: Item
+type: object
+properties:
+  name:
+    type: string
+  type:
+    type: string
+  priceStats:
+    $ref: PriceStats
+  dailyStats:
+    type: object
+    properties:
+      '0':
+        $ref: ./Stats.yml
+      '1':
+        $ref: ./Stats.yml
+      '2':
+        $ref: ./Stats.yml
+      '2':
+        $ref: ./Stats.yml
+  updatedAt:
+    type: string
+    format: date-time
+  chartUpdatedAt:
+    type: string
+    format: date-time
+  backgroundChartUpdatedAt:
+    type: string
+    format: date-time
+required:
+  - name
