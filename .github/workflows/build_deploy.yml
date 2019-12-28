@@ -12,9 +12,9 @@ jobs:
       - name: Checkout Repo
         uses: actions/checkout@master
       - name: Install Dependencies
-        run: npm ci
+        run: npm install
       - name: Bootstrap packages
-        run: npx lerna bootstrap
+        run: ./node_modules/.bin/lerna bootstrap
         working-directory: functions
       - name: Build
         run: npm run build:production
