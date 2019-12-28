@@ -1,494 +1,360 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useRef, useEffect, Ref, RefObject, useState } from 'react';
 import {
   Container,
-  Dimmer,
-  Icon,
-  Item,
-  Loader,
-  Message,
-  Pagination,
   Segment,
-  Table,
+  Message,
+  Dimmer,
+  Loader,
+  Card,
 } from 'semantic-ui-react';
-import { useAsync } from 'react-async-hook';
-import _ from 'lodash';
+import { useParams } from 'react-router-dom';
+import { useQuerySnapshot } from '../../hooks/useSnapshot';
+import { Query, Timestamp } from '../../firebase/types';
 import { DateTime, Duration } from 'luxon';
-import * as tf from '@tensorflow/tfjs';
-import * as tfvis from '@tensorflow/tfjs-vis';
-import {
-  initializeApp,
-  DocumentReference,
-  DocumentSnapshot,
-  Query,
-  QuerySnapshot,
-} from '../../firebase';
-import { formatInteger } from '../../utilities/format';
-import { isDefined } from '../../utilities/types';
-import { Point2D } from '@tensorflow/tfjs-vis';
+import { isFailed, isSucceeded, isDefined } from '../../utilities/types';
 import useAsyncEffect from '../../hooks/useAsyncEffect';
+import { render, Point2D } from '@tensorflow/tfjs-vis';
+import { NonEmptySnapshot } from '../../firebase/snapshot';
+import _ from 'lodash';
 
-type SnapshotOf<
-  R extends DocumentReference | Query
-> = R extends DocumentReference
-  ? DocumentSnapshot
-  : R extends Query
-  ? QuerySnapshot
-  : never;
-
-type ReferenceOf<
-  S extends DocumentSnapshot | QuerySnapshot
-> = S extends DocumentSnapshot
-  ? DocumentReference
-  : S extends QuerySnapshot
-  ? Query
-  : never;
-
-function isDocumentSnapshot(
-  value: DocumentSnapshot | QuerySnapshot,
-): value is DocumentSnapshot {
-  return 'ref' in value;
+interface Item {
+  name: string;
 }
 
-function isQuerySnapshot(
-  value: DocumentSnapshot | QuerySnapshot,
-): value is QuerySnapshot {
-  return 'query' in value;
+interface Price {
+  timestamp: DateTime;
+  price: number;
+  lottery: boolean;
 }
 
-function getRef<S extends DocumentSnapshot | QuerySnapshot>(
-  snapshot: S,
-): ReferenceOf<S> {
-  if (isDocumentSnapshot(snapshot)) {
-    return snapshot.ref as ReferenceOf<S>;
-  }
-  if (isQuerySnapshot(snapshot)) {
-    return snapshot.query as ReferenceOf<S>;
-  }
-
-  throw new TypeError();
-}
-
-function useSnapshot<R extends DocumentReference | Query>(
-  ref?: R,
-  options?: { get?: boolean; subscribe?: boolean; dependsOn?: any[] },
-): SnapshotOf<R> | undefined {
-  const [snapshot, setSnapshot] = useState<SnapshotOf<R>>();
-
-  const get = options?.get ?? false;
-  const subscribe = options?.subscribe ?? true;
-
-  useEffect(() => {
-    if (!ref) {
-      return setSnapshot(undefined);
-    }
-
-    const onSnapshot = (s: SnapshotOf<R>): void => {
-      setSnapshot(s);
-    };
-
-    if (get) {
-      const p = ref.get() as Promise<SnapshotOf<R>>;
-      p.then(onSnapshot);
-    }
-
-    if (subscribe) {
-      return (ref.onSnapshot as (onNext: typeof onSnapshot) => () => void)(
-        onSnapshot,
-      );
-    }
-  }, options?.dependsOn ?? [ref]);
-
-  return snapshot;
-}
-
-const ItemSummaryFields = [
-  {
-    path: 'name',
-    label: 'アイテム名',
-  },
-];
-
-function ItemSummary({
-  itemSnapshot,
-}: {
-  itemSnapshot: DocumentSnapshot;
-}): JSX.Element {
-  if (!itemSnapshot.exists) {
-    return (
-      <Dimmer active>
-        <Loader />
-      </Dimmer>
-    );
-  }
-
-  const fields = ItemSummaryFields.map(
-    ({ path, label }, i): JSX.Element => (
-      <Item key={i}>
-        <Item.Content>
-          <Item.Description>{label}</Item.Description>
-          <Item.Header>{itemSnapshot.get(path)}</Item.Header>
-        </Item.Content>
-      </Item>
-    ),
-  );
-
-  return <Item.Group>{fields}</Item.Group>;
-}
-
-function PricesTable({
-  pricesSnapshot,
-}: {
-  pricesSnapshot: QuerySnapshot;
-}): JSX.Element {
-  const itemsPerPage = 10;
-  const count = pricesSnapshot.size;
-  const totalPages = Math.ceil(count / itemsPerPage);
-
-  const [activePage, setActivePage] = useState(1);
-
-  useEffect(() => {
-    if (activePage > totalPages) {
-      setActivePage(totalPages);
-    }
-  });
-
-  const rows = pricesSnapshot.docs
-    .slice((activePage - 1) * itemsPerPage)
-    .slice(0, itemsPerPage)
-    .map(
-      (priceSnapshot, i): JSX.Element => {
-        const timestamp = priceSnapshot.get('timestamp').toDate();
-        const price = priceSnapshot.get('price');
-        const lottery = priceSnapshot.get('lottery');
-        return (
-          <Table.Row key={i}>
-            <Table.Cell textAlign="center">
-              {DateTime.fromJSDate(timestamp).toLocaleString(
-                DateTime.DATETIME_SHORT,
-              )}
-            </Table.Cell>
-            <Table.Cell textAlign="center">{formatInteger(price)}</Table.Cell>
-            <Table.Cell textAlign="center">
-              <Icon
-                color={lottery ? 'green' : 'grey'}
-                name={lottery ? 'check' : 'minus'}
-              />
-            </Table.Cell>
-          </Table.Row>
-        );
-      },
-    );
-
-  return (
-    <Table>
-      <Table.Header>
-        <Table.Row>
-          <Table.HeaderCell textAlign="center">日時</Table.HeaderCell>
-          <Table.HeaderCell textAlign="center">価格</Table.HeaderCell>
-          <Table.HeaderCell textAlign="center">抽選</Table.HeaderCell>
-        </Table.Row>
-      </Table.Header>
-      <Table.Body>{rows}</Table.Body>
-      <Table.Footer>
-        <Table.Row>
-          <Table.HeaderCell textAlign="center" colSpan="3">
-            <Pagination
-              activePage={activePage}
-              totalPages={totalPages}
-              onPageChange={(_e, { activePage }) =>
-                setActivePage(activePage as number)
-              }
-            />
-          </Table.HeaderCell>
-        </Table.Row>
-      </Table.Footer>
-    </Table>
-  );
-}
-
-interface Stats {
-  count: number;
-  max: number;
-  min: number;
-}
-const InitialStats: Stats = {
-  count: 0,
-  max: Number.MIN_VALUE,
-  min: Number.MAX_VALUE,
-};
-function stats(a: Stats, b: number): Stats {
-  return {
-    count: a.count + 1,
-    max: Math.max(a.max, b),
-    min: Math.min(a.min, b),
-  };
-}
-
-const hours = 3;
-const timeScale = hours * 60 * 60 * 1000;
-const yLen = (1 * 24) / hours;
-const xLen = yLen * 7;
-// const layers = 3;
-// const xLen = yLen * Math.pow(2, layers);
-const epochs = 30;
-const noise = 0.05;
-const validationSplit = 0.9;
-// const batchSize = 32;
-
-const domain: [DateTime, DateTime] = [
-  DateTime.local().minus({ days: 30 }),
+const domain = [
+  DateTime.local().minus(Duration.fromISO('P30D')),
   DateTime.local(),
 ];
-function VIS({
-  pricesSnapshot,
-}: {
-  itemSnapshot: DocumentSnapshot;
-  pricesSnapshot: QuerySnapshot;
-}): JSX.Element {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const resultRef = useRef<HTMLDivElement>(null);
 
-  useAsyncEffect(async (): Promise<void> => {
-    const container = containerRef.current;
-    const result = resultRef.current;
-    if (!container || !result) {
-      throw new Error('Failed to render container');
+function useContainer<T extends HTMLElement>(
+  rootRef: RefObject<T>,
+  callback: (container: HTMLDivElement) => void,
+  dependsOn: any[],
+): void {
+  const root = rootRef.current;
+
+  useEffect((): void | (() => void) => {
+    if (!root) return;
+    const div = document.createElement('div');
+    root.append(div);
+
+    callback(div);
+
+    return (): void => div.remove();
+  }, [root, ...dependsOn]);
+}
+
+interface ReducableStats {
+  max: number;
+  min: number;
+  sum: number;
+  count: number;
+}
+
+interface Stats extends ReducableStats {
+  avg: number;
+}
+
+type MapValueTypes<T extends {}, U> = {
+  [K in keyof T]: U;
+};
+
+type StatsOf<T extends {}> = {
+  [K in keyof T]: Stats;
+};
+
+type NumbersOf<T extends {}> = {
+  [K in keyof T]: number;
+};
+
+function toNumbers<T extends {}>(value: T): NumbersOf<T> {
+  return _.mapValues(value, (value): number => {
+    if (value instanceof DateTime) return value.toMillis();
+    if (typeof value === 'boolean') return value ? 1 : 0;
+
+    const number = Number(value);
+    if (Number.isNaN(number)) {
+      throw new TypeError(`Failed to convert into number: ${value}`);
     }
 
-    const raw = _(pricesSnapshot.docs)
-      .map(priceSnapshot => ({
-        timestamp: priceSnapshot.get('timestamp').toMillis() as number,
-        price: priceSnapshot.get('price') as number,
-        lottery: priceSnapshot.get('lottery') as boolean,
-      }))
-      .groupBy(
-        ({ timestamp }) =>
-          Math.floor(DateTime.fromMillis(timestamp).valueOf() / timeScale) *
-          timeScale,
-      )
-      .map((group, timestamp) => ({
-        timestamp: Number(timestamp),
-        price: group.reduce((p, item) => p + item.price / group.length, 0),
-        lottery: group.some(item => item.lottery) ? 1 : 0,
-      }))
-      .sortBy(({ timestamp }) => timestamp)
-      .value();
-    const rawReversed = raw.slice().reverse();
+    return number;
+  });
+}
 
-    const [timestamps, prices, lotteries] = _(
-      _.range(domain[0].valueOf(), domain[1].valueOf(), timeScale),
-    )
-      .map((timestamp): [number, number, number] => {
-        const hit = raw.find(item => item.timestamp === timestamp);
-        if (hit) return [timestamp, hit.price, hit.lottery];
+function calculateStats<T extends {}>(values: NumbersOf<T>[]): StatsOf<T> {
+  const first = _.first(values);
+  if (!first) throw new Error('Failed to calculate stats of empty array');
 
-        const left = rawReversed.find(item => item.timestamp < timestamp);
-        const right = raw.find(item => item.timestamp > timestamp);
+  const initial = _.mapValues(
+    first,
+    (value): ReducableStats => ({
+      max: value,
+      min: value,
+      sum: 0,
+      count: 0,
+    }),
+  );
 
-        if (left && !right) return [timestamp, left.price, left.lottery];
-        if (!left && right) return [timestamp, right.price, right.lottery];
-
-        if (!left || !right) throw new Error('Failed to collect');
-
-        const dur = right.timestamp - left.timestamp;
-        const rate = (timestamp - left.timestamp) / dur;
-        const price = left.price * (1 - rate) + right.price * rate;
-
-        return [timestamp, price, left.lottery || right.lottery];
-      })
-      .unzip()
-      .value();
-
-    const timestampStats = timestamps.reduce(stats, InitialStats);
-    const normalizedTimestamps = timestamps.map(
-      t => (t - timestampStats.min) / timeScale,
-    );
-
-    const priceStats = prices.reduce(stats, InitialStats);
-    const normalizedPrices = prices.map(
-      price =>
-        (price - priceStats.min) / (priceStats.max - priceStats.min) +
-        (Math.random() - 0.5) * 2 * noise,
-    );
-
-    const [pricePoints, lotteryPoints] = [
-      _.zip(normalizedTimestamps, normalizedPrices),
-      _.zip(normalizedTimestamps, lotteries),
-    ].map(series =>
-      series
-        .map(([x, y]) => ({ x, y }))
-        .filter<Point2D>(
-          (point): point is Point2D => isDefined(point.x) && isDefined(point.y),
-        ),
-    );
-
-    tfvis.render.scatterplot(container, {
-      values: [pricePoints, lotteryPoints],
-      series: ['価格', '抽選'],
-    });
-
-    const xs = [];
-    const ys = [];
-    for (let j = 0; j < normalizedPrices.length - xLen - yLen; j++) {
-      xs.push(normalizedPrices.slice(j, j + xLen));
-      ys.push(normalizedPrices.slice(j + xLen, j + xLen + yLen));
-    }
-
-    const trainX = tf.tensor2d(xs, [xs.length, xLen]);
-    console.log('tx', trainX.shape);
-
-    const trainY = tf.tensor2d(ys, [ys.length, yLen]);
-    console.log('ty', trainY.shape);
-
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    const model = tf.sequential({
-      layers: [
-        tf.layers.dense({
-          units: xLen,
-          batchInputShape: [xs.length, xLen],
+  const stats = values.reduce(
+    (prev, value): MapValueTypes<T, ReducableStats> =>
+      _.mapValues(
+        value,
+        (value, key): ReducableStats => ({
+          max: Math.max(prev[key as keyof StatsOf<T>].max, value),
+          min: Math.min(prev[key as keyof StatsOf<T>].min, value),
+          sum: prev[key as keyof StatsOf<T>].sum + value,
+          count: prev[key as keyof StatsOf<T>].count + 1,
         }),
-        tf.layers.dense({
-          units: Math.round((xLen + yLen) / 2),
-          batchInputShape: [xs.length, xLen],
-        }),
-        tf.layers.dense({
-          units: yLen,
-          batchInputShape: [xs.length, xLen],
-        }),
-      ],
-    });
-    console.log('mo', ...model.outputs.map(o => o.shape));
-
-    tfvis.show.modelSummary(container, model);
-
-    model.compile({ optimizer: 'adam', loss: 'meanSquaredError' });
-
-    console.log('fit');
-
-    await model.fit(trainX, trainY, {
-      epochs,
-      validationSplit,
-      callbacks: tfvis.show.fitCallbacks(
-        container,
-        ['loss', 'mse', 'val_loss'],
-        {
-          height: 200,
-          callbacks: ['onEpochEnd'],
-        },
       ),
-    });
+    initial,
+  );
 
-    console.log('predict');
-
-    const predicatedPoints = _.range(
-      0,
-      normalizedPrices.length - xLen,
-      36 / hours,
-    ).map(left => {
-      const sx = normalizedPrices.slice(left, left + xLen);
-      const py = (model.predict(
-        tf.tensor1d(sx).reshape([1, xLen]),
-      ) as tf.Tensor<tf.Rank>).dataSync();
-
-      return Array.from(py).map((y, i) => ({
-        x: normalizedTimestamps[left + xLen] + i + 1,
-        y,
-      }));
-    });
-
-    const futureX = tf
-      .tensor1d(normalizedPrices.slice(-xLen))
-      .reshape([1, xLen]);
-    const futureY = (model.predict(futureX) as tf.Tensor<tf.Rank>).dataSync();
-    const futurePoints = Array.from(futureY).map((y, i) => ({
-      x: (timestampStats.max - timestampStats.min) / timeScale + i + 1,
-      y,
-    }));
-
-    // const predictedPoints = Array.from(ps).map((y, i) => ({
-    //   x: (timestampStats.max - timestampStats.min) / timeScale + i + 1,
-    //   y,
-    // }));
-
-    const values = [
-      pricePoints,
-      lotteryPoints,
-      ...predicatedPoints,
-      futurePoints,
-    ];
-    console.log(values);
-    tfvis.render.scatterplot(result, {
-      values,
-      series: [
-        '価格',
-        '抽選',
-        ...predicatedPoints.map((_v, i) => `予測${i + 1}`),
-        '予測',
-      ],
-    });
-  }, [pricesSnapshot]);
-
-  return (
-    <div>
-      <div ref={containerRef} />
-      <div ref={resultRef} />
-    </div>
+  return _.mapValues(
+    stats,
+    (value, key): Stats => ({
+      ...value,
+      avg: value.sum / value.count,
+    }),
   );
 }
 
-export default function AI(): JSX.Element | null {
+function normalize<T extends {}>(
+  value: NumbersOf<T>,
+  stats: StatsOf<T>,
+): NumbersOf<T> {
+  return _.mapValues(value, (value, key): number => {
+    const { min, max } = stats[key as keyof StatsOf<T>];
+
+    return (value - min) / (max - min);
+  });
+}
+
+function toPoint2D<T extends {}>(
+  xKey: keyof T,
+  values: NumbersOf<T>[],
+): [Point2D[][], string[]] {
+  const first = _.first(values);
+  if (!first) return [[], []];
+
+  return _(first)
+    .keys()
+    .filter(key => key !== xKey)
+    .map((key): [Point2D[], string] => [
+      values.map(
+        (value): Point2D => ({
+          x: value[xKey],
+          y: value[key as keyof NumbersOf<T>],
+        }),
+      ),
+      key,
+    ])
+    .unzip()
+    .value() as [Point2D[][], string[]];
+}
+
+function ScatterPlot<T extends {}>({
+  xKey,
+  values,
+}: {
+  xKey: keyof NumbersOf<T>;
+  values: NumbersOf<T>[];
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useContainer(
+    ref,
+    container => {
+      const [points, series] = toPoint2D(xKey, values);
+      render.scatterplot(container, {
+        values: points,
+        series,
+      });
+    },
+    [xKey, values],
+  );
+
+  return <div ref={ref} />;
+}
+
+const hourInMillis = Duration.fromISO('PT1H').valueOf();
+
+export default function AI(): JSX.Element {
   const { projectId, itemId } = useParams();
 
-  const appRes = useAsync(initializeApp, []);
-  const app = appRes.result;
+  const [calculated, setCalculated] = useState<{
+    normalized: NumbersOf<Price>[];
+    grouped: Record<string, NumbersOf<Price>>;
+    corrected: NumbersOf<Price>[];
+  }>();
 
-  const itemRef = app
-    ?.firestore()
-    .collection('projects')
-    .doc(projectId)
-    .collection('items')
-    .doc(itemId);
+  const sourceSnapshots = useQuerySnapshot(
+    (firestore): Query =>
+      firestore
+        .collection('projects')
+        .doc(projectId)
+        .collection('items')
+        .doc(itemId)
+        .collection('prices')
+        .orderBy('timestamp', 'desc')
+        .endAt(Timestamp.fromDate(domain[0].toJSDate())),
+    (snapshot): Price | null => {
+      const { timestamp, price, lottery } = snapshot.data();
 
-  const itemSnapshot = useSnapshot<DocumentReference>(itemRef, {
-    get: true,
-    subscribe: false,
-    dependsOn: [app, projectId, itemId],
-  });
+      if (typeof timestamp.toDate !== 'function') return null;
+      if (typeof price !== 'number') return null;
 
-  const pricesQuery = itemRef
-    ?.collection('prices')
-    .orderBy('timestamp', 'desc')
-    .endBefore(domain[0].valueOf());
-  const pricesSnapshot = useSnapshot<Query>(pricesQuery, {
-    get: true,
-    subscribe: false,
-    dependsOn: [app, projectId, itemId],
-  });
+      return {
+        timestamp: DateTime.fromJSDate(timestamp.toDate()),
+        price,
+        lottery: Boolean(lottery),
+      };
+    },
+  );
 
-  if (!app || !projectId || !itemId) {
-    return <Message negative>不明なエラー</Message>;
-  }
+  useEffect(
+    _.throttle((): void => {
+      // if (!isSucceeded(sourceSnapshots) || sourceSnapshots.length === 0) return;
+      // const timestamps = sourceSnapshots.map(({ data }) =>
+      //   data.timestamp.toMillis(),
+      // );
+      // const prices = sourceSnapshots.map(({ data }) => data.price);
+      // const lotteries = sourceSnapshots.map(({ data }) =>
+      //   data.lottery ? 1 : 0,
+      // );
+      // const timestampsMin = _.min(timestamps) ?? NaN;
+      // const timestampsMax = _.max(timestamps) ?? NaN;
+      // const pricesMin = _.min(prices) ?? NaN;
+      // const pricesMax = _.max(prices) ?? NaN;
+      // const normalizedTimestamps = timestamps.map(timestamp =>
+      //   Math.floor((timestamp - timestampsMin) / hourInMillis),
+      // );
+      // const normalizedPrices = prices.map(
+      //   price => (price - pricesMin) / (pricesMax - pricesMin),
+      // );
+      // const normalized: NumbersOf<Price>[] = _.zip(
+      //   normalizedTimestamps,
+      //   normalizedPrices,
+      //   lotteries,
+      // ).map(([timestamp, price, lottery]) => ({
+      //   timestamp,
+      //   price,
+      //   lottery,
+      // })) as any;
+      // const grouped = _(normalized)
+      //   .groupBy(({ timestamp }) => timestamp)
+      //   .mapValues((group, key) => ({
+      //     timestamp: Number(key),
+      //     price: _(group)
+      //       .map(({ price }) => price)
+      //       .mean(),
+      //     lottery:
+      //       _(group)
+      //         .map(({ lottery }) => lottery)
+      //         .max() ?? 0,
+      //   }))
+      //   .value();
+      // const corrected = _(timestampsMax - timestampsMin)
+      //   .range()
+      //   .map(timestamp => {
+      //     const hit = grouped[`${timestamp}`];
+      //     if (hit) {
+      //       return hit;
+      //     }
+      //     const rightIndex = normalizedTimestamps.findIndex(t => t > timestamp);
+      //     if (rightIndex < 0) return null;
+      //     const leftIndex = _.findLastIndex(
+      //       normalizedTimestamps,
+      //       t => t < timestamp,
+      //     );
+      //     if (leftIndex < 0) return null;
+      //     const rightTimestamp = normalizedTimestamps[rightIndex];
+      //     const leftTimestamp = normalizedTimestamps[leftIndex];
+      //     const duration = rightTimestamp - leftTimestamp;
+      //     const rightRate = (timestamp - leftTimestamp) / duration;
+      //     const leftRate = 1 - rightRate;
+      //     return {
+      //       timestamp,
+      //       price:
+      //         normalizedPrices[leftIndex] * leftRate +
+      //         normalizedPrices[rightIndex] * rightRate,
+      //       lottery:
+      //         lotteries[leftIndex] * leftRate +
+      //         lotteries[rightIndex] * rightRate,
+      //     };
+      //   })
+      //   .dropWhile(_.negate(isDefined))
+      //   .takeWhile(isDefined)
+      //   .filter(isDefined)
+      //   .value();
+      // setCalculated({
+      //   normalized,
+      //   grouped,
+      //   corrected,
+      // });
+    }, 1000),
+    [sourceSnapshots],
+  );
 
-  if (appRes.error) {
-    return <Message negative>{appRes.error.toString()}</Message>;
-  }
-  if (appRes.loading || !itemSnapshot || !pricesSnapshot) {
+  if (!sourceSnapshots) {
     return (
       <Dimmer active>
         <Loader />
       </Dimmer>
     );
   }
+
+  if (isFailed(sourceSnapshots)) {
+    return (
+      <Container>
+        <Message negative>{sourceSnapshots.toString()}</Message>
+      </Container>
+    );
+  }
+
+  if (!calculated)
+    return (
+      <Dimmer active>
+        <Loader />
+      </Dimmer>
+    );
+
+  const { normalized, grouped, corrected } = calculated;
 
   return (
     <Container>
-      <Segment>
-        <ItemSummary itemSnapshot={itemSnapshot} />
-        <VIS itemSnapshot={itemSnapshot} pricesSnapshot={pricesSnapshot} />
-        <PricesTable pricesSnapshot={pricesSnapshot} />
-      </Segment>
+      <Card fluid>
+        <Card.Content>
+          <h1>Corrected</h1>
+        </Card.Content>
+        <ScatterPlot xKey="timestamp" values={corrected} />
+      </Card>
+      <Card fluid>
+        <Card.Content>
+          <h1>Grouped</h1>
+        </Card.Content>
+        <ScatterPlot
+          xKey="timestamp"
+          values={_(grouped)
+            .toPairs()
+            .filter((pair): pair is [string, NumbersOf<Price>] =>
+              pair.every(isDefined),
+            )
+            .map(([hours, value]) => ({ ...value, timestamp: Number(hours) }))
+            .value()}
+        />
+      </Card>
+      <Card fluid>
+        <Card.Content>
+          <h1>Normalized</h1>
+        </Card.Content>
+        <ScatterPlot xKey="timestamp" values={normalized} />
+      </Card>
     </Container>
   );
 }

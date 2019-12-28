@@ -2,6 +2,7 @@ import { useState } from 'react';
 import useFirebase from './useFirebase';
 import useAsyncEffect from './useAsyncEffect';
 import { NonEmptySnapshot, Snapshot } from '../firebase/snapshot';
+import { isSucceeded, isDefined } from '../utilities/types';
 
 type Firestore = firebase.firestore.Firestore;
 type DocumentReference = firebase.firestore.DocumentReference;
@@ -84,34 +85,46 @@ export function useQuerySnapshot<T, A extends any[]>(
 
     return initialize(app.firestore(), ...args).onSnapshot(
       (querySnapshot): void => {
-        querySnapshot
-          .docChanges()
-          .forEach(({ type, doc, newIndex, oldIndex }) => {
-            if (type === 'removed') {
-              setSnapshots((prev): typeof prev => splice(prev, oldIndex, 1));
-              return;
-            }
+        if (!isSucceeded(snapshots) || snapshots.length === 0) {
+          setSnapshots(
+            querySnapshot.docs
+              .map(doc => {
+                const data = read(doc);
 
-            const data = read(doc);
-            if (!data) return;
+                return data ? { ref: doc.ref, data } : null;
+              })
+              .filter(isDefined),
+          );
+        } else {
+          querySnapshot
+            .docChanges()
+            .forEach(({ type, doc, newIndex, oldIndex }) => {
+              if (type === 'removed') {
+                setSnapshots((prev): typeof prev => splice(prev, oldIndex, 1));
+                return;
+              }
 
-            const snapshot = {
-              ref: doc.ref,
-              data,
-            };
-            switch (type) {
-              case 'added':
-                setSnapshots((prev): typeof prev =>
-                  splice(prev, newIndex, 0, snapshot),
-                );
-                break;
-              case 'modified':
-                setSnapshots((prev): typeof prev =>
-                  splice(splice(prev, oldIndex, 1), newIndex, 0, snapshot),
-                );
-                break;
-            }
-          });
+              const data = read(doc);
+              if (!data) return;
+
+              const snapshot = {
+                ref: doc.ref,
+                data,
+              };
+              switch (type) {
+                case 'added':
+                  setSnapshots((prev): typeof prev =>
+                    splice(prev, newIndex, 0, snapshot),
+                  );
+                  break;
+                case 'modified':
+                  setSnapshots((prev): typeof prev =>
+                    splice(splice(prev, oldIndex, 1), newIndex, 0, snapshot),
+                  );
+                  break;
+              }
+            });
+        }
       },
     );
   }, [app, ...args]);

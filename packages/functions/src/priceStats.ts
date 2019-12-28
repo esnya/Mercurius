@@ -222,6 +222,8 @@ async function calculatePriceStats(
   const variationRate =
     variationPerDay && lastPriceAverage && variationPerDay / lastPriceAverage;
 
+  const roid = (end - min) / min;
+
   const priceStats = {
     begin,
     end,
@@ -240,6 +242,7 @@ async function calculatePriceStats(
     variation,
     variationPerDay,
     variationRate,
+    roid,
   };
 
   const data = {

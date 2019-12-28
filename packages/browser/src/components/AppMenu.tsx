@@ -15,18 +15,16 @@ export default function AppMenu(): JSX.Element {
   );
   const projectId = projectMatched && projectMatched.params.projectId;
 
-  const items =
-    projectId &&
-    menuItems.map(({ path, text }, i) => {
-      const to = `/projects/${projectId}${path}`;
-      const match = useRouteMatch(to);
-      const active = match ? match.isExact : false;
-      return (
-        <MenuItem key={i} as={Link} to={to} active={active}>
-          {text}
-        </MenuItem>
-      );
-    });
+  const items = menuItems.map(({ path, text }, i) => {
+    const to = `/projects/${projectId}${path}`;
+    const match = useRouteMatch(to);
+    const active = match ? match.isExact : false;
+    return (
+      <MenuItem key={i} as={Link} to={to} active={active}>
+        {text}
+      </MenuItem>
+    );
+  });
 
   const m = useRouteMatch('/');
   return (

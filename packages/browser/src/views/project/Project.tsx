@@ -121,6 +121,16 @@ const statFieldDefinitions: Record<string, StatField> = {
     color: {},
     textAlign: 'center',
   },
+  '現価/月間最安値': {
+    text: '現価/月間最安値',
+    path: 'priceStats.roid',
+    format: formatPercent,
+    factor: 100,
+    color: {
+      factor: 0.1,
+    },
+    textAlign: 'center',
+  },
 };
 
 interface Filter {
@@ -427,14 +437,14 @@ export default function Project(): JSX.Element {
               <Form.Input
                 label="キーワード"
                 name="search"
-                value={search}
+                value={search ?? ''}
                 onChange={(_e, { value }): void => setSearch(value || null)}
               />
               <Form.Select
                 label="フィルター"
                 name="filter"
                 options={filterOptions}
-                value={selectedFilter}
+                value={selectedFilter ?? ''}
                 onChange={(_e, { value }): void =>
                   setSelectedFilter(value as number)
                 }
@@ -443,7 +453,7 @@ export default function Project(): JSX.Element {
                 label="表示件数"
                 name="items-per-page"
                 type="number"
-                value={itemsPerPage}
+                value={itemsPerPage ?? ''}
                 onChange={(_e, { value }): void => {
                   setItemsPerPage(Number(value) || 0);
                 }}
