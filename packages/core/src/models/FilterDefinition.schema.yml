@@ -1,0 +1,13 @@
+title: FilterDefinition
+type: object
+properties:
+  id:
+    type: string
+  text:
+    type: string
+  query:
+    type: object
+required:
+  - id
+  - text
+  - query

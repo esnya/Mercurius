@@ -1,51 +1,82 @@
 import React from 'react';
-import StatField from '../types/StatField';
 import ItemTableRow from './ItemTableRow';
-import ItemTableHeader, { ItemTableHeaderProps } from './ItemTableHeader';
-import { Table, TableBody } from 'semantic-ui-react';
-import Item, { isItem } from '../types/Item';
-import firebase from '../firebase';
+import ItemTableHeader from './ItemTableHeader';
+import { Table, Pagination } from 'semantic-ui-react';
+import { Item } from 'mercurius-core/lib/models/Item';
+import { Field } from '../definitions/fields';
+import { NonEmptySnapshot } from '../firebase/snapshot';
+import usePersistentState from '../hooks/usePersistentState';
+import mingo from 'mingo';
 
-export interface TableItem {
-  itemRef: firebase.firestore.DocumentReference;
-  item: Item;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function isTableItem(value: any): value is TableItem {
-  return (
-    typeof value === 'object' &&
-    value.itemRef instanceof firebase.firestore.DocumentReference &&
-    isItem(value.item)
-  );
-}
-
-export interface ItemTableProps extends ItemTableHeaderProps {
-  items: TableItem[];
-  statFields: StatField[];
+export interface ItemTableProps {
+  items: NonEmptySnapshot<Item>[];
+  fields: Field[];
+  filters: {}[];
 }
 
 export default function ItemTable({
   items,
-  statFields,
-  ...others
+  fields,
+  filters,
 }: ItemTableProps): JSX.Element {
-  const rows = items.map(
-    ({ itemRef, item }): JSX.Element => {
-      return (
-        <ItemTableRow
-          key={itemRef.id}
-          itemRef={itemRef}
-          item={item}
-          statFields={statFields}
-        />
-      );
+  const [sortBy, setSortBy] = usePersistentState<string>(
+    'sortBy',
+    'monthlyRoid',
+  );
+  const [sortOrder, setSortOrder] = usePersistentState<
+    'ascending' | 'descending'
+  >('descending');
+  const [activePage, setActivePage] = usePersistentState<number>(
+    'activePage',
+    1,
+  );
+
+  const itemsPerPage = 50;
+  const totalPages = Math.ceil(items.length / itemsPerPage);
+
+  const agg = new mingo.Aggregator([
+    ...fields.map(({ id, value }) => ({ $set: { [`data.${id}`]: value } })),
+    { $match: { $and: filters } },
+    { $sort: { [`data.${sortBy}`]: sortOrder === 'ascending' ? 1 : -1 } },
+    { $skip: (activePage - 1) * itemsPerPage },
+    { $limit: itemsPerPage },
+  ]);
+
+  const aggregated: NonEmptySnapshot<Item>[] = agg.run(items);
+
+  const rows = aggregated.map(
+    (item): JSX.Element => {
+      return <ItemTableRow key={item.ref.id} item={item} fields={fields} />;
     },
   );
   return (
     <Table sortable>
-      <ItemTableHeader statFields={statFields} {...others} />
-      <TableBody>{rows}</TableBody>
+      <ItemTableHeader
+        fields={fields}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        onSortChange={(id): void => {
+          if (sortBy === id) {
+            setSortOrder('ascending');
+          }
+          setSortOrder('descending');
+          setSortBy(id);
+        }}
+      />
+      <Table.Body>{rows}</Table.Body>
+      <Table.Footer>
+        <Table.Row>
+          <Table.HeaderCell colSpan={fields.length + 3} textAlign="center">
+            <Pagination
+              activePage={activePage}
+              totalPages={totalPages}
+              onPageChange={(_e, { activePage }) =>
+                setActivePage(activePage as number)
+              }
+            />
+          </Table.HeaderCell>
+        </Table.Row>
+      </Table.Footer>
     </Table>
   );
 }

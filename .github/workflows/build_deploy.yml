@@ -11,10 +11,12 @@ jobs:
     steps:
       - name: Checkout Repo
         uses: actions/checkout@master
+      - name: Install tools
+        run: npm install -g lerna
       - name: Install Dependencies
-        run: npm install
+        run: npm ci
       - name: Bootstrap packages
-        run: ./node_modules/.bin/lerna bootstrap
+        run: lerna bootstrap
         working-directory: functions
       - name: Build
         run: npm run build:production

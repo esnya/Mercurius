@@ -1,0 +1,30 @@
+title: PriceStats
+type: object
+properties:
+  max:
+    type: number
+  min:
+    type: number
+  begin:
+    type: number
+  end:
+    type: number
+  fluctuationRate:
+    type: number
+  average:
+    type: number
+  stdDev:
+    type: number
+  endByFluctuationRate:
+    type: number
+  variationRate:
+    type: number
+required:
+  - max
+  - min
+  - begin
+  - end
+  - fluctuationRate
+  - average
+  - stdDev
+  - endByFluctuationRate

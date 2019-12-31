@@ -3,6 +3,7 @@
     // Output
     "outDir": "lib",
     "sourceMap": true,
+    "declaration": true,
     // Features
     "target": "ES2019",
     "moduleResolution": "node",

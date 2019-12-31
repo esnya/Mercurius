@@ -9,7 +9,7 @@ import {
   Image,
   ButtonProps,
 } from 'semantic-ui-react';
-import Item from '../types/Item';
+import { Item } from 'mercurius-core/lib/models/Item';
 
 export interface ItemChartModalProps extends ModalProps {
   item: Item;

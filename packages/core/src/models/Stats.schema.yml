@@ -1,11 +1,16 @@
 title: Stats
 type: object
 properties:
-  avg: type: number
-  opening: type: number
-  closing: type: number
-  rate: type: number
-  roid: type: number
+  avg:
+    type: number
+  opening:
+    type: number
+  closing:
+    type: number
+  rate:
+    type: number
+  roid:
+    type: number
 required:
   - avg
   - opening

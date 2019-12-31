@@ -3,6 +3,8 @@ import useFirebase from './useFirebase';
 import useAsyncEffect from './useAsyncEffect';
 import { NonEmptySnapshot, Snapshot } from '../firebase/snapshot';
 import { isSucceeded, isDefined } from '../utilities/types';
+import mapObj from 'map-obj';
+import { Timestamp, DocumentData } from '../firebase';
 
 type Firestore = firebase.firestore.Firestore;
 type DocumentReference = firebase.firestore.DocumentReference;
@@ -25,6 +27,13 @@ function splice<T, U = never>(
   return next;
 }
 
+function decodeTimestamps(value: DocumentData): DocumentData {
+  return mapObj(value, (key, value) => [
+    key as string,
+    value instanceof Timestamp ? value.toDate() : value,
+  ]) as DocumentData;
+}
+
 function isExists(
   snapshot: DocumentSnapshot,
 ): snapshot is QueryDocumentSnapshot {
@@ -33,7 +42,7 @@ function isExists(
 
 export function useDocumentSnapshot<T, A extends any[]>(
   gerRef: (firestore: Firestore, ...args: A) => DocumentReference,
-  read: (snapshot: QueryDocumentSnapshot) => T | null,
+  read: (data: DocumentData) => T | null,
   ...args: A
 ): Snapshot<T> | Error | undefined {
   const app = useFirebase();
@@ -51,13 +60,14 @@ export function useDocumentSnapshot<T, A extends any[]>(
     const s = await ref.get();
     setSnapshot({
       ref,
-      data: (isExists(s) && read(s)) || undefined,
+      data: (isExists(s) && read(decodeTimestamps(s.data()))) || undefined,
     });
 
     return ref.onSnapshot(next =>
       setSnapshot({
         ref,
-        data: (isExists(next) && read(next)) || undefined,
+        data:
+          (isExists(next) && read(decodeTimestamps(next.data()))) || undefined,
       }),
     );
   }, [app, ...args]);
@@ -67,7 +77,7 @@ export function useDocumentSnapshot<T, A extends any[]>(
 
 export function useQuerySnapshot<T, A extends any[]>(
   initialize: (firestore: Firestore, ...args: A) => Query,
-  read: (snapshot: QueryDocumentSnapshot) => T | null,
+  read: (data: DocumentData) => T | null,
   ...args: A
 ): NonEmptySnapshot<T>[] | Error | undefined {
   const app = useFirebase();
@@ -89,7 +99,7 @@ export function useQuerySnapshot<T, A extends any[]>(
           setSnapshots(
             querySnapshot.docs
               .map(doc => {
-                const data = read(doc);
+                const data = read(decodeTimestamps(doc.data()));
 
                 return data ? { ref: doc.ref, data } : null;
               })

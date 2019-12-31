@@ -1,28 +1,28 @@
 import React from 'react';
 import StatField from '../types/StatField';
 import { TableHeaderCell, TableHeader, TableRow } from 'semantic-ui-react';
-import PriceStats from '../types/PriceStats';
+import { Field } from '../definitions/fields';
 
 export interface ItemTableHeaderProps {
-  statFields: StatField[];
+  fields: Field[];
   sortBy: string;
   sortOrder: 'ascending' | 'descending';
-  onSortChange: (path: string) => void;
+  onSortChange: (id: string) => void;
 }
 
 export default function ItemTableHeader({
-  statFields,
+  fields,
   sortBy,
   sortOrder,
   onSortChange,
 }: ItemTableHeaderProps): JSX.Element {
-  const headerCells = statFields.map(
-    ({ text, path }, i): JSX.Element => (
+  const headerCells = fields.map(
+    ({ text, id }, i): JSX.Element => (
       <TableHeaderCell
         key={i}
-        sorted={path === sortBy ? sortOrder : undefined}
+        sorted={id === sortBy ? sortOrder : undefined}
         textAlign="center"
-        onClick={(): void => onSortChange(path)}
+        onClick={(): void => onSortChange(id)}
       >
         {text}
       </TableHeaderCell>
@@ -32,7 +32,6 @@ export default function ItemTableHeader({
   return (
     <TableHeader>
       <TableRow>
-        <TableHeaderCell />
         <TableHeaderCell
           sorted={sortBy === 'name' ? sortOrder : undefined}
           textAlign="center"

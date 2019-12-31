@@ -3,8 +3,8 @@ import { BrowserRouter as Router, Switch, Route } from 'react-router-dom';
 import AutoInput from './views/project/AutoInput';
 import NotFound from './views/NotFound';
 import Home from './views/Home';
-import Project from './views/project/Project';
 import AppMenu from './components/AppMenu';
+import ProjectHome from './views/ProjectHome';
 import Members from './views/project/Members';
 import './App.styl';
 import AI from './views/project/AI';
@@ -15,7 +15,7 @@ export default function App(): JSX.Element {
       <AppMenu />
       <Switch>
         <Route exact path="/projects/:projectId">
-          <Project />
+          <ProjectHome />
         </Route>
         <Route exact path="/projects/:projectId/members">
           <Members />

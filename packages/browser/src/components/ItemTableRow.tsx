@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import Item from '../types/Item';
 import ItemTableStatCell from './ItemTableStatCell';
 import { TableRow, TableCell, Button, Icon, Modal } from 'semantic-ui-react';
-import StatField from '../types/StatField';
 import ItemChartModal from './ItemChartModal';
 import DiffIcon from './DiffIcon';
 import ActionButton from './ActionButton';
@@ -11,17 +9,24 @@ import { formatTimestampShort } from '../utilities/format';
 import PriceTable from './PriceTable';
 import { duration } from 'moment';
 import styles from './ItemTableCell.styl';
+import { Field } from '../definitions/fields';
+import { NonEmptySnapshot } from '../../lib/src/firebase/snapshot';
+import { Item } from 'mercurius-core/lib/models/Item';
 
 export default function ItemTableRow({
   item,
-  itemRef,
-  statFields,
+  fields,
 }: {
-  item: Item;
-  itemRef: firebase.firestore.DocumentReference;
-  statFields: StatField[];
+  item: NonEmptySnapshot<Item>;
+  fields: Field[];
 }): JSX.Element {
-  const { name, priceStats, backgroundChartUpdatedAt, chartUpdatedAt } = item;
+  const {
+    name,
+    priceStats,
+    backgroundChartUpdatedAt,
+    chartUpdatedAt,
+  } = item.data;
+  const itemRef = item.ref;
 
   const [chartModalOpen, setChartModalOpen] = useState(false);
   const [priceModalOpen, setPriceModalOpen] = useState(false);
@@ -37,27 +42,27 @@ export default function ItemTableRow({
       .then(setChartUrl);
   }, [itemRef, backgroundChartUpdatedAt]);
 
-  const cells = statFields.map(
-    (field, i): JSX.Element => (
-      <ItemTableStatCell key={i} item={item} field={field} />
+  const cells = fields.map(
+    (field): JSX.Element => (
+      <ItemTableStatCell key={field.id} item={item.data} field={field} />
     ),
   );
 
   const chartModal = priceStats && chartUpdatedAt && (
     <ItemChartModal
       itemRef={itemRef}
-      item={item}
+      item={item.data}
       open={chartModalOpen}
       onClose={(): void => setChartModalOpen(false)}
     />
   );
 
   const updatedAt =
-    item.updatedAt && formatTimestampShort(item.updatedAt.toMillis());
+    item.data.updatedAt && formatTimestampShort(item.data.updatedAt.getTime());
 
   const backgroundLeft =
-    item.updatedAt &&
-    ((Date.now() - item.updatedAt.toMillis()) /
+    item.data.updatedAt &&
+    ((Date.now() - item.data.updatedAt.getTime()) /
       duration(14, 'days').asMilliseconds()) *
       100;
 
@@ -72,9 +77,6 @@ export default function ItemTableRow({
 
   return (
     <TableRow style={rowStyle}>
-      <TableCell textAlign="center">
-        <DiffIcon diffRate={(priceStats && priceStats.variationRate) || null} />
-      </TableCell>
       <TableCell className={styles.ItemTableCell}>{name}</TableCell>
       {cells}
       <TableCell className={styles.ItemTableCell}>{updatedAt}</TableCell>

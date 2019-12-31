@@ -6,18 +6,18 @@ properties:
   type:
     type: string
   priceStats:
-    $ref: PriceStats
+    $ref: ./PriceStats.schema.yml
   dailyStats:
     type: object
     properties:
       '0':
-        $ref: ./Stats.yml
+        $ref: ./Stats.schema.yml
       '1':
-        $ref: ./Stats.yml
+        $ref: ./Stats.schema.yml
       '2':
-        $ref: ./Stats.yml
-      '2':
-        $ref: ./Stats.yml
+        $ref: ./Stats.schema.yml
+      '3':
+        $ref: ./Stats.schema.yml
   updatedAt:
     type: string
     format: date-time

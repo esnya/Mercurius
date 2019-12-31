@@ -1,0 +1,39 @@
+title: FieldDefinition
+type: object
+properties:
+  id:
+    type: string
+  text:
+    type: string
+  value:
+    $oneOf:
+      - type: string
+      - type: object
+  format:
+    type: string
+    enum:
+      - integer
+      - percentage
+  factor:
+    type: number
+    default: 1
+  color:
+    type: object
+    properties:
+      factor:
+        type: number
+        default: 1
+      minus:
+        type: boolean
+        default: false
+  textAlign:
+    type: string
+    enum:
+      - left
+      - center
+      - right
+    default: center
+required:
+  - id
+  - text
+  - value
