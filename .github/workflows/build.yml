@@ -3,14 +3,17 @@ name: Build
 on: [push]
 
 jobs:
-  build:
+  ci:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
-    - uses: actions/setup-node@v1
-      with:
-        node-version: 12.x
-    - run: npm ci
-    - run: npm run build
-      env:
-        CI: true
+      - uses: actions/checkout@v1
+      - uses: actions/setup-node@v1
+        with:
+          node-version: 12.x
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build-production
+      - run: npx firebase deploy
+        if: github.ref == 'refs/heads/master'
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
