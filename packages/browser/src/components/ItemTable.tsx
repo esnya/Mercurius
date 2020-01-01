@@ -111,7 +111,7 @@ export default function ItemTable({
             <Pagination
               activePage={activePage}
               totalPages={totalPages}
-              onPageChange={(_e, { activePage }) =>
+              onPageChange={(_e, { activePage }): void =>
                 setActivePage(activePage as number)
               }
             />

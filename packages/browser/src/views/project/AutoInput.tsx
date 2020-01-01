@@ -393,12 +393,12 @@ export default withFirebaseApp<{}>(function AutoInput({
         </Segment>
       </Segment.Group>
       <CardGroup>{taskViews}</CardGroup>
-      <Modal open={editorOpen} onClose={() => setEditorOpen(false)}>
+      <Modal open={editorOpen} onClose={(): void => setEditorOpen(false)}>
         <Modal.Content>
           {stream && editorOpen && <RecognitionPresetEditor stream={stream} />}
         </Modal.Content>
         <Modal.Actions>
-          <Button onClick={() => setEditorOpen(false)}>閉じる</Button>
+          <Button onClick={(): void => setEditorOpen(false)}>閉じる</Button>
         </Modal.Actions>
       </Modal>
     </Container>

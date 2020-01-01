@@ -1,4 +1,4 @@
-import { Recognition, Size, Point, Rect } from './RecognitionPreset';
+import { Size, Point, Rect } from './RecognitionPreset';
 
 export function getScales({
   width,

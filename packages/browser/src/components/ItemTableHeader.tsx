@@ -1,5 +1,4 @@
 import React from 'react';
-import StatField from '../types/StatField';
 import { TableHeaderCell, TableHeader, TableRow } from 'semantic-ui-react';
 import { Field } from '../definitions/fields';
 

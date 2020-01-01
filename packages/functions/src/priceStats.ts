@@ -314,7 +314,7 @@ export async function calculateDailyStats(
             dayInMillis,
       ),
     )
-    .mapValues((group, key) => {
+    .mapValues(group => {
       // console.log('group', group);
       if (group.length == 0) return;
 

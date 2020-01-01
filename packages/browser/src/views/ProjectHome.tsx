@@ -1,11 +1,8 @@
 import React from 'react';
-import _ from 'lodash';
-import { Loader, Container, Segment, Dimmer, Message } from 'semantic-ui-react';
-import { ItemConverter } from 'mercurius-core/lib/models/Item';
+import { Container, Segment } from 'semantic-ui-react';
 import ItemTable from '../components/ItemTable';
 import { useParams } from 'react-router';
-import { useDocumentSnapshot, useQuerySnapshot } from '../hooks/useSnapshot';
-import { isFailed, isDefined } from '../utilities/types';
+import { isDefined } from '../utilities/types';
 import ItemFilterControl, { ItemFilter } from '../components/ItemFilterControl';
 import fieldDefinitions, { getField } from '../definitions/fields';
 import filterDefinitions, { getFilter } from '../definitions/filters';

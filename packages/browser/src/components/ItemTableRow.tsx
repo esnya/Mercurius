@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import ItemTableStatCell from './ItemTableStatCell';
 import { TableRow, TableCell, Button, Icon, Modal } from 'semantic-ui-react';
 import ItemChartModal from './ItemChartModal';
-import DiffIcon from './DiffIcon';
 import ActionButton from './ActionButton';
 import firebase from '../firebase';
 import { formatTimestampShort } from '../utilities/format';

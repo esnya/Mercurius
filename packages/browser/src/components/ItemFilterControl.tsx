@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Form, Accordion } from 'semantic-ui-react';
-import _ from 'lodash';
 import { isDefined } from '../utilities/types';
 import filters from '../definitions/filters';
 import fields from '../definitions/fields';

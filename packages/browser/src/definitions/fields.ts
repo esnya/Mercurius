@@ -85,7 +85,7 @@ const fields: FieldDefinition[] = [
 export default fields;
 
 export interface Field extends Omit<FieldDefinition, 'format'> {
-  format: (value: any) => string;
+  format: (value: number) => string;
   factor: number;
   textAlign: TextAlign;
   color?: {
@@ -107,7 +107,7 @@ export function getField(id: string): Field | undefined {
         ? formatInteger
         : format === Format.Percentage
         ? formatPercent
-        : a => a,
+        : (a): string => `${a}`,
     factor: factor ?? 1,
     textAlign: textAlign ?? TextAlign.Left,
     color: color && {

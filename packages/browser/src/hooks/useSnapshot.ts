@@ -40,7 +40,7 @@ function isExists(
   return snapshot.exists;
 }
 
-export function useDocumentSnapshot<T, A extends any[]>(
+export function useDocumentSnapshot<T, A extends unknown[]>(
   gerRef: (firestore: Firestore, ...args: A) => DocumentReference,
   read: (data: DocumentData) => T | null,
   ...args: A
@@ -75,7 +75,7 @@ export function useDocumentSnapshot<T, A extends any[]>(
   return snapshot;
 }
 
-export function useQuerySnapshot<T, A extends any[]>(
+export function useQuerySnapshot<T, A extends unknown[]>(
   initialize: (firestore: Firestore, ...args: A) => Query,
   read: (data: DocumentData) => T | null,
   ...args: A
