@@ -1,12 +1,13 @@
 import { useAsync } from 'react-async-hook';
 
-export default function useAsyncSimple<T, A extends [] = []>(
-  promise: Promise<T> | ((...args: A) => Promise<T>),
-  args?: A,
+export default function useAsyncSimple<T>(
+  promise: Promise<T> | (() => Promise<T>),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  dependsOn?: any[],
 ): T | Error | undefined {
   const { result, error } = useAsync(
     typeof promise === 'function' ? promise : (): Promise<T> => promise,
-    args ?? [],
+    dependsOn ?? [],
   );
 
   if (error) return error;

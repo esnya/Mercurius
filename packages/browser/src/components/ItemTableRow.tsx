@@ -11,6 +11,7 @@ import styles from './ItemTableCell.styl';
 import { Field } from '../definitions/fields';
 import { NonEmptySnapshot } from '../firebase/snapshot';
 import { Item } from 'mercurius-core/lib/models/Item';
+import { Link } from 'react-router-dom';
 
 export default function ItemTableRow({
   item,
@@ -90,6 +91,13 @@ export default function ItemTableRow({
           </Button>
           <Button icon onClick={(): void => setPriceModalOpen(true)}>
             <Icon name="table" size="small" />
+          </Button>
+          <Button
+            icon
+            as={Link}
+            to={`/projects/${itemRef.parent.parent?.id}/items/${itemRef.id}/ai`}
+          >
+            <Icon name="detective" size="small" />
           </Button>
           <ActionButton
             icon

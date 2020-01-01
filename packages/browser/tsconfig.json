@@ -4,4 +4,7 @@
     "outDir": "lib",
     "rootDir": ".",
   },
+  "exclude": [
+    "lib"
+  ]
 }

@@ -1,360 +1,351 @@
-import React, { useRef, useEffect, Ref, RefObject, useState } from 'react';
-import {
-  Container,
-  Segment,
-  Message,
-  Dimmer,
-  Loader,
-  Card,
-} from 'semantic-ui-react';
-import { useParams } from 'react-router-dom';
-import { useQuerySnapshot } from '../../hooks/useSnapshot';
-import { Query, Timestamp } from '../../firebase/types';
-import { DateTime, Duration } from 'luxon';
-import { isFailed, isSucceeded, isDefined } from '../../utilities/types';
-import useAsyncEffect from '../../hooks/useAsyncEffect';
-import { render, Point2D } from '@tensorflow/tfjs-vis';
-import { NonEmptySnapshot } from '../../firebase/snapshot';
+import React, { useState } from 'react';
 import _ from 'lodash';
+import { Container, Loader, Dimmer, Message, Segment } from 'semantic-ui-react';
+import { useQuerySnapshot } from '../../hooks/useSnapshot';
+import { useParams } from 'react-router-dom';
+import NotFound from '../NotFound';
+import { Price, PriceConverter } from 'mercurius-core/lib/models/Price';
+import { isFailed, isSucceeded, isDefined } from '../../utilities/types';
+import { Duration } from 'luxon';
+import * as tf from '@tensorflow/tfjs';
+import * as tfvis from '@tensorflow/tfjs-vis';
+import useAsyncSimple from '../../hooks/useAsyncSimple';
+import { VegaLite } from 'react-vega';
 
-interface Item {
-  name: string;
+import { TopLevelSpec } from 'vega-lite';
+import useAsyncEffect from '../../hooks/useAsyncEffect';
+import ActionButton from '../../components/ActionButton';
+
+interface Stats {
+  price: [number, number];
+  timestamp: [number, number];
+}
+function calculateStats(prices: Price[]): Stats {
+  return {
+    timestamp: [
+      prices.map(p => p.timestamp.getTime()).reduce((a, b) => Math.min(a, b)),
+      prices.map(p => p.timestamp.getTime()).reduce((a, b) => Math.max(a, b)),
+    ],
+    price: [
+      prices.map(p => p.price).reduce((a, b) => Math.min(a, b)),
+      prices.map(p => p.price).reduce((a, b) => Math.max(a, b)),
+    ],
+  };
 }
 
-interface Price {
-  timestamp: DateTime;
+const timeStep = Duration.fromISO('PT1H').valueOf();
+
+interface NormalizedPrice {
+  timestamp: number;
   price: number;
-  lottery: boolean;
+  lottery: number;
+}
+function normalize(
+  { price, timestamp, lottery }: Price,
+  stats: Stats,
+): NormalizedPrice {
+  return {
+    timestamp: Math.floor(
+      (timestamp.getTime() - stats.timestamp[0]) / timeStep,
+    ),
+    price: (price - stats.price[0]) / (stats.price[1] - stats.price[0]),
+    lottery: lottery ? 1 : 0,
+  };
 }
 
-const domain = [
-  DateTime.local().minus(Duration.fromISO('P30D')),
-  DateTime.local(),
-];
-
-function useContainer<T extends HTMLElement>(
-  rootRef: RefObject<T>,
-  callback: (container: HTMLDivElement) => void,
-  dependsOn: any[],
-): void {
-  const root = rootRef.current;
-
-  useEffect((): void | (() => void) => {
-    if (!root) return;
-    const div = document.createElement('div');
-    root.append(div);
-
-    callback(div);
-
-    return (): void => div.remove();
-  }, [root, ...dependsOn]);
+function group(prices: NormalizedPrice[]): Record<string, NormalizedPrice> {
+  return _(prices)
+    .groupBy(p => p.timestamp)
+    .mapValues(p => _(p))
+    .mapValues(p => ({
+      timestamp: p.map(p => p.timestamp).mean(),
+      price: p.map(p => p.price).mean(),
+      lottery: p.map(p => p.lottery).mean(),
+    }))
+    .value();
 }
 
-interface ReducableStats {
-  max: number;
-  min: number;
-  sum: number;
-  count: number;
+function linearInterpolate(
+  timestamp: number,
+  grouped: Record<string, NormalizedPrice>,
+  stats: Stats,
+): NormalizedPrice | null {
+  const found = grouped[`${timestamp}`];
+  if (found) {
+    return found;
+  }
+
+  const max = Math.floor((stats.timestamp[1] - stats.timestamp[0]) / timeStep);
+
+  let left = timestamp;
+  while (left >= 0 && !(`${left}` in grouped)) left--;
+  let right = timestamp;
+  while (right <= max && !(`${right}` in grouped)) right++;
+
+  if (left < 0 || right > max) return null;
+
+  const leftValue = grouped[left];
+  const rightValue = grouped[right];
+
+  const duration = rightValue.timestamp - leftValue.timestamp;
+  const rightRate = (timestamp - leftValue.timestamp) / duration;
+  const leftRate = 1 - rightRate;
+
+  return {
+    timestamp,
+    price: leftValue.price * leftRate + rightValue.price * rightRate,
+    lottery: leftValue.lottery * leftRate + rightValue.lottery * rightRate,
+  };
 }
 
-interface Stats extends ReducableStats {
-  avg: number;
+interface Metadata {
+  stats: Stats;
+  inputSize: number;
+  outputSize: number;
 }
 
-type MapValueTypes<T extends {}, U> = {
-  [K in keyof T]: U;
-};
+function encode(prices: Price[], stats: Stats): NormalizedPrice[] {
+  const normalized = prices.map(p => normalize(p, stats));
+  const grouped = group(normalized);
+  const interpolated = _(_)
+    .range(Math.floor(stats.timestamp[1] - stats.timestamp[0]) / timeStep)
+    .map(t => linearInterpolate(t, grouped, stats))
+    .dropWhile(_.isNull)
+    .takeWhile(_.isObject)
+    .filter(isDefined)
+    .value();
 
-type StatsOf<T extends {}> = {
-  [K in keyof T]: Stats;
-};
-
-type NumbersOf<T extends {}> = {
-  [K in keyof T]: number;
-};
-
-function toNumbers<T extends {}>(value: T): NumbersOf<T> {
-  return _.mapValues(value, (value): number => {
-    if (value instanceof DateTime) return value.toMillis();
-    if (typeof value === 'boolean') return value ? 1 : 0;
-
-    const number = Number(value);
-    if (Number.isNaN(number)) {
-      throw new TypeError(`Failed to convert into number: ${value}`);
-    }
-
-    return number;
-  });
+  return interpolated;
 }
 
-function calculateStats<T extends {}>(values: NumbersOf<T>[]): StatsOf<T> {
-  const first = _.first(values);
-  if (!first) throw new Error('Failed to calculate stats of empty array');
+async function predict(
+  model: tf.LayersModel,
+  prices: Price[],
+): Promise<Price[]> {
+  const { stats, inputSize } = model.getUserDefinedMetadata() as Metadata;
 
-  const initial = _.mapValues(
-    first,
-    (value): ReducableStats => ({
-      max: value,
-      min: value,
-      sum: 0,
-      count: 0,
-    }),
-  );
+  const encoded = encode(prices, stats).slice(-inputSize);
+  const last = _.last(encoded);
 
-  const stats = values.reduce(
-    (prev, value): MapValueTypes<T, ReducableStats> =>
-      _.mapValues(
-        value,
-        (value, key): ReducableStats => ({
-          max: Math.max(prev[key as keyof StatsOf<T>].max, value),
-          min: Math.min(prev[key as keyof StatsOf<T>].min, value),
-          sum: prev[key as keyof StatsOf<T>].sum + value,
-          count: prev[key as keyof StatsOf<T>].count + 1,
-        }),
-      ),
-    initial,
-  );
+  if (encoded.length !== inputSize || !last) {
+    throw new TypeError(
+      `Size of input must be ${inputSize}, not ${encode.length}`,
+    );
+  }
 
-  return _.mapValues(
-    stats,
-    (value, key): Stats => ({
-      ...value,
-      avg: value.sum / value.count,
-    }),
-  );
+  const x = tf.tensor([encoded.map(p => [p.price, p.lottery])]);
+  const y = (await model.predict(x)) as tf.Tensor;
+
+  const data = await y.data();
+
+  return _(data)
+    .map((price, i) => ({
+      timestamp: new Date((last.timestamp + i) * timeStep + stats.timestamp[0]),
+      price: price * (stats.price[1] - stats.price[0]) + stats.price[0],
+      lottery: false,
+    }))
+    .value();
 }
 
-function normalize<T extends {}>(
-  value: NumbersOf<T>,
-  stats: StatsOf<T>,
-): NumbersOf<T> {
-  return _.mapValues(value, (value, key): number => {
-    const { min, max } = stats[key as keyof StatsOf<T>];
+async function fitModel(prices: Price[]): Promise<tf.LayersModel> {
+  const stats = calculateStats(prices);
 
-    return (value - min) / (max - min);
-  });
-}
+  const normalized = prices.map(p => normalize(p, stats));
+  const grouped = group(normalized);
+  const interpolated = _(_)
+    .range(Math.floor(stats.timestamp[1] - stats.timestamp[0]) / timeStep)
+    .map(t => linearInterpolate(t, grouped, stats))
+    .dropWhile(_.isNull)
+    .takeWhile(_.isObject)
+    .filter(isDefined)
+    .value();
 
-function toPoint2D<T extends {}>(
-  xKey: keyof T,
-  values: NumbersOf<T>[],
-): [Point2D[][], string[]] {
-  const first = _.first(values);
-  if (!first) return [[], []];
-
-  return _(first)
-    .keys()
-    .filter(key => key !== xKey)
-    .map((key): [Point2D[], string] => [
-      values.map(
-        (value): Point2D => ({
-          x: value[xKey],
-          y: value[key as keyof NumbersOf<T>],
-        }),
-      ),
-      key,
-    ])
-    .unzip()
-    .value() as [Point2D[][], string[]];
-}
-
-function ScatterPlot<T extends {}>({
-  xKey,
-  values,
-}: {
-  xKey: keyof NumbersOf<T>;
-  values: NumbersOf<T>[];
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useContainer(
-    ref,
-    container => {
-      const [points, series] = toPoint2D(xKey, values);
-      render.scatterplot(container, {
-        values: points,
-        series,
-      });
+  tfvis.render.linechart(
+    { name: 'interpolated' },
+    {
+      values: [
+        interpolated.map(p => ({ x: p.timestamp, y: p.price })),
+        interpolated.map(p => ({ x: p.timestamp, y: p.lottery })),
+      ],
+      series: ['price', 'lottery'],
     },
-    [xKey, values],
   );
 
-  return <div ref={ref} />;
+  const model = tf.sequential();
+  model.add(tf.layers.flatten({ inputShape: [24 * 4, 2] }));
+  model.add(tf.layers.dense({ units: 24 * 4 * 2 }));
+  model.add(tf.layers.dense({ units: 24 * 2 }));
+  model.compile({ optimizer: 'adam', loss: 'meanSquaredError' });
+  tfvis.show.modelSummary({ name: 'model' }, model);
+
+  const { shape: inputShape } = model.input as tf.SymbolicTensor;
+  const { shape: outputShape } = model.output as tf.SymbolicTensor;
+
+  const xSize = inputShape[1];
+  const ySize = outputShape[1];
+
+  if (!isDefined(xSize) || !isDefined(ySize)) {
+    throw new TypeError();
+  }
+
+  const [xData, yData] = _(_)
+    .range(interpolated.length - xSize - ySize)
+    .map(
+      i =>
+        [
+          interpolated.slice(i, i + xSize).map(p => [p.price, p.lottery]),
+          interpolated.slice(i + xSize, i + xSize + ySize).map(p => p.price),
+        ] as [number[][], number[]],
+    )
+    .shuffle()
+    .unzip()
+    .value();
+
+  const trainX = tf.tensor(xData);
+  const trainY = tf.tensor(yData);
+
+  await model.fit(trainX, trainY, {
+    epochs: 50,
+    validationSplit: 0.25,
+    callbacks: tfvis.show.fitCallbacks(
+      { name: 'fit' },
+      ['loss', 'mse', 'val_loss'],
+      { callbacks: ['onEpochEnd'] },
+    ),
+  });
+
+  model.setUserDefinedMetadata({ stats, inputSize: xSize, outputSize: ySize });
+
+  return model;
 }
 
-const hourInMillis = Duration.fromISO('PT1H').valueOf();
+async function loadModel(url: string): Promise<tf.LayersModel> {
+  const model = await tf.loadLayersModel(url);
+  const meta = model.getUserDefinedMetadata();
+
+  if (typeof meta !== 'object') {
+    throw new TypeError();
+  }
+
+  return model;
+}
 
 export default function AI(): JSX.Element {
   const { projectId, itemId } = useParams();
 
-  const [calculated, setCalculated] = useState<{
-    normalized: NumbersOf<Price>[];
-    grouped: Record<string, NumbersOf<Price>>;
-    corrected: NumbersOf<Price>[];
-  }>();
+  const priceSnapshots = useQuerySnapshot(
+    firestore =>
+      firestore.collection(`projects/${projectId}/items/${itemId}/prices`),
+    PriceConverter.cast,
+  );
 
-  const sourceSnapshots = useQuerySnapshot(
-    (firestore): Query =>
-      firestore
-        .collection('projects')
-        .doc(projectId)
-        .collection('items')
-        .doc(itemId)
-        .collection('prices')
-        .orderBy('timestamp', 'desc')
-        .endAt(Timestamp.fromDate(domain[0].toJSDate())),
-    (snapshot): Price | null => {
-      const { timestamp, price, lottery } = snapshot.data();
+  const modelUrl = `indexeddb://mercurius-${projectId}-${itemId}-prices`;
+  const loadedModel = useAsyncSimple(_.partial(loadModel, modelUrl), [
+    modelUrl,
+  ]);
 
-      if (typeof timestamp.toDate !== 'function') return null;
-      if (typeof price !== 'number') return null;
+  const [model, setModel] = useState<tf.LayersModel>();
 
-      return {
-        timestamp: DateTime.fromJSDate(timestamp.toDate()),
-        price,
-        lottery: Boolean(lottery),
-      };
+  useAsyncEffect(async (): Promise<void> => {
+    if (isSucceeded(loadedModel)) {
+      return setModel(loadedModel);
+    }
+    if (!isFailed(loadedModel)) {
+      return;
+    }
+    if (!isSucceeded(priceSnapshots) || priceSnapshots.length === 0) {
+      return;
+    }
+    const model = await fitModel(priceSnapshots.map(s => s.data));
+    await model.save(modelUrl);
+    setModel(model);
+  }, [loadedModel, modelUrl, priceSnapshots]);
+
+  const predicted = useAsyncSimple(async (): Promise<Price[] | null> => {
+    if (!isSucceeded(model) || !model) return null;
+    if (!isSucceeded(priceSnapshots) || priceSnapshots.length === 0)
+      return null;
+
+    return await predict(
+      model,
+      priceSnapshots.map(s => s.data),
+    );
+  }, [model, priceSnapshots]);
+
+  if (!projectId || !itemId) {
+    return <NotFound />;
+  }
+
+  if (isFailed(priceSnapshots)) {
+    return <Message negative>{priceSnapshots.toString()}</Message>;
+  }
+  if (isFailed(predicted)) {
+    return <Message negative>{predicted.toString()}</Message>;
+  }
+
+  if (!isSucceeded(priceSnapshots) || !isSucceeded(predicted)) {
+    return (
+      <Dimmer active>
+        <Loader />
+      </Dimmer>
+    );
+  }
+
+  const spec: TopLevelSpec = {
+    $schema: 'https://vega.github.io/schema/vega-lite/v4.json',
+    width: 500,
+    data: {
+      values: priceSnapshots
+        .map(s => ({ ...s.data, series: '市場価格' }))
+        .concat(predicted.map(p => ({ ...p, series: '予測' }))),
     },
-  );
+    layer: [
+      {
+        mark: 'line',
+      },
+      {
+        mark: 'point',
+        encoding: {
+          color: {
+            value: 'red',
+            condition: {
+              test: '!datum.lottery',
+              value: null,
+            },
+          },
+        },
+      },
+    ],
+    encoding: {
+      x: {
+        field: 'timestamp',
+        type: 'temporal',
+      },
+      y: {
+        field: 'price',
+        type: 'quantitative',
+      },
+      color: {
+        field: 'series',
+        type: 'nominal',
+      },
+    },
+  };
 
-  useEffect(
-    _.throttle((): void => {
-      // if (!isSucceeded(sourceSnapshots) || sourceSnapshots.length === 0) return;
-      // const timestamps = sourceSnapshots.map(({ data }) =>
-      //   data.timestamp.toMillis(),
-      // );
-      // const prices = sourceSnapshots.map(({ data }) => data.price);
-      // const lotteries = sourceSnapshots.map(({ data }) =>
-      //   data.lottery ? 1 : 0,
-      // );
-      // const timestampsMin = _.min(timestamps) ?? NaN;
-      // const timestampsMax = _.max(timestamps) ?? NaN;
-      // const pricesMin = _.min(prices) ?? NaN;
-      // const pricesMax = _.max(prices) ?? NaN;
-      // const normalizedTimestamps = timestamps.map(timestamp =>
-      //   Math.floor((timestamp - timestampsMin) / hourInMillis),
-      // );
-      // const normalizedPrices = prices.map(
-      //   price => (price - pricesMin) / (pricesMax - pricesMin),
-      // );
-      // const normalized: NumbersOf<Price>[] = _.zip(
-      //   normalizedTimestamps,
-      //   normalizedPrices,
-      //   lotteries,
-      // ).map(([timestamp, price, lottery]) => ({
-      //   timestamp,
-      //   price,
-      //   lottery,
-      // })) as any;
-      // const grouped = _(normalized)
-      //   .groupBy(({ timestamp }) => timestamp)
-      //   .mapValues((group, key) => ({
-      //     timestamp: Number(key),
-      //     price: _(group)
-      //       .map(({ price }) => price)
-      //       .mean(),
-      //     lottery:
-      //       _(group)
-      //         .map(({ lottery }) => lottery)
-      //         .max() ?? 0,
-      //   }))
-      //   .value();
-      // const corrected = _(timestampsMax - timestampsMin)
-      //   .range()
-      //   .map(timestamp => {
-      //     const hit = grouped[`${timestamp}`];
-      //     if (hit) {
-      //       return hit;
-      //     }
-      //     const rightIndex = normalizedTimestamps.findIndex(t => t > timestamp);
-      //     if (rightIndex < 0) return null;
-      //     const leftIndex = _.findLastIndex(
-      //       normalizedTimestamps,
-      //       t => t < timestamp,
-      //     );
-      //     if (leftIndex < 0) return null;
-      //     const rightTimestamp = normalizedTimestamps[rightIndex];
-      //     const leftTimestamp = normalizedTimestamps[leftIndex];
-      //     const duration = rightTimestamp - leftTimestamp;
-      //     const rightRate = (timestamp - leftTimestamp) / duration;
-      //     const leftRate = 1 - rightRate;
-      //     return {
-      //       timestamp,
-      //       price:
-      //         normalizedPrices[leftIndex] * leftRate +
-      //         normalizedPrices[rightIndex] * rightRate,
-      //       lottery:
-      //         lotteries[leftIndex] * leftRate +
-      //         lotteries[rightIndex] * rightRate,
-      //     };
-      //   })
-      //   .dropWhile(_.negate(isDefined))
-      //   .takeWhile(isDefined)
-      //   .filter(isDefined)
-      //   .value();
-      // setCalculated({
-      //   normalized,
-      //   grouped,
-      //   corrected,
-      // });
-    }, 1000),
-    [sourceSnapshots],
-  );
-
-  if (!sourceSnapshots) {
-    return (
-      <Dimmer active>
-        <Loader />
-      </Dimmer>
-    );
-  }
-
-  if (isFailed(sourceSnapshots)) {
-    return (
-      <Container>
-        <Message negative>{sourceSnapshots.toString()}</Message>
-      </Container>
-    );
-  }
-
-  if (!calculated)
-    return (
-      <Dimmer active>
-        <Loader />
-      </Dimmer>
-    );
-
-  const { normalized, grouped, corrected } = calculated;
+  const updateModel = async (): Promise<void> => {
+    const model = await fitModel(priceSnapshots.map(s => s.data));
+    await model.save(modelUrl);
+    setModel(model);
+  };
 
   return (
     <Container>
-      <Card fluid>
-        <Card.Content>
-          <h1>Corrected</h1>
-        </Card.Content>
-        <ScatterPlot xKey="timestamp" values={corrected} />
-      </Card>
-      <Card fluid>
-        <Card.Content>
-          <h1>Grouped</h1>
-        </Card.Content>
-        <ScatterPlot
-          xKey="timestamp"
-          values={_(grouped)
-            .toPairs()
-            .filter((pair): pair is [string, NumbersOf<Price>] =>
-              pair.every(isDefined),
-            )
-            .map(([hours, value]) => ({ ...value, timestamp: Number(hours) }))
-            .value()}
-        />
-      </Card>
-      <Card fluid>
-        <Card.Content>
-          <h1>Normalized</h1>
-        </Card.Content>
-        <ScatterPlot xKey="timestamp" values={normalized} />
-      </Card>
+      <Segment>
+        <VegaLite spec={spec} />
+        <ActionButton action={updateModel} color="blue">
+          モデル更新
+        </ActionButton>
+      </Segment>
     </Container>
   );
 }

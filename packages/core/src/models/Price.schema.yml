@@ -1,0 +1,15 @@
+$schema: http://json-schema.org/draft-07/schema#
+title: Price
+type: object
+properties:
+  timestamp:
+    type: string
+    format: date-time
+  price:
+    type: number
+  lottery:
+    type: boolean
+required:
+  - timestamp
+  - price
+  - lottery
