@@ -1,5 +1,4 @@
 import { FilterDefinition } from 'mercurius-core/lib/models/FilterDefinition';
-import mingo from 'mingo';
 
 const filters: FilterDefinition[] = [
   {
@@ -14,11 +13,11 @@ const filters: FilterDefinition[] = [
       $or: [
         {
           'data.priceStats.roid': { $lt: 0.1 },
-          'data.dailyStats.1.roid': { $gt: 0 },
+          'data.roid0': { $gt: 0 },
         },
         {
           'data.priceStats.roid': 0,
-          'data.dailyStats.1.roid': { $gt: -0.1 },
+          'data.roid0': { $gt: -0.1 },
         },
       ],
     },
@@ -30,12 +29,12 @@ const filters: FilterDefinition[] = [
       $or: [
         {
           'data.priceStats.roid': { $gt: 0.4 },
-          'data.dailyStats.1.roid': { $gt: -0.1 },
+          'data.roid0': { $gt: -0.1 },
         },
         {
           'data.priceStats.roid': { $gt: 0.1 },
-          'data.dailyStats.1.roid': { $gt: 0.1 },
-          'data.dailyStats.2.roid': { $gt: 0.1 },
+          'data.roid0': { $gt: 0.1 },
+          'data.roid1': { $gt: 0.1 },
         },
       ],
     },

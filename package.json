@@ -11,7 +11,8 @@
     "clean": "rimraf dist lib packages/*/dist packages/*/lib",
     "deploy": "firebase deploy",
     "lint": "eslint packages/*/src/**/*.ts*",
-    "lint-fix": "npm run -s lint -- --fix"
+    "lint-fix": "npm run -s lint -- --fix",
+    "postinstall": "lerna bootstrap"
   },
   "dependencies": {},
   "devDependencies": {

@@ -37,7 +37,7 @@ async function build(): Promise<void> {
 
       const child = fork(
         '../../node_modules/quicktype/dist/cli/index.js',
-        ['-s', 'schema', '-l', 'typescript', '-t', title],
+        ['-s', 'schema', '-l', 'typescript', '-t', title, '--explicit-unions'],
         {
           cwd: 'src/models',
           stdio: ['pipe', 'pipe', 'inherit', 'ipc'],
@@ -68,20 +68,27 @@ async function build(): Promise<void> {
         throw new Error(`quicktype exit with ${code}`);
       }
 
-      const ts = Buffer.concat(chunks)
-        .toString()
-        .replace(
-          'export class Convert {',
-          [
-            `export class ${title} {`,
-            `    public static cast(value: any): ${title} {`,
-            `        return cast(value, r("${title}"));`,
-            `    }`,
-            '',
-          ].join('\n'),
-        );
+      const output = Buffer.concat(chunks).toString();
+      const mType = output.match(/to.*\(json:\s*string\)\s*:\s*(.*?)\s*\{\n/);
+      const type = mType ? mType[1] : title;
 
-      await fs.promises.writeFile(dst, ts);
+      const mCast = output.match(
+        /return\s*cast\(JSON\.parse\(json\),\s*(.*?)\);/,
+      );
+      const cast = mCast ? mCast[1] : `r("${title}")`;
+
+      const content = output.replace(
+        'export class Convert {',
+        [
+          `export class ${title}Converter {`,
+          `    public static cast(value: any): ${type} {`,
+          `        return cast(value, ${cast});`,
+          `    }`,
+          '',
+        ].join('\n'),
+      );
+
+      await fs.promises.writeFile(dst, content);
     }, Promise.resolve());
 }
 build()

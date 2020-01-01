@@ -1,0 +1,31 @@
+$schema: http://json-schema.org/draft-07/schema#
+title: Aggregation
+type: array
+items:
+  $ref: "#/definitions/PipelineStage"
+definitions:
+  PipelineStage:
+    oneOf:
+      - type: object
+        properties:
+          $set:
+            type: object
+            additionalFields: { $ref: ./Expression.schema.yml }
+        required: [$set]
+      - type: object
+        properties: { $limit: { type: number } }
+        required: [$limit]
+      - type: object
+        properties: { $match: { $ref: ./Query.schema.yml } }
+        required: [$match]
+      - type: object
+        properties: { $limit: { type: number } }
+        required: [$skip]
+      - type: object
+        properties:
+          $sort:
+            type: object
+            additionalFields:
+              type: number
+              enum: [-1, 1]
+        required: [$sort]

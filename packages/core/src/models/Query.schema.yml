@@ -1,0 +1,37 @@
+$schema: http://json-schema.org/draft-07/schema#
+title: Query
+oneOf:
+  - $ref: "#/definitions/Logical"
+  - $ref: "#/definitions/QueryFilter"
+definitions:
+  QueryFilter:
+    type: object
+    additionalProperties:
+      $ref: "#/definitions/Selector"
+  Selector:
+    oneOf:
+      - $ref: "#/definitions/Value"
+      - $ref: "#/definitions/Comparison"
+  ArrayOfQueryFilters:
+    type: array
+    items:
+      $ref: "#/definitions/QueryFilter"
+  Value:
+    type:
+      - string
+      - number
+      - boolean
+  Comparison:
+    type: object
+    properties:
+      $eq: { $ref: "#/definitions/Value"}
+      $gt: { $ref: "#/definitions/Value"}
+      $gte: { $ref: "#/definitions/Value"}
+      $lt: { $ref: "#/definitions/Value"}
+      $lte: { $ref: "#/definitions/Value"}
+      $ne: { $ref: "#/definitions/Value"}
+  Logical:
+    type: object
+    properties:
+      $and: { $ref: "#/definitions/ArrayOfQueryFilters" }
+      $or: { $ref: "#/definitions/ArrayOfQueryFilters" }

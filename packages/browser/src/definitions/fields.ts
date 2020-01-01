@@ -3,7 +3,6 @@ import {
   Format,
   TextAlign,
 } from 'mercurius-core/lib/models/FieldDefinition';
-import mingo from 'mingo';
 import { formatInteger, formatPercent } from '../utilities/format';
 
 const fields: FieldDefinition[] = [

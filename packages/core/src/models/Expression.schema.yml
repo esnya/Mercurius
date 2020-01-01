@@ -1,0 +1,77 @@
+$schema: http://json-schema.org/draft-07/schema#
+title: Expression
+oneOf:
+  - $ref: "#/definitions/Arithmetic"
+  - $ref: "#/definitions/Boolean"
+  - $ref: "#/definitions/ComparisonCmp"
+  - $ref: "#/definitions/Comparison"
+  - type: string
+definitions:
+  ArrayOfNumberExpression:
+    type: array
+    items: { $ref: "#/definitions/NumberExpression" }
+  PairOfNumberExpression:
+    type: array
+    items: { $ref: "#/definitions/NumberExpression" }
+    minLength: 2
+    maxLength: 2
+  Arithmetic:
+    type: object
+    properties:
+      $abs: { $ref: "#/definitions/NumberExpression" }
+      $ceil: { $ref: "#/definitions/NumberExpression" }
+      $exp: { $ref: "#/definitions/NumberExpression" }
+      $ln: { $ref: "#/definitions/NumberExpression" }
+      $log10: { $ref: "#/definitions/NumberExpression" }
+      $sqrt: { $ref: "#/definitions/NumberExpression" }
+      $add: { $ref: "#/definitions/ArrayOfNumberExpression" }
+      $multiply: { $ref: "#/definitions/ArrayOfNumberExpression" }
+      $divide: { $ref: "#/definitions/PairOfNumberExpression" }
+      $log: { $ref: "#/definitions/PairOfNumberExpression" }
+      $mod: { $ref: "#/definitions/PairOfNumberExpression" }
+      $pow: { $ref: "#/definitions/PairOfNumberExpression" }
+      $round: { $ref: "#/definitions/PairOfNumberExpression" }
+      $subtract: { $ref: "#/definitions/PairOfNumberExpression" }
+      $trunc: { $ref: "#/definitions/PairOfNumberExpression" }
+  ArrayOfExpression:
+    type: array
+    items: { $ref: "#/definitions/Expression" }
+  Boolean:
+    type: object
+    properties:
+      $and: { $ref: "#/definitions/ArrayOfExpression" }
+      $not: { $ref: "#/definitions/ArrayOfExpression" }
+      $or: { $ref: "#/definitions/ArrayOfExpression" }
+  ComparisonCmp:
+    type: object
+    properties: { $cmp: { $ref: "#/definitions/PairOfExpression" } }
+    required: [$cmp]
+  PairOfExpression:
+    type: array
+    items: { $ref: "#/definitions/Expression" }
+    minLength: 2
+    maxLength: 2
+  Comparison:
+    type: object
+    properties:
+      $eq: { $ref: "#/definitions/PairOfExpression" }
+      $gt: { $ref: "#/definitions/PairOfExpression" }
+      $gte: { $ref: "#/definitions/PairOfExpression" }
+      $lt: { $ref: "#/definitions/PairOfExpression" }
+      $lte: { $ref: "#/definitions/PairOfExpression" }
+      $ne: { $ref: "#/definitions/PairOfExpression" }
+  NumberExpression:
+    oneOf:
+      - $ref: "#/definitions/Arithmetic"
+      - $ref: "#/definitions/ComparisonCmp"
+      - type: string
+  BooleanExpression:
+    oneOf:
+      - $ref: "#/definitions/Boolean"
+      - $ref: "#/definitions/Comparison"
+      - type: string
+  Expression:
+    oneOf:
+      - $ref: "#/definitions/NumberExpression"
+      - $ref: "#/definitions/BooleanExpression"
+      - type: string

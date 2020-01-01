@@ -45,6 +45,7 @@
     "source-map-support": "^0.5.16",
     "tesseract.js": "^2.0.0-beta.2",
     "update": "^0.7.4",
+    "use-debounce": "^3.3.0",
     "wink-distance": "^2.0.0"
   },
   "devDependencies": {
