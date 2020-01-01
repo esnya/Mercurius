@@ -7,7 +7,7 @@
   "author": "esnya",
   "scripts": {
     "build": "lerna run build",
-    "build:production": "cross-env NODE_ENV=production npm run -s build",
+    "build-production": "cross-env NODE_ENV=production npm run -s build",
     "clean": "rimraf dist lib packages/*/dist packages/*/lib",
     "deploy": "firebase deploy",
     "lint": "eslint packages/*/src/**/*.ts* --ignore-pattern node_modules --ignore-pattern models",
