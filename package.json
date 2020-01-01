@@ -10,7 +10,7 @@
     "build:production": "cross-env NODE_ENV=production npm run -s build",
     "clean": "rimraf dist lib packages/*/dist packages/*/lib",
     "deploy": "firebase deploy",
-    "lint": "eslint packages/*/src/**/*.ts*",
+    "lint": "eslint packages/*/src/**/*.ts* --ignore-pattern node_modules --ignore-pattern models",
     "lint-fix": "npm run -s lint -- --fix",
     "postinstall": "lerna bootstrap"
   },

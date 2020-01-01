@@ -12,7 +12,7 @@ export interface User {
 export default function useUser(): User | Error | undefined {
   const app = useFirebase();
   const history = useHistory();
-  const [user, setUser] = useState<{ uid: string, name?: string }>();
+  const [user, setUser] = useState<{ uid: string; name?: string }>();
 
   const auth = isSucceeded(app) ? app.auth() : undefined;
 
@@ -34,7 +34,11 @@ export default function useUser(): User | Error | undefined {
       return;
     }
 
-    const snapshot = await app.firestore().collection('users').doc(user.uid).get();
+    const snapshot = await app
+      .firestore()
+      .collection('users')
+      .doc(user.uid)
+      .get();
     const name = snapshot.get('name');
 
     if (!name) {
@@ -42,17 +46,14 @@ export default function useUser(): User | Error | undefined {
       return;
     }
 
-    setUser(prev => prev && ({ ...prev, name }));
+    setUser(prev => prev && { ...prev, name });
   }, [app, user]);
 
   if (!app || !user) return;
 
   if (isFailed(app)) return app;
 
-  const {
-    uid,
-    name,
-  } = user;
+  const { uid, name } = user;
   if (!name) return;
 
   return {

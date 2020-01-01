@@ -10,7 +10,7 @@ import PriceTable from './PriceTable';
 import { duration } from 'moment';
 import styles from './ItemTableCell.styl';
 import { Field } from '../definitions/fields';
-import { NonEmptySnapshot } from '../../lib/src/firebase/snapshot';
+import { NonEmptySnapshot } from '../firebase/snapshot';
 import { Item } from 'mercurius-core/lib/models/Item';
 
 export default function ItemTableRow({
