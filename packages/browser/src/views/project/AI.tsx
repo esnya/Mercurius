@@ -6,7 +6,7 @@ import { useParams } from 'react-router-dom';
 import NotFound from '../NotFound';
 import { Price, PriceConverter } from 'mercurius-core/lib/models/Price';
 import { isFailed, isSucceeded, isDefined } from '../../utilities/types';
-import { Duration } from 'luxon';
+import { Duration, DateTime } from 'luxon';
 import * as tf from '@tensorflow/tfjs';
 import * as tfvis from '@tensorflow/tfjs-vis';
 import useAsyncSimple from '../../hooks/useAsyncSimple';
@@ -172,9 +172,17 @@ async function fitModel(prices: Price[]): Promise<tf.LayersModel> {
   );
 
   const model = tf.sequential();
-  model.add(tf.layers.flatten({ inputShape: [24 * 4, 2] }));
-  model.add(tf.layers.dense({ units: 24 * 4 * 2 }));
-  model.add(tf.layers.dense({ units: 24 * 2 }));
+  model.add(
+    tf.layers.dense({
+      inputShape: [24 * 4, 2],
+      units: 24 * 4,
+      activation: 'relu',
+    }),
+  );
+  model.add(tf.layers.flatten({}));
+  model.add(tf.layers.dense({ units: 24 * 4 * 2, activation: 'relu' }));
+  // model.add(tf.layers.dense({ units: 24 * 4, activation: 'relu' }));
+  model.add(tf.layers.dense({ units: 24 * 4 }));
   model.compile({ optimizer: 'adam', loss: 'meanSquaredError' });
   tfvis.show.modelSummary({ name: 'model' }, model);
 
@@ -205,16 +213,18 @@ async function fitModel(prices: Price[]): Promise<tf.LayersModel> {
   const trainY = tf.tensor(yData);
 
   await model.fit(trainX, trainY, {
-    epochs: 50,
-    validationSplit: 0.25,
+    epochs: 20,
+    validationSplit: 0.5,
     callbacks: tfvis.show.fitCallbacks(
       { name: 'fit' },
       ['loss', 'mse', 'val_loss'],
-      { callbacks: ['onEpochEnd'] },
+      // { callbacks: ['onEpochEnd'] },
     ),
   });
 
   model.setUserDefinedMetadata({ stats, inputSize: xSize, outputSize: ySize });
+
+  tfvis.show.modelSummary({ name: 'fitted model' }, model);
 
   return model;
 }
@@ -291,12 +301,17 @@ export default function AI(): JSX.Element {
     );
   }
 
+  const dur = Duration.fromISO('P14D');
   const spec: TopLevelSpec = {
     $schema: 'https://vega.github.io/schema/vega-lite/v4.json',
     width: 500,
+    title: itemId,
     data: {
       values: priceSnapshots
         .map(s => ({ ...s.data, series: '市場価格' }))
+        .filter(
+          p => DateTime.fromJSDate(p.timestamp) > DateTime.local().minus(dur),
+        )
         .concat(predicted.map(p => ({ ...p, series: '予測' }))),
     },
     layer: [
@@ -343,7 +358,7 @@ export default function AI(): JSX.Element {
       <Segment>
         <VegaLite spec={spec} />
         <ActionButton action={updateModel} color="blue">
-          モデル更新
+          再学習
         </ActionButton>
       </Segment>
     </Container>
