@@ -17,8 +17,8 @@ import useAsyncEffect from '../../hooks/useAsyncEffect';
 import ActionButton from '../../components/ActionButton';
 
 interface Stats {
-  price: [number, number];
   timestamp: [number, number];
+  price: [number, number];
 }
 function calculateStats(prices: Price[]): Stats {
   return {
@@ -45,9 +45,7 @@ function normalize(
   stats: Stats,
 ): NormalizedPrice {
   return {
-    timestamp: Math.floor(
-      (timestamp.getTime() - stats.timestamp[0]) / timeStep,
-    ),
+    timestamp: Math.floor(timestamp.getTime() / timeStep),
     price: (price - stats.price[0]) / (stats.price[1] - stats.price[0]),
     lottery: lottery ? 1 : 0,
   };
@@ -75,14 +73,15 @@ function linearInterpolate(
     return found;
   }
 
-  const max = Math.floor((stats.timestamp[1] - stats.timestamp[0]) / timeStep);
+  const min = Math.floor(stats.timestamp[0] / timeStep);
+  const max = Math.floor(stats.timestamp[1] / timeStep);
 
   let left = timestamp;
-  while (left >= 0 && !(`${left}` in grouped)) left--;
+  while (left >= min && !(`${left}` in grouped)) left--;
   let right = timestamp;
   while (right <= max && !(`${right}` in grouped)) right++;
 
-  if (left < 0 || right > max) return null;
+  if (left < min || right > max) return null;
 
   const leftValue = grouped[left];
   const rightValue = grouped[right];
@@ -107,9 +106,9 @@ interface Metadata {
 function encode(prices: Price[], stats: Stats): NormalizedPrice[] {
   const normalized = prices.map(p => normalize(p, stats));
   const grouped = group(normalized);
-  const interpolated = _(_)
-    .range(Math.floor(stats.timestamp[1] - stats.timestamp[0]) / timeStep)
-    .map(t => linearInterpolate(t, grouped, stats))
+  const interpolated = _(stats.timestamp[0])
+    .range(stats.timestamp[1], timeStep)
+    .map(t => linearInterpolate(Math.floor(t / timeStep), grouped, stats))
     .dropWhile(_.isNull)
     .takeWhile(_.isObject)
     .filter(isDefined)
@@ -140,7 +139,7 @@ async function predict(
 
   return _(data)
     .map((price, i) => ({
-      timestamp: new Date((last.timestamp + i) * timeStep + stats.timestamp[0]),
+      timestamp: new Date((last.timestamp + i) * timeStep),
       price: price * (stats.price[1] - stats.price[0]) + stats.price[0],
       lottery: false,
     }))
@@ -149,16 +148,7 @@ async function predict(
 
 async function fitModel(prices: Price[]): Promise<tf.LayersModel> {
   const stats = calculateStats(prices);
-
-  const normalized = prices.map(p => normalize(p, stats));
-  const grouped = group(normalized);
-  const interpolated = _(_)
-    .range(Math.floor(stats.timestamp[1] - stats.timestamp[0]) / timeStep)
-    .map(t => linearInterpolate(t, grouped, stats))
-    .dropWhile(_.isNull)
-    .takeWhile(_.isObject)
-    .filter(isDefined)
-    .value();
+  const interpolated = encode(prices, stats);
 
   tfvis.render.linechart(
     { name: 'interpolated' },
@@ -215,16 +205,60 @@ async function fitModel(prices: Price[]): Promise<tf.LayersModel> {
   await model.fit(trainX, trainY, {
     epochs: 20,
     validationSplit: 0.5,
-    callbacks: tfvis.show.fitCallbacks(
-      { name: 'fit' },
-      ['loss', 'mse', 'val_loss'],
-      // { callbacks: ['onEpochEnd'] },
-    ),
+    callbacks: tfvis.show.fitCallbacks({ name: 'fit' }, [
+      'loss',
+      'mse',
+      'val_loss',
+    ]),
   });
 
   model.setUserDefinedMetadata({ stats, inputSize: xSize, outputSize: ySize });
 
-  tfvis.show.modelSummary({ name: 'fitted model' }, model);
+  const testXList = _(0)
+    .range(interpolated.length, ySize)
+    .map(i => interpolated.slice(i, i + xSize).map(p => [p.price, p.lottery]))
+    .filter(x => x.length === xSize)
+    .value();
+
+  tfvis.render.linechart(
+    { name: 'predicted' },
+    {
+      values: interpolated.map(p => ({ x: p.timestamp, y: p.price })),
+      series: ['price'],
+    },
+  );
+
+  const predicted = await Promise.all(
+    testXList.map(
+      async (x): Promise<number[]> => {
+        const tensor = (await model.predict(tf.tensor([x]))) as tf.Tensor;
+        const data = await tensor.data();
+        return Array.from(data);
+      },
+    ),
+  );
+
+  tfvis.render.linechart(
+    { name: 'test' },
+    {
+      values: [
+        [
+          ..._.range(xSize).map(x => ({ x, y: 0 })),
+          ...predicted.flat().map((y, x) => ({ x: x + xSize, y })),
+        ],
+        [
+          ...interpolated.map((p, x) => ({ x, y: p.price })),
+          ..._.range(
+            predicted.length * ySize + xSize - interpolated.length,
+          ).map(x => ({
+            x: x + interpolated.length,
+            y: 0,
+          })),
+        ],
+      ],
+      series: ['predicted', 'price'],
+    },
+  );
 
   return model;
 }
