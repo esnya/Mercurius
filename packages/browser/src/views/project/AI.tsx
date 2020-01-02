@@ -164,15 +164,15 @@ async function fitModel(prices: Price[]): Promise<tf.LayersModel> {
   const model = tf.sequential();
   model.add(
     tf.layers.dense({
-      inputShape: [24 * 4, 2],
-      units: 24 * 4,
+      inputShape: [24 * 6, 2],
+      units: 24 * 6,
       activation: 'relu',
     }),
   );
   model.add(tf.layers.flatten({}));
-  model.add(tf.layers.dense({ units: 24 * 4 * 2, activation: 'relu' }));
-  // model.add(tf.layers.dense({ units: 24 * 4, activation: 'relu' }));
-  model.add(tf.layers.dense({ units: 24 * 4 }));
+  model.add(tf.layers.dense({ units: 24 * 6 * 2, activation: 'relu' }));
+  model.add(tf.layers.dense({ units: 24 * 6 }));
+  model.add(tf.layers.dense({ units: 24 * 3 }));
   model.compile({ optimizer: 'adam', loss: 'meanSquaredError' });
   tfvis.show.modelSummary({ name: 'model' }, model);
 
@@ -221,7 +221,7 @@ async function fitModel(prices: Price[]): Promise<tf.LayersModel> {
     .value();
 
   tfvis.render.linechart(
-    { name: 'predicted' },
+    { name: 'test' },
     {
       values: interpolated.map(p => ({ x: p.timestamp, y: p.price })),
       series: ['price'],
