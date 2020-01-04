@@ -42,7 +42,7 @@ export default function Item(): JSX.Element {
   const app = useFirebase();
   const { projectId, itemId } = useParams();
   const [modelConfig, setModelConfig] = usePersistentState<ModelConfiguration>(
-    `model-configuration-${projectId}`,
+    `model-configuration-${projectId}-1`,
     DefaultModelConfiguration,
   );
 

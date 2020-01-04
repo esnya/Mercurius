@@ -3,10 +3,16 @@ layers:
     options:
       filters: 8
       kernelSize: 24
+  - type: maxPooling1d
+    options:
+      poolSize: 4
   - type: conv1d
     options:
       filters: 8
       kernelSize: 24
+  - type: maxPooling1d
+    options:
+      poolSize: 4
   - type: flatten
   - type: dense
     options:
