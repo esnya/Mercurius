@@ -1,3 +1,5 @@
+export type Parameters<T> = T extends (...args: infer A) => unknown ? A : never;
+
 export function isDefined<V>(value?: V | null): value is V {
   return value !== undefined && value !== null;
 }

@@ -95,9 +95,9 @@ export default function ItemTableRow({
           <Button
             icon
             as={Link}
-            to={`/projects/${itemRef.parent.parent?.id}/items/${itemRef.id}/ai`}
+            to={`/projects/${itemRef.parent.parent?.id}/items/${itemRef.id}`}
           >
-            <Icon name="detective" size="small" />
+            <Icon name="envelope open" size="small" />
           </Button>
           <ActionButton
             icon

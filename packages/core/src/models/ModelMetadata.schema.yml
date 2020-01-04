@@ -1,0 +1,33 @@
+$schema: http://json-schema.org/draft-07/schema#
+title: ModelMetadata
+type: object
+properties:
+  stats:
+    type: object
+    properties:
+      timestamp:
+        $ref: "#/definitions/MinMax"
+      price:
+        $ref: "#/definitions/MinMax"
+    required:
+      - timestamp
+      - price
+  inputSize:
+    type: number
+  outputSize:
+    type: number
+required:
+  - stats
+  - inputSize
+  - outputSize
+definitions:
+  MinMax:
+    type: object
+    properties:
+      min:
+        type: number
+      max:
+        type: number
+    required:
+      - min
+      - max

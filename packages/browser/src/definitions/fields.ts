@@ -63,8 +63,13 @@ const fields: FieldDefinition[] = [
   },
   {
     id: 'closingPerMonthlyMin',
-    text: '現価/月間最安値',
-    value: '$data.priceStats.roid',
+    text: '対安値騰落率',
+    value: {
+      $divide: [
+        { $subtract: ['$data.priceStats.end', '$data.priceStats.min'] },
+        '$data.priceStats.min',
+      ],
+    },
     format: Format.Percentage,
     textAlign: TextAlign.Center,
     factor: 100,

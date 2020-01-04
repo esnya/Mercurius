@@ -3,8 +3,8 @@ import useFirebase from './useFirebase';
 import useAsyncEffect from './useAsyncEffect';
 import { NonEmptySnapshot, Snapshot } from '../firebase/snapshot';
 import { isSucceeded, isDefined } from '../utilities/types';
-import mapObj from 'map-obj';
-import { Timestamp, DocumentData } from '../firebase';
+import { DocumentData } from '../firebase';
+import { decode } from '../firebase/snapshot';
 
 type Firestore = firebase.firestore.Firestore;
 type DocumentReference = firebase.firestore.DocumentReference;
@@ -25,13 +25,6 @@ function splice<T, U = never>(
   next.splice(start, deleteCount, ...items);
 
   return next;
-}
-
-function decodeTimestamps(value: DocumentData): DocumentData {
-  return mapObj(value, (key, value) => [
-    key as string,
-    value instanceof Timestamp ? value.toDate() : value,
-  ]) as DocumentData;
 }
 
 function isExists(
@@ -60,14 +53,13 @@ export function useDocumentSnapshot<T, A extends unknown[]>(
     const s = await ref.get();
     setSnapshot({
       ref,
-      data: (isExists(s) && read(decodeTimestamps(s.data()))) || undefined,
+      data: (isExists(s) && read(decode(s.data()))) || undefined,
     });
 
     return ref.onSnapshot(next =>
       setSnapshot({
         ref,
-        data:
-          (isExists(next) && read(decodeTimestamps(next.data()))) || undefined,
+        data: (isExists(next) && read(decode(next.data()))) || undefined,
       }),
     );
   }, [app, ...args]);
@@ -75,10 +67,10 @@ export function useDocumentSnapshot<T, A extends unknown[]>(
   return snapshot;
 }
 
-export function useQuerySnapshot<T, A extends unknown[]>(
-  initialize: (firestore: Firestore, ...args: A) => Query,
+export function useQuerySnapshot<T>(
+  initialize: (firestore: Firestore) => Query,
   read: (data: DocumentData) => T | null,
-  ...args: A
+  dependsOn?: unknown[],
 ): NonEmptySnapshot<T>[] | Error | undefined {
   const app = useFirebase();
   const [snapshots, setSnapshots] = useState<NonEmptySnapshot<T>[] | Error>();
@@ -93,51 +85,49 @@ export function useQuerySnapshot<T, A extends unknown[]>(
 
     setSnapshots([]);
 
-    return initialize(app.firestore(), ...args).onSnapshot(
-      (querySnapshot): void => {
-        if (!isSucceeded(snapshots) || snapshots.length === 0) {
-          setSnapshots(
-            querySnapshot.docs
-              .map(doc => {
-                const data = read(decodeTimestamps(doc.data()));
+    return initialize(app.firestore()).onSnapshot((querySnapshot): void => {
+      if (!isSucceeded(snapshots) || snapshots.length === 0) {
+        setSnapshots(
+          querySnapshot.docs
+            .map(doc => {
+              const data = read(decode(doc.data()));
 
-                return data ? { ref: doc.ref, data } : null;
-              })
-              .filter(isDefined),
-          );
-        } else {
-          querySnapshot
-            .docChanges()
-            .forEach(({ type, doc, newIndex, oldIndex }) => {
-              if (type === 'removed') {
-                setSnapshots((prev): typeof prev => splice(prev, oldIndex, 1));
-                return;
-              }
+              return data ? { ref: doc.ref, data } : null;
+            })
+            .filter(isDefined),
+        );
+      } else {
+        querySnapshot
+          .docChanges()
+          .forEach(({ type, doc, newIndex, oldIndex }) => {
+            if (type === 'removed') {
+              setSnapshots((prev): typeof prev => splice(prev, oldIndex, 1));
+              return;
+            }
 
-              const data = read(doc);
-              if (!data) return;
+            const data = read(doc);
+            if (!data) return;
 
-              const snapshot = {
-                ref: doc.ref,
-                data,
-              };
-              switch (type) {
-                case 'added':
-                  setSnapshots((prev): typeof prev =>
-                    splice(prev, newIndex, 0, snapshot),
-                  );
-                  break;
-                case 'modified':
-                  setSnapshots((prev): typeof prev =>
-                    splice(splice(prev, oldIndex, 1), newIndex, 0, snapshot),
-                  );
-                  break;
-              }
-            });
-        }
-      },
-    );
-  }, [app, ...args]);
+            const snapshot = {
+              ref: doc.ref,
+              data,
+            };
+            switch (type) {
+              case 'added':
+                setSnapshots((prev): typeof prev =>
+                  splice(prev, newIndex, 0, snapshot),
+                );
+                break;
+              case 'modified':
+                setSnapshots((prev): typeof prev =>
+                  splice(splice(prev, oldIndex, 1), newIndex, 0, snapshot),
+                );
+                break;
+            }
+          });
+      }
+    });
+  }, [app, ...(dependsOn || [])]);
 
   return snapshots;
 }

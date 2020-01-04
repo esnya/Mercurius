@@ -1,0 +1,32 @@
+$schema: http://json-schema.org/draft-07/schema#
+title: ModelConfiguration
+type: object
+properties:
+  layers:
+    type: array
+    items:
+      type: object
+  fitOptions:
+    type: object
+    properties:
+      epochs:
+        type: number
+      validationSplit:
+        type: number
+  compileOptions:
+    type: object
+    properties:
+      optimizer:
+        type: string
+      loss:
+        type: string
+    required:
+      - optimizer
+      - loss
+  duration:
+    type: string
+    pattern: "^P(\\\\d+Y)?(\\\\d+M)?(\\\\d+W)?(\\\\d+D)?(T(\\\\d+H)?(\\\\d+M)?(\\\\d+S)?)?$"
+required:
+  - layers
+  - compileOptions
+  - duration

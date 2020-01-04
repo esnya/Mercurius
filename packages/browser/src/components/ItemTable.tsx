@@ -23,13 +23,13 @@ export default function ItemTable({
   filters,
 }: ItemTableProps): JSX.Element {
   const items = useQuerySnapshot(
-    (firestore, projectId) =>
+    firestore =>
       firestore
         .collection('projects')
         .doc(projectId)
         .collection('items'),
     ItemConverter.cast,
-    projectId,
+    [projectId],
   );
 
   const [sortBy, setSortBy] = usePersistentState<string>(
