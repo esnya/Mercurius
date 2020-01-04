@@ -7,6 +7,7 @@ import {
   Message,
   Segment,
   Icon,
+  Button,
 } from 'semantic-ui-react';
 import { useQuerySnapshot } from '../hooks/useSnapshot';
 import { useParams } from 'react-router-dom';
@@ -131,6 +132,8 @@ export default function Item(): JSX.Element {
     <Message info>モデルが作成されていません。</Message>
   );
 
+  const handleReset = (): void => setModelConfig(DefaultModelConfiguration);
+
   return (
     <Container>
       <Segment.Group>
@@ -157,6 +160,9 @@ export default function Item(): JSX.Element {
             <Icon name="detective" />
             {predicted ? '再学習' : '学習'}
           </ActionButton>
+          <Button color="red" onClick={handleReset}>
+            モデルをリセット
+          </Button>
         </Segment>
       </Segment.Group>
     </Container>
