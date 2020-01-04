@@ -1,31 +1,20 @@
 layers:
   - type: conv1d
     options:
-      inputShape:
-        - 192
-        - 2
-      filters: 24
+      filters: 8
       kernelSize: 24
-  - type: maxPooling1d
-    options:
-      poolSize: 8
-      units: 96
   - type: conv1d
     options:
-      filters: 24
-      kernelSize: 12
-  - type: dense
-    options:
-      units: 96
-      activation: relu
+      filters: 8
+      kernelSize: 24
   - type: flatten
   - type: dense
     options:
-      units: 96
+      units: 288
       activation: relu
   - type: dense
     options:
-      units: 96
+      units: 288
 fitOptions:
   epochs: 50
   validationSplit: 0.25
@@ -33,3 +22,5 @@ compileOptions:
   optimizer: adam
   loss: meanSquaredError
 duration: P4W
+inputSize: 192
+outputSize: 96

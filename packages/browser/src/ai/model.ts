@@ -16,9 +16,16 @@ export type Model = LayersModel;
 
 export function compile(conf: ModelConfiguration): LayersModel {
   const model = sequential({
-    layers: conf.layers.map(({ type, options }) =>
-      _.invoke(layers, type, options),
-    ),
+    layers: [
+      layers.reshape({
+        inputShape: [conf.inputSize, 2],
+        targetShape: [conf.inputSize * 2, 1],
+      }),
+      ...conf.layers.map(({ type, options }) =>
+        _.invoke(layers, type, options),
+      ),
+      layers.reshape({ targetShape: [conf.outputSize, 3] }),
+    ],
   });
   model.compile(conf.compileOptions);
   show.modelSummary({ name: 'model' }, model);

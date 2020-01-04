@@ -1,5 +1,5 @@
 import _ from 'lodash';
-import { NormalizedPrice, timeStep } from './types';
+import { NormalizedPrice, timeStep, PredictionResult } from './types';
 import { Price } from 'mercurius-core/lib/models/Price';
 import { Stats, MinMax } from 'mercurius-core/lib/models/ModelMetadata';
 import { assertIsDefined } from '../utilities/assert';
@@ -31,9 +31,7 @@ export function normalize(
 ): NormalizedPrice {
   return {
     timestamp: Math.floor(timestamp.getTime() / timeStep),
-    price: Math.log(
-      (price - stats.price.min) / (stats.price.max - stats.price.min) + 1,
-    ),
+    price: (price - stats.price.min) / (stats.price.max - stats.price.min),
     lottery: lottery ? 1 : 0,
   };
 }
@@ -114,13 +112,15 @@ export function encode(prices: Price[], stats: Stats): NormalizedPrice[] {
 export function decode(
   predicted: number[],
   lastTimestamp: number,
-  stats: Stats,
-): Price[] {
-  return predicted.map((price, i) => ({
-    timestamp: new Date((lastTimestamp + i + 1) * timeStep),
-    price:
-      (Math.exp(price) - 1) * (stats.price.max - stats.price.min) +
-      stats.price.min,
-    lottery: false,
-  }));
+): PredictionResult[] {
+  return _(predicted)
+    .map(rate => Math.max(0, Math.min(rate, 1)))
+    .chunk(3)
+    .map(([increase, flat, decrease], i) => ({
+      timestamp: new Date((lastTimestamp + i + 1) * timeStep),
+      increase,
+      flat,
+      decrease,
+    }))
+    .value();
 }

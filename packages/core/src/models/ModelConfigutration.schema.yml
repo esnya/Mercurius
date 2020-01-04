@@ -26,7 +26,13 @@ properties:
   duration:
     type: string
     pattern: "^P(\\\\d+Y)?(\\\\d+M)?(\\\\d+W)?(\\\\d+D)?(T(\\\\d+H)?(\\\\d+M)?(\\\\d+S)?)?$"
+  inputSize:
+    type: number
+  outputSize:
+    type: number
 required:
   - layers
   - compileOptions
   - duration
+  - inputSize
+  - outputSize

@@ -11,7 +11,7 @@ import {
 import { useQuerySnapshot } from '../hooks/useSnapshot';
 import { useParams } from 'react-router-dom';
 import NotFound from './NotFound';
-import { Price, PriceConverter } from 'mercurius-core/lib/models/Price';
+import { PriceConverter } from 'mercurius-core/lib/models/Price';
 import { isFailed, isSucceeded } from '../utilities/types';
 import useAsyncSimple from '../hooks/useAsyncSimple';
 import useAsyncEffect from '../hooks/useAsyncEffect';
@@ -30,11 +30,13 @@ import {
   predict,
   compile,
   fit,
+  PredictionResult,
 } from '../ai';
 import {
   ModelConfiguration,
   ModelConfigurationConverter,
 } from 'mercurius-core/lib/models/ModelConfiguration';
+import PriceChart from '../components/PriceChart';
 
 export default function Item(): JSX.Element {
   const app = useFirebase();
@@ -73,7 +75,9 @@ export default function Item(): JSX.Element {
     }
   }, [loadedModel, modelUrl, priceSnapshots]);
 
-  const predicted = useAsyncSimple(async (): Promise<Price[] | undefined> => {
+  const predicted = useAsyncSimple(async (): Promise<
+    PredictionResult[] | undefined
+  > => {
     if (
       !isSucceeded(model) ||
       !model ||
@@ -121,6 +125,12 @@ export default function Item(): JSX.Element {
     setModel(model);
   };
 
+  const predictedChart = predicted ? (
+    <PredictedChart predicted={predicted} />
+  ) : (
+    <Message info>モデルが作成されていません。</Message>
+  );
+
   return (
     <Container>
       <Segment.Group>
@@ -132,12 +142,9 @@ export default function Item(): JSX.Element {
           />
         </Segment>
         <Segment>
-          <PredictedChart
-            prices={priceSnapshots.map(s => s.data)}
-            predicted={predicted ?? undefined}
-            title={itemId}
-          />
+          <PriceChart prices={priceSnapshots.map(p => p.data)} />
         </Segment>
+        <Segment>{predictedChart}</Segment>
         <Segment>
           <ConfigurationEditor
             validate={ModelConfigurationConverter.cast}

@@ -13,3 +13,10 @@ export interface NormalizedPrice {
   price: number;
   lottery: number;
 }
+
+export interface PredictionResult {
+  timestamp: Date;
+  increase: number;
+  flat: number;
+  decrease: number;
+}

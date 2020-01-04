@@ -1,48 +1,35 @@
 import React from 'react';
-import { Price } from 'mercurius-core/lib/models/Price';
-import { DateTime, Duration } from 'luxon';
+import _ from 'lodash';
 import { createClassFromSpec } from 'react-vega';
+import { PredictionResult } from '../ai';
+import { lite, timeFormat } from '../definitions/chart';
 
 export interface PredictedChartProps {
-  title: string;
-  prices: Price[];
-  predicted?: Price[];
+  predicted: PredictionResult[];
 }
-
-const DomainDuration = Duration.fromISO('P14D');
 
 const VegaChart = createClassFromSpec({
   mode: 'vega-lite',
   spec: {
-    $schema: 'https://vega.github.io/schema/vega-lite/v4.json',
-    width: 500,
-    padding: 50,
-    data: { name: 'prices' },
-    layer: [
-      {
-        mark: 'line',
-      },
-      {
-        mark: 'point',
-        encoding: {
-          color: {
-            value: 'red',
-            condition: {
-              test: '!datum.lottery',
-              value: null,
-            },
-          },
-        },
-      },
-    ],
+    ...lite,
+    title: '騰落確率',
+    data: { name: 'predicted' },
+    mark: 'line',
     encoding: {
       x: {
         field: 'timestamp',
         type: 'temporal',
+        axis: {
+          ...timeFormat,
+          labelAngle: 90,
+        },
       },
       y: {
-        field: 'price',
+        field: 'rate',
         type: 'quantitative',
+        scale: {
+          domain: [0, 1],
+        },
       },
       color: {
         field: 'series',
@@ -53,18 +40,18 @@ const VegaChart = createClassFromSpec({
 });
 
 export default function PredictedChart({
-  prices,
   predicted,
 }: PredictedChartProps): JSX.Element {
-  const domain = [DateTime.local().minus(DomainDuration), DateTime.local()];
   const data = {
-    prices: prices
-      .map(p => ({ ...p, series: '市場価格' }))
-      .filter((p): boolean => {
-        const datetime = DateTime.fromJSDate(p.timestamp);
-        return domain[0] <= datetime && datetime <= domain[1];
-      })
-      .concat(predicted ? predicted.map(p => ({ ...p, series: '予測' })) : []),
+    predicted: _(predicted)
+      .map(({ timestamp, increase, flat, decrease }) => [
+        { timestamp, rate: increase, series: '上昇確率' },
+        { timestamp, rate: flat, series: '横ばい確率' },
+        { timestamp, rate: decrease, series: '下降確率' },
+      ])
+      .unzip()
+      .flatten()
+      .value(),
   };
 
   return <VegaChart data={data} />;

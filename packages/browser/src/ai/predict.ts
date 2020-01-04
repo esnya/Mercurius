@@ -3,11 +3,12 @@ import { tensor, Tensor, LayersModel } from '@tensorflow/tfjs';
 import { decode, encode } from './prep';
 import { Price } from 'mercurius-core/lib/models/Price';
 import { loadMetadata } from './model';
+import { PredictionResult } from './types';
 
 export async function predict(
   model: LayersModel,
   prices: Price[],
-): Promise<Price[]> {
+): Promise<PredictionResult[]> {
   const { stats, inputSize } = loadMetadata(model);
 
   const encoded = encode(prices, stats).slice(-inputSize);
@@ -24,5 +25,5 @@ export async function predict(
 
   const data = Array.from(await y.data());
 
-  return decode(data, last.timestamp, stats);
+  return decode(data, last.timestamp);
 }
