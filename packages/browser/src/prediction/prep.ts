@@ -1,9 +1,10 @@
 import _ from 'lodash';
-import { NormalizedPrice, timeStep, PredictionResult } from './types';
+import { NormalizedPrice, PredictionResult } from './types';
 import { Price } from 'mercurius-core/lib/models/Price';
 import { Stats, MinMax } from 'mercurius-core/lib/models/ModelMetadata';
 import { assertIsDefined } from '../utilities/assert';
 import { isDefined } from '../utilities/types';
+import { Duration } from 'luxon';
 
 function minMax(values: number[]): MinMax {
   const min = _.min(values);
@@ -28,9 +29,10 @@ export function calculateStats(prices: Price[]): Stats {
 export function normalize(
   { price, timestamp, lottery }: Price,
   stats: Stats,
+  timeUnit: Duration,
 ): NormalizedPrice {
   return {
-    timestamp: Math.floor(timestamp.getTime() / timeStep),
+    timestamp: Math.floor(timestamp.getTime() / timeUnit.valueOf()),
     price: (price - stats.price.min) / (stats.price.max - stats.price.min),
     lottery: lottery ? 1 : 0,
   };
@@ -95,8 +97,12 @@ export function linearInterpolate(
   };
 }
 
-export function encode(prices: Price[], stats: Stats): NormalizedPrice[] {
-  const normalized = prices.map(p => normalize(p, stats));
+export function encode(
+  prices: Price[],
+  stats: Stats,
+  timeUnit: Duration,
+): NormalizedPrice[] {
+  const normalized = prices.map(p => normalize(p, stats, timeUnit));
   const grouped = group(normalized);
   const interpolated = _(grouped.min)
     .range(grouped.max + 1)
@@ -112,15 +118,18 @@ export function encode(prices: Price[], stats: Stats): NormalizedPrice[] {
 export function decode(
   predicted: number[],
   lastTimestamp: number,
+  timeUnit: Duration,
 ): PredictionResult[] {
   return _(predicted)
     .map(rate => Math.max(0, Math.min(rate, 1)))
-    .chunk(3)
-    .map(([increase, flat, decrease], i) => ({
-      timestamp: new Date((lastTimestamp + i + 1) * timeStep),
+    .chunk(4)
+    .map(([increase, decrease, buy, sell], i) => ({
+      timestamp: new Date((lastTimestamp + i + 1) * timeUnit.valueOf()),
       increase,
-      flat,
+      flat: NaN,
       decrease,
+      buy,
+      sell,
     }))
     .value();
 }

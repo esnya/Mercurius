@@ -7,10 +7,11 @@ import ItemFilterControl, { ItemFilter } from '../components/ItemFilterControl';
 import fieldDefinitions, { getField } from '../definitions/fields';
 import filterDefinitions, { getFilter } from '../definitions/filters';
 import usePersistentState from '../hooks/usePersistentState';
-import NotFound from './NotFound';
+import { assertIsDefined } from '../utilities/assert';
 
 export default function ProjectHome(): JSX.Element {
   const { projectId } = useParams();
+  assertIsDefined(projectId);
 
   const [itemFilter, setItemFilter] = usePersistentState<ItemFilter>(
     'itemFilter',
@@ -38,10 +39,6 @@ export default function ProjectHome(): JSX.Element {
         }
       : undefined,
   ].filter(isDefined);
-
-  if (!projectId) {
-    return <NotFound />;
-  }
 
   return (
     <Container>

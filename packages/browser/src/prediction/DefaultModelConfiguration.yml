@@ -1,0 +1,36 @@
+layers:
+  - type: flatten
+  - type: reshape
+    options:
+      targetShape:
+        - 84
+        - 1
+  - type: conv1d
+    options:
+      filters: 84
+      kernelSize: 30
+  - type: flatten
+  - type: dense
+    options:
+      activation: relu
+      units: 5000
+  - type: dense
+    options:
+      activation: relu
+      units: 5000
+  - type: dense
+    options:
+      units: 72
+fitOptions:
+  epochs: 30
+  shuffle: true
+  validationSplit: 0.25
+compileOptions:
+  optimizer: adam
+  loss: meanSquaredError
+timeUnit: PT4H
+timeDomain:
+  min: P30D
+  max: P0D
+inputDuration: P7D
+outputDuration: P3D

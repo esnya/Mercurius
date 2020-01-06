@@ -1,6 +1,4 @@
-import React, { useState } from 'react';
-import withUser, { WithUserProps } from '../enhancers/withUser';
-import withFirebaseApp from '../enhancers/withFirebaseApp';
+import React, { Suspense } from 'react';
 import {
   Container,
   Form,
@@ -10,109 +8,94 @@ import {
   ItemHeader,
   Header,
   Divider,
+  Placeholder,
+  Icon,
 } from 'semantic-ui-react';
-import ActionButton from '../components/ActionButton';
-import useAsyncEffect from '../hooks/useAsyncEffect';
 import { Link } from 'react-router-dom';
+import PromiseReader from '../suspense/PromiseReader';
+import { getCurrentUser, signOut } from '../firebase/auth';
+import { listReadableProjects } from '../resources/project';
+import {
+  getCurrentUserProfile,
+  setCurrentUserProfile,
+} from '../resources/profile';
+import { assertIsExists } from '../utilities/assert';
+import ActionButton from '../components/ActionButton';
 
-interface Project {
-  id: string;
-  title: string;
-  owner: string;
+const resource = {
+  user: new PromiseReader(getCurrentUser()),
+  profile: new PromiseReader(getCurrentUserProfile()),
+  projects: new PromiseReader(listReadableProjects()),
+};
+
+function ProjectList(): JSX.Element {
+  const itemElements = resource.projects.read().map(snapshot => (
+    <Item key={snapshot.ref.id}>
+      <ItemHeader as={Link} to={`/projects/${snapshot.ref.id}`}>
+        {snapshot.data.title}
+      </ItemHeader>
+    </Item>
+  ));
+
+  return <ItemGroup>{itemElements}</ItemGroup>;
 }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function isProject(value: any): value is Project {
+
+function UserForm(): JSX.Element {
+  const { uid } = resource.user.read();
+  const profile = resource.profile.read();
+  assertIsExists(profile);
+
+  const handleChange = (_e: unknown, { value }: { value: string }): void => {
+    setCurrentUserProfile({ name: value });
+  };
+
   return (
-    value &&
-    typeof value === 'object' &&
-    typeof value.id === 'string' &&
-    typeof value.title === 'string' &&
-    typeof value.owner === 'string'
+    <Form>
+      <FormInput name="uid" label="ユーザーID" readOnly value={uid} />
+      <FormInput
+        name="username"
+        label="ユーザー名"
+        required
+        value={profile.data.name}
+        onChange={handleChange}
+      />
+    </Form>
   );
 }
 
-export default withFirebaseApp(
-  withUser(function Home({
-    app,
-    user,
-    profile,
-    profileRef,
-  }: WithUserProps): JSX.Element {
-    const [name, setName] = useState(profile.name);
+export default function Home(): JSX.Element {
+  const fallback = (): JSX.Element => (
+    <Placeholder>
+      <Placeholder.Header />
+    </Placeholder>
+  );
 
-    const [projects, setProjects] = useState<Project[]>();
+  const handleSignOut = async (): Promise<void> => {
+    await signOut();
+    location.reload();
+  };
 
-    useAsyncEffect(async () => {
-      const projectsRef = app.firestore().collection('projects');
-      const snapshot = await projectsRef.get();
-      const projects = await Promise.all(
-        snapshot.docs.map(async doc => {
-          try {
-            const project = {
-              ...doc.data(),
-              id: doc.ref.id,
-            };
-
-            if (doc.get('owner') === user.uid) return project;
-
-            const memberSnapshot = await doc.ref
-              .collection('members')
-              .doc(user.uid)
-              .get();
-            if (!memberSnapshot.get('read')) return null;
-
-            return project;
-          } catch {
-            return null;
-          }
-        }),
-      );
-      setProjects(projects.filter(a => a).filter(isProject));
-    }, [user.uid]);
-
-    const items =
-      projects &&
-      projects.map(({ id, title }) => (
-        <Item key={id}>
-          <ItemHeader as={Link} to={`/projects/${id}`}>
-            {title}
-          </ItemHeader>
-        </Item>
-      ));
-
-    return (
-      <div>
-        <Container text>
-          <Header dividing>プロフィール</Header>
-          <Form>
-            <FormInput label="ユーザーID" readOnly value={user.uid} />
-            <FormInput
-              label="ユーザー名"
-              value={name}
-              onChange={(_e, { value }): void => setName(value)}
-            />
-            <ActionButton
-              action={async (): Promise<void> => {
-                if (!name) return;
-                await profileRef.update('name', name);
-              }}
-              color="blue"
-              disabled={!name || name === profile.name}
-            >
-              更新
-            </ActionButton>
-            <ActionButton action={(): Promise<void> => app.auth().signOut()}>
-              サインアウト
-            </ActionButton>
-          </Form>
-        </Container>
-        <Divider hidden />
-        <Container text>
-          <Header dividing>プロジェクト</Header>
-          <ItemGroup>{items}</ItemGroup>
-        </Container>
-      </div>
-    );
-  },
-  true),
-);
+  return (
+    <div>
+      <Container text>
+        <Header dividing>プロフィール</Header>
+        <Suspense fallback={fallback()}>
+          <UserForm />
+        </Suspense>
+      </Container>
+      <Container text>
+        <ActionButton action={handleSignOut} color="blue">
+          <Icon name="sign out" />
+          サインアウト
+        </ActionButton>
+      </Container>
+      <Divider hidden />
+      <Container text>
+        <Header dividing>プロジェクト</Header>
+        <Suspense fallback={fallback()}>
+          <ProjectList />
+        </Suspense>
+      </Container>
+    </div>
+  );
+}

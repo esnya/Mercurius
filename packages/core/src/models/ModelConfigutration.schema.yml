@@ -23,16 +23,25 @@ properties:
     required:
       - optimizer
       - loss
-  duration:
-    type: string
-    pattern: "^P(\\\\d+Y)?(\\\\d+M)?(\\\\d+W)?(\\\\d+D)?(T(\\\\d+H)?(\\\\d+M)?(\\\\d+S)?)?$"
-  inputSize:
-    type: number
-  outputSize:
-    type: number
+  timeUnit:
+    $ref: "#/definitions/Duration"
+  timeDomain:
+    min:
+      $ref: "#/definitions/Duration"
+    max:
+      $ref: "#/definitions/Duration"
+  inputDuration:
+    $ref: "#/definitions/Duration"
+  outputDuration:
+    $ref: "#/definitions/Duration"
 required:
   - layers
   - compileOptions
-  - duration
-  - inputSize
-  - outputSize
+  - timeUnit
+  - timeDomain
+  - inputDuration
+  - outputDuration
+definitions:
+  Duration:
+    type: string
+    pattern: "^P(\\\\d+Y)?(\\\\d+M)?(\\\\d+W)?(\\\\d+D)?(T(\\\\d+H)?(\\\\d+M)?(\\\\d+S)?)?$"

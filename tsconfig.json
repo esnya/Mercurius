@@ -6,6 +6,7 @@
     "declaration": true,
     // Features
     "target": "ES2019",
+    "module": "commonjs",
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,

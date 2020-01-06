@@ -42,17 +42,19 @@ export default function ConfigurationEditor<T, U extends Partial<T>>({
     }
   }, [valueString]);
 
-  const handleChange = useMemo(
-    (): ((newCode: string) => void) =>
-      _.debounce((newCode: string): void => {
-        try {
-          const newValue = parse(newCode);
-          validate(newValue);
-          onChange(newValue);
-        } catch (error) {
-          setErrors([error.toString()]);
-        }
-      }, 1000),
+  const handleChange = (newCode: string): void => {
+    try {
+      const newValue = parse(newCode);
+      validate(newValue);
+      setErrors(undefined);
+      onChange(newValue);
+    } catch (error) {
+      setErrors([error.toString()]);
+    }
+  };
+
+  const debouncedHandleChange = useMemo(
+    () => _.debounce(handleChange, 500),
     [],
   );
 
@@ -73,8 +75,9 @@ export default function ConfigurationEditor<T, U extends Partial<T>>({
         value={code}
         onValueChange={(newValue: string): void => {
           setCode(newValue);
-          handleChange(newValue);
+          debouncedHandleChange(newValue);
         }}
+        onBlur={() => handleChange(code)}
       />
       {errorMessages}
     </div>

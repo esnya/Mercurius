@@ -1,7 +1,7 @@
 import React from 'react';
 import _ from 'lodash';
 import { createClassFromSpec } from 'react-vega';
-import { PredictionResult } from '../ai';
+import { PredictionResult } from '../prediction';
 import { lite, timeFormat } from '../definitions/chart';
 
 export interface PredictedChartProps {
@@ -12,9 +12,14 @@ const VegaChart = createClassFromSpec({
   mode: 'vega-lite',
   spec: {
     ...lite,
-    title: '騰落確率',
+    selection: {
+      pts: { type: 'multi', fields: ['series'] },
+    },
     data: { name: 'predicted' },
-    mark: 'line',
+    mark: {
+      type: 'line',
+      point: true,
+    },
     encoding: {
       x: {
         field: 'timestamp',
@@ -35,6 +40,13 @@ const VegaChart = createClassFromSpec({
         field: 'series',
         type: 'nominal',
       },
+      opacity: {
+        condition: {
+          selection: 'pts',
+          value: 1,
+        },
+        value: 0.25,
+      },
     },
   },
 });
@@ -42,7 +54,7 @@ const VegaChart = createClassFromSpec({
 export default function PredictedChart({
   predicted,
 }: PredictedChartProps): JSX.Element {
-  const data = {
+  const roidData = {
     predicted: _(predicted)
       .map(({ timestamp, increase, flat, decrease }) => [
         { timestamp, rate: increase, series: '上昇確率' },
@@ -53,6 +65,21 @@ export default function PredictedChart({
       .flatten()
       .value(),
   };
+  const indexData = {
+    predicted: _(predicted)
+      .map(({ timestamp, buy, sell }) => [
+        { timestamp, rate: buy, series: '買い指標' },
+        { timestamp, rate: sell, series: '売り指標' },
+      ])
+      .unzip()
+      .flatten()
+      .value(),
+  };
 
-  return <VegaChart data={data} />;
+  return (
+    <div>
+      <VegaChart data={roidData} />
+      <VegaChart data={indexData} />
+    </div>
+  );
 }

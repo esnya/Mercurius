@@ -16,13 +16,11 @@ import Ocr from '../../utilities/ocr';
 import withFirebaseApp, {
   WithFirebaseProps,
 } from '../../enhancers/withFirebaseApp';
-import { isItem } from '../../types/Item';
 import ActionButton from '../../components/ActionButton';
 import shortid from 'shortid';
 import { formatTimestamp } from '../../utilities/format';
 import firebase from '../../firebase';
 import { duration } from 'moment';
-import { isPrice } from '../../types/Price';
 import { ErrorThreshold } from '../../components/DiffIcon';
 import { succeeded, failed, notice } from '../../utilities/sounds';
 import _ from 'lodash';
@@ -31,6 +29,9 @@ import useAsyncEffect from '../../hooks/useAsyncEffect';
 import { loadPreset, drawPreset } from '../../recognition/RecognitionPreset';
 import { bounds, crop, videoToCanvas, Size } from '../../utilities/image';
 import RecognitionPresetEditor from '../../components/RecognitionPresetEditor';
+import { castQuery } from '../../firebase/snapshot';
+import { ItemConverter } from 'mercurius-core/lib/models/Item';
+import { PriceConverter } from 'mercurius-core/lib/models/Price';
 
 interface Rect {
   x: number;
@@ -104,16 +105,16 @@ export default withFirebaseApp<{}>(function AutoInput({
   const context = canvas && canvas.getContext('2d');
 
   useAsyncEffect(async (): Promise<void> => {
-    const itemsSnapshot = await app
-      .firestore()
-      .collection('projects')
-      .doc(projectId)
-      .collection('items')
-      .get();
-    const names = itemsSnapshot.docs
-      .map(d => d.data())
-      .filter(isItem)
-      .map(i => i.name);
+    const itemSnapshots = castQuery(
+      await app
+        .firestore()
+        .collection('projects')
+        .doc(projectId)
+        .collection('items')
+        .get(),
+      ItemConverter.cast,
+    );
+    const names = itemSnapshots.map(s => s.data.name);
     setNames(names);
     setOcr(new Ocr(names));
   }, [app]);
@@ -177,16 +178,14 @@ export default withFirebaseApp<{}>(function AutoInput({
     }
 
     const pricesRef = itemSnapshot.ref.collection('prices');
-    const pricesSnapshot = await pricesRef
-      .orderBy('timestamp', 'desc')
-      // .startAt(
-      //   moment()
-      //     .subtract(1, 'day')
-      //     .valueOf(),
-      // )
-      .limit(1)
-      .get();
-    const lastPrice = pricesSnapshot.docs.map(d => d.data()).filter(isPrice)[0];
+    const priceSnapshots = castQuery(
+      await pricesRef
+        .orderBy('timestamp', 'desc')
+        .limit(1)
+        .get(),
+      PriceConverter.cast,
+    );
+    const lastPrice = priceSnapshots[0].data;
 
     if (!lastPrice) {
       console.log('failed to find last price');
@@ -196,7 +195,7 @@ export default withFirebaseApp<{}>(function AutoInput({
 
     const fluctuation = value - lastPrice.price;
     const days =
-      (Date.now() - lastPrice.timestamp.toMillis()) /
+      (Date.now() - lastPrice.timestamp.getTime()) /
       duration(1, 'day').asMilliseconds();
     const fluctuationPerDay = fluctuation / days;
     const fluctuationRate = fluctuationPerDay / lastPrice.price;

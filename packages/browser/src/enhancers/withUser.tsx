@@ -10,10 +10,14 @@ import {
   FormInput,
   Loader,
 } from 'semantic-ui-react';
+import _ from 'lodash';
 import firebase from 'firebase/app';
 import ActionButton from '../components/ActionButton';
 import { WithFirebaseProps } from './withFirebaseApp';
-import UserProfile, { isUserProfile } from '../types/UserProfile';
+import {
+  UserProfile,
+  UserProfileConverter,
+} from 'mercurius-core/lib/models/UserProfile';
 
 export type User = firebase.User;
 
@@ -31,8 +35,7 @@ function ProfileModal({
   const [profile, setProfile] = useState<Partial<UserProfile>>({});
 
   async function handleSubmit(): Promise<void> {
-    if (!isUserProfile(profile)) return;
-    await onSubmit(profile);
+    await onSubmit(UserProfileConverter.cast(profile));
   }
 
   return (
@@ -52,7 +55,9 @@ function ProfileModal({
       <ModalActions>
         <ActionButton
           action={handleSubmit}
-          disabled={!isUserProfile(profile)}
+          disabled={
+            _.attempt(UserProfileConverter.cast, profile) instanceof Error
+          }
           color="blue"
         >
           登録
@@ -84,7 +89,7 @@ export default function withUser(
       if (!profileRef) return;
       return profileRef.onSnapshot(snapshot => {
         const data = snapshot.data();
-        setProfile(isUserProfile(data) ? data : null);
+        setProfile(UserProfileConverter.cast(data));
       });
     }, [profileRef]);
 

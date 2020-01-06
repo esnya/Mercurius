@@ -35,7 +35,9 @@ export default class Ocr {
     await worker.setParameters({
       tessedit_pageseg_mode: PSM.SPARSE_TEXT,
       tessedit_ocr_engine_mode: OEM.DEFAULT,
-      tessedit_char_whitelist: ['0123456789,:', ...words].join(''),
+      tessedit_char_whitelist: ['0123456789,:', ...words]
+        .join('')
+        .replace(/[a-zA-Z]/g, ''),
     } as Partial<WorkerParams>);
     return worker;
   }

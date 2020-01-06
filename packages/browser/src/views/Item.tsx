@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import _ from 'lodash';
 import {
   Container,
@@ -8,6 +8,7 @@ import {
   Segment,
   Icon,
   Button,
+  Form,
 } from 'semantic-ui-react';
 import { useQuerySnapshot } from '../hooks/useSnapshot';
 import { useParams } from 'react-router-dom';
@@ -25,29 +26,31 @@ import useFirebase from '../hooks/useFirebase';
 import { DateTime, Duration } from 'luxon';
 import { Timestamp } from '../firebase';
 import {
-  DefaultModelConfiguration,
   Model,
   load,
   predict,
   compile,
   fit,
   PredictionResult,
-} from '../ai';
+} from '../prediction';
 import {
   ModelConfiguration,
   ModelConfigurationConverter,
 } from 'mercurius-core/lib/models/ModelConfiguration';
+import DefaultModelConfiguration from '../prediction/DefaultModelConfiguration.yml';
 import PriceChart from '../components/PriceChart';
+import { toDuration, getSize } from '../prediction/time';
 
 export default function Item(): JSX.Element {
+  const viewRef = useRef<HTMLDivElement>(null);
   const app = useFirebase();
   const { projectId, itemId } = useParams();
   const [modelConfig, setModelConfig] = usePersistentState<ModelConfiguration>(
-    `model-configuration-${projectId}-1`,
+    `model-configuration-${projectId}-3`,
     DefaultModelConfiguration,
   );
 
-  const { duration } = modelConfig;
+  const min = modelConfig.timeDomain.min;
 
   const priceSnapshots = useQuerySnapshot(
     firestore =>
@@ -57,12 +60,12 @@ export default function Item(): JSX.Element {
         .startAt(
           Timestamp.fromDate(
             DateTime.local()
-              .minus(Duration.fromISO(duration))
+              .minus(Duration.fromISO(min))
               .toJSDate(),
           ),
         ),
     PriceConverter.cast,
-    [duration],
+    [min],
   );
 
   const modelUrl = `indexeddb://mercurius-${projectId}-${itemId}-prices`;
@@ -90,6 +93,7 @@ export default function Item(): JSX.Element {
     return await predict(
       model,
       priceSnapshots.map(s => s.data),
+      toDuration(modelConfig.timeUnit),
     );
   }, [model, priceSnapshots]);
 
@@ -99,9 +103,6 @@ export default function Item(): JSX.Element {
 
   if (isFailed(priceSnapshots)) {
     return <Message negative>{priceSnapshots.toString()}</Message>;
-  }
-  if (isFailed(predicted)) {
-    return <Message negative>{predicted.toString()}</Message>;
   }
   if (isFailed(app)) {
     return <Message negative>{app.toString()}</Message>;
@@ -120,14 +121,18 @@ export default function Item(): JSX.Element {
     await fit(
       model,
       priceSnapshots.map(s => s.data),
+      toDuration(modelConfig.timeUnit),
       modelConfig.fitOptions,
+      viewRef.current ?? undefined,
     );
     await model.save(modelUrl);
     setModel(model);
   };
 
-  const predictedChart = predicted ? (
+  const predictedChart = isSucceeded(predicted) ? (
     <PredictedChart predicted={predicted} />
+  ) : isFailed(predicted) ? (
+    <Message negative>{predicted.toString()}</Message>
   ) : (
     <Message info>モデルが作成されていません。</Message>
   );
@@ -154,6 +159,18 @@ export default function Item(): JSX.Element {
             value={modelConfig}
             onChange={setModelConfig}
           />
+          <Form>
+            <Form.Input
+              label="xSize"
+              readOnly
+              value={getSize(modelConfig.inputDuration, modelConfig.timeUnit)}
+            />
+            <Form.Input
+              label="ySize"
+              readOnly
+              value={getSize(modelConfig.outputDuration, modelConfig.timeUnit)}
+            />
+          </Form>
         </Segment>
         <Segment>
           <ActionButton action={handleUpdate} color="blue">
@@ -163,6 +180,11 @@ export default function Item(): JSX.Element {
           <Button color="red" onClick={handleReset}>
             モデルをリセット
           </Button>
+        </Segment>
+        <Segment>
+          <div ref={viewRef}>
+            <Message info>学習経過がここに表示されます</Message>
+          </div>
         </Segment>
       </Segment.Group>
     </Container>

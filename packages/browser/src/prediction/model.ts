@@ -5,30 +5,32 @@ import {
   loadLayersModel,
   layers,
 } from '@tensorflow/tfjs';
-import { show } from '@tensorflow/tfjs-vis';
 import { ModelConfiguration } from 'mercurius-core/lib/models/ModelConfiguration';
 import {
   ModelMetadata,
   ModelMetadataConverter,
 } from 'mercurius-core/lib/models/ModelMetadata';
+import { getSize } from './time';
 
 export type Model = LayersModel;
 
 export function compile(conf: ModelConfiguration): LayersModel {
+  const inputSize = getSize(conf.inputDuration, conf.timeUnit);
+  const outputSize = getSize(conf.outputDuration, conf.timeUnit);
+
   const model = sequential({
     layers: [
       layers.reshape({
-        inputShape: [conf.inputSize, 2],
-        targetShape: [conf.inputSize * 2, 1],
+        inputShape: [inputSize, 2],
+        targetShape: [inputSize, 2],
       }),
       ...conf.layers.map(({ type, options }) =>
         _.invoke(layers, type, options),
       ),
-      layers.reshape({ targetShape: [conf.outputSize, 3] }),
+      layers.reshape({ targetShape: [outputSize, 4] }),
     ],
   });
   model.compile(conf.compileOptions);
-  show.modelSummary({ name: 'model' }, model);
   return model;
 }
 

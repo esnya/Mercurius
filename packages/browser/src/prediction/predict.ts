@@ -4,14 +4,16 @@ import { decode, encode } from './prep';
 import { Price } from 'mercurius-core/lib/models/Price';
 import { loadMetadata } from './model';
 import { PredictionResult } from './types';
+import { Duration } from 'luxon';
 
 export async function predict(
   model: LayersModel,
   prices: Price[],
+  timeUnit: Duration,
 ): Promise<PredictionResult[]> {
   const { stats, inputSize } = loadMetadata(model);
 
-  const encoded = encode(prices, stats).slice(-inputSize);
+  const encoded = encode(prices, stats, timeUnit).slice(-inputSize);
   const last = _.last(encoded);
 
   if (encoded.length !== inputSize || !last) {
@@ -25,5 +27,5 @@ export async function predict(
 
   const data = Array.from(await y.data());
 
-  return decode(data, last.timestamp);
+  return decode(data, last.timestamp, timeUnit);
 }

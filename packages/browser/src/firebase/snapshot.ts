@@ -3,6 +3,7 @@ import {
   DocumentSnapshot,
   DocumentData,
   Timestamp,
+  QuerySnapshot,
 } from './types';
 import mapObject from 'map-obj';
 
@@ -28,14 +29,38 @@ export function decode(value: DocumentData): DocumentData {
   ]) as DocumentData;
 }
 
+export type Converter<T> = (value: unknown) => T;
+
 export function cast<T>(
   snapshot: DocumentSnapshot,
-  converter: (value: unknown) => T,
+  converter: Converter<T>,
+  captureError = true,
 ): Snapshot<T> {
+  const { ref } = snapshot;
   const data = snapshot.data();
+  if (data === undefined) {
+    return { ref };
+  }
 
-  return {
-    ...snapshot,
-    data: data !== undefined ? converter(decode(data)) : undefined,
-  };
+  try {
+    return {
+      ref,
+      data: converter(decode(data)),
+    };
+  } catch (error) {
+    if (!captureError) {
+      throw error;
+    }
+    return { ref };
+  }
+}
+
+export function castQuery<T>(
+  snapshot: QuerySnapshot,
+  converter: Converter<T>,
+  captureError = true,
+): NonEmptySnapshot<T>[] {
+  return snapshot.docs
+    .map(doc => cast(doc, converter, captureError))
+    .filter(isExists);
 }

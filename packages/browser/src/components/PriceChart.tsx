@@ -18,32 +18,62 @@ const VegaChart = createClassFromSpec({
     data: { name: 'prices' },
     layer: [
       {
-        mark: 'line',
-      },
-      {
-        mark: 'point',
+        mark: 'rule',
         encoding: {
+          y: {
+            field: 'price',
+            type: 'quantitative',
+            aggregate: 'min',
+          },
           color: {
             value: 'red',
-            condition: {
-              test: '!datum.lottery',
-              value: null,
+          },
+        },
+      },
+      {
+        mark: 'rule',
+        encoding: {
+          y: {
+            field: 'price',
+            type: 'quantitative',
+            aggregate: 'max',
+          },
+          color: {
+            value: 'red',
+          },
+        },
+      },
+      {
+        layer: [
+          { mark: 'line' },
+          {
+            mark: 'point',
+            encoding: {
+              size: {
+                condition: {
+                  test: 'datum.lottery',
+                  title: '抽選',
+                  value: 100,
+                },
+                value: 10,
+              },
             },
+          },
+        ],
+        encoding: {
+          x: {
+            ...timeFormat,
+            field: 'timestamp',
+            type: 'temporal',
+          },
+          y: {
+            title: '価格',
+            field: 'price',
+            type: 'quantitative',
           },
         },
       },
     ],
-    encoding: {
-      x: {
-        field: 'timestamp',
-        type: 'temporal',
-        axis: timeFormat,
-      },
-      y: {
-        field: 'price',
-        type: 'quantitative',
-      },
-    },
   },
 });
 
