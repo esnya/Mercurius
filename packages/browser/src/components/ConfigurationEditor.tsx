@@ -77,7 +77,7 @@ export default function ConfigurationEditor<T, U extends Partial<T>>({
           setCode(newValue);
           debouncedHandleChange(newValue);
         }}
-        onBlur={() => handleChange(code)}
+        onBlur={(): void => handleChange(code)}
       />
       {errorMessages}
     </div>

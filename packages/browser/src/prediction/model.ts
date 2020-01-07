@@ -4,6 +4,7 @@ import {
   sequential,
   loadLayersModel,
   layers,
+  io,
 } from '@tensorflow/tfjs';
 import { ModelConfiguration } from 'mercurius-core/lib/models/ModelConfiguration';
 import {
@@ -38,8 +39,10 @@ export function loadMetadata(model: LayersModel): ModelMetadata {
   return ModelMetadataConverter.cast(model.getUserDefinedMetadata());
 }
 
-export async function load(url: string): Promise<LayersModel> {
-  const model = await loadLayersModel(url);
+export async function load(
+  loader: string | io.IOHandler,
+): Promise<LayersModel> {
+  const model = await loadLayersModel(loader);
   loadMetadata(model);
   return model;
 }

@@ -43,6 +43,11 @@ export default function App(): JSX.Element {
                 path="/projects/:projectId/items/:itemId"
                 component={lazy(() => import('./views/Item'))}
               />
+              <Route
+                exact
+                path="/sign-in"
+                component={lazy(() => import('./views/SignIn'))}
+              />
               <Route exact path="/">
                 <Home />
               </Route>

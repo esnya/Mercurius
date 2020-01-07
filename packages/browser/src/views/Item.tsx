@@ -1,5 +1,4 @@
-import React, { useState, useRef } from 'react';
-import _ from 'lodash';
+import React, { useState, useRef, useMemo } from 'react';
 import {
   Container,
   Loader,
@@ -22,9 +21,8 @@ import ConfigurationEditor from '../components/ConfigurationEditor';
 import PredictedChart from '../components/PredictedChart';
 import usePersistentState from '../hooks/usePersistentState';
 import ItemView from '../components/ItemView';
-import useFirebase from '../hooks/useFirebase';
 import { DateTime, Duration } from 'luxon';
-import { Timestamp } from '../firebase';
+import { Timestamp, initializeApp } from '../firebase';
 import {
   Model,
   load,
@@ -40,10 +38,21 @@ import {
 import DefaultModelConfiguration from '../prediction/DefaultModelConfiguration.yml';
 import PriceChart from '../components/PriceChart';
 import { toDuration, getSize } from '../prediction/time';
+import { getCurrentUser } from '../firebase/auth';
+import PromiseReader from '../suspense/PromiseReader';
+import StorageIOHandler from '../prediction/StorageIOHandler';
+
+const resources = {
+  app: new PromiseReader(initializeApp),
+  user: new PromiseReader(getCurrentUser),
+};
 
 export default function Item(): JSX.Element {
+  const app = resources.app.read();
+  const storage = app.storage();
+  const { uid } = resources.user.read();
+
   const viewRef = useRef<HTMLDivElement>(null);
-  const app = useFirebase();
   const { projectId, itemId } = useParams();
   const [modelConfig, setModelConfig] = usePersistentState<ModelConfiguration>(
     `model-configuration-${projectId}-3`,
@@ -68,8 +77,14 @@ export default function Item(): JSX.Element {
     [min],
   );
 
-  const modelUrl = `indexeddb://mercurius-${projectId}-${itemId}-prices`;
-  const loadedModel = useAsyncSimple(_.partial(load, modelUrl), [modelUrl]);
+  const modelPath = `/projects/${projectId}/users/${uid}/items/${itemId}/models/prices_1`;
+  const modelIOHandler = useMemo(
+    () => new StorageIOHandler(storage.ref(modelPath)),
+    [modelPath],
+  );
+  const loadedModel = useAsyncSimple(() => load(modelIOHandler), [
+    modelIOHandler,
+  ]);
 
   const [model, setModel] = useState<Model>();
 
@@ -77,7 +92,7 @@ export default function Item(): JSX.Element {
     if (isSucceeded(loadedModel)) {
       return setModel(loadedModel);
     }
-  }, [loadedModel, modelUrl, priceSnapshots]);
+  }, [loadedModel]);
 
   const predicted = useAsyncSimple(async (): Promise<
     PredictionResult[] | undefined
@@ -87,8 +102,9 @@ export default function Item(): JSX.Element {
       !model ||
       !isSucceeded(priceSnapshots) ||
       priceSnapshots.length === 0
-    )
+    ) {
       return;
+    }
 
     return await predict(
       model,
@@ -125,8 +141,8 @@ export default function Item(): JSX.Element {
       modelConfig.fitOptions,
       viewRef.current ?? undefined,
     );
-    await model.save(modelUrl);
     setModel(model);
+    await model.save(modelIOHandler);
   };
 
   const predictedChart = isSucceeded(predicted) ? (

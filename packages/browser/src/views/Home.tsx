@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import {
   Container,
   Form,
@@ -64,6 +64,13 @@ function UserForm(): JSX.Element {
 }
 
 export default function Home(): JSX.Element {
+  useEffect(() => {
+    try {
+      resource.user.read();
+    } catch (_error) {
+      location.href = '/sign-in';
+    }
+  });
   const fallback = (): JSX.Element => (
     <Placeholder>
       <Placeholder.Header />
@@ -77,25 +84,25 @@ export default function Home(): JSX.Element {
 
   return (
     <div>
-      <Container text>
-        <Header dividing>プロフィール</Header>
-        <Suspense fallback={fallback()}>
+      <Suspense fallback={fallback()}>
+        <Container text>
+          <Header dividing>プロフィール</Header>
           <UserForm />
-        </Suspense>
-      </Container>
-      <Container text>
-        <ActionButton action={handleSignOut} color="blue">
-          <Icon name="sign out" />
-          サインアウト
-        </ActionButton>
-      </Container>
-      <Divider hidden />
-      <Container text>
-        <Header dividing>プロジェクト</Header>
-        <Suspense fallback={fallback()}>
-          <ProjectList />
-        </Suspense>
-      </Container>
+        </Container>
+        <Container text>
+          <ActionButton action={handleSignOut} color="blue">
+            <Icon name="sign out" />
+            サインアウト
+          </ActionButton>
+        </Container>
+        <Divider hidden />
+        <Container text>
+          <Header dividing>プロジェクト</Header>
+          <Suspense fallback={fallback()}>
+            <ProjectList />
+          </Suspense>
+        </Container>
+      </Suspense>
     </div>
   );
 }
