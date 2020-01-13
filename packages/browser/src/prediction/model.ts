@@ -8,12 +8,19 @@ import {
 } from '@tensorflow/tfjs';
 import { ModelConfiguration } from 'mercurius-core/lib/models/ModelConfiguration';
 import {
-  ModelMetadata,
+  ModelMetadata as SerializedModelMetadata,
   ModelMetadataConverter,
 } from 'mercurius-core/lib/models/ModelMetadata';
 import { getSize } from './time';
+import { Duration } from 'luxon';
+import { labelKeys } from './labels';
 
 export type Model = LayersModel;
+
+export interface ModelMetadata
+  extends Omit<SerializedModelMetadata, 'timeUnit'> {
+  timeUnit: Duration;
+}
 
 export function compile(conf: ModelConfiguration): LayersModel {
   const inputSize = getSize(conf.inputDuration, conf.timeUnit);
@@ -28,15 +35,24 @@ export function compile(conf: ModelConfiguration): LayersModel {
       ...conf.layers.map(({ type, options }) =>
         _.invoke(layers, type, options),
       ),
-      layers.reshape({ targetShape: [outputSize, 4] }),
+      layers.reshape({ targetShape: [outputSize, labelKeys.length] }),
     ],
   });
+
   model.compile(conf.compileOptions);
+
   return model;
 }
 
 export function loadMetadata(model: LayersModel): ModelMetadata {
-  return ModelMetadataConverter.cast(model.getUserDefinedMetadata());
+  const { timeUnit, ...others } = ModelMetadataConverter.cast(
+    model.getUserDefinedMetadata(),
+  );
+
+  return {
+    ...others,
+    timeUnit: Duration.fromISO(timeUnit),
+  };
 }
 
 export async function load(

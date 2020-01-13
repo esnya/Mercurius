@@ -7,20 +7,24 @@ layers:
         - 1
   - type: conv1d
     options:
-      filters: 84
+      filters: 42
+      kernelSize: 30
+  - type: conv1d
+    options:
+      filters: 42
       kernelSize: 30
   - type: flatten
   - type: dense
     options:
       activation: relu
-      units: 5000
+      units: 2000
   - type: dense
     options:
       activation: relu
-      units: 5000
+      units: 2000
   - type: dense
     options:
-      units: 72
+      units: 24
 fitOptions:
   epochs: 30
   shuffle: true
@@ -33,4 +37,5 @@ timeDomain:
   min: P30D
   max: P0D
 inputDuration: P7D
-outputDuration: P3D
+outputDuration: P1D
+benefitDuration: P3D

@@ -16,11 +16,17 @@ properties:
     type: number
   outputSize:
     type: number
+  timeUnit:
+    $ref: "#/definitions/Duration"
 required:
   - stats
   - inputSize
   - outputSize
+  - timeUnit
 definitions:
+  Duration:
+    type: string
+    pattern: "^P(\\\\d+Y)?(\\\\d+M)?(\\\\d+W)?(\\\\d+D)?(T(\\\\d+H)?(\\\\d+M)?(\\\\d+S)?)?$"
   MinMax:
     type: object
     properties:

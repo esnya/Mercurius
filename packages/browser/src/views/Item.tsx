@@ -1,4 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
+import _ from 'lodash';
 import {
   Container,
   Loader,
@@ -18,7 +19,6 @@ import useAsyncSimple from '../hooks/useAsyncSimple';
 import useAsyncEffect from '../hooks/useAsyncEffect';
 import ActionButton from '../components/ActionButton';
 import ConfigurationEditor from '../components/ConfigurationEditor';
-import PredictedChart from '../components/PredictedChart';
 import usePersistentState from '../hooks/usePersistentState';
 import ItemView from '../components/ItemView';
 import { DateTime, Duration } from 'luxon';
@@ -26,9 +26,13 @@ import { Timestamp, initializeApp } from '../firebase';
 import {
   Model,
   load,
-  predict,
   compile,
   fit,
+  interpolate,
+  quantize,
+  keepStats,
+  normalize,
+  predict,
   PredictionResult,
 } from '../prediction';
 import {
@@ -41,6 +45,10 @@ import { toDuration, getSize } from '../prediction/time';
 import { getCurrentUser } from '../firebase/auth';
 import PromiseReader from '../suspense/PromiseReader';
 import StorageIOHandler from '../prediction/StorageIOHandler';
+import SimpleAccordion from '../components/SimpleAccordion';
+import View from '../prediction/view';
+import { getLabels } from '../prediction/labels';
+import PredictedChart from '../components/PredictedChart';
 
 const resources = {
   app: new PromiseReader(initializeApp),
@@ -53,9 +61,10 @@ export default function Item(): JSX.Element {
   const { uid } = resources.user.read();
 
   const viewRef = useRef<HTMLDivElement>(null);
+  const infoRef = useRef<HTMLDivElement>(null);
   const { projectId, itemId } = useParams();
   const [modelConfig, setModelConfig] = usePersistentState<ModelConfiguration>(
-    `model-configuration-${projectId}-3`,
+    `model-configuration-${projectId}-4`,
     DefaultModelConfiguration,
   );
 
@@ -94,6 +103,60 @@ export default function Item(): JSX.Element {
     }
   }, [loadedModel]);
 
+  useAsyncEffect(async (): Promise<void> => {
+    if (
+      !infoRef.current ||
+      !isSucceeded(priceSnapshots) ||
+      priceSnapshots.length === 0
+    ) {
+      return;
+    }
+
+    const timeUnit = Duration.fromISO(modelConfig.timeUnit);
+    const prices = _.sortBy(
+      priceSnapshots.map(p => p.data),
+      p => p.timestamp,
+    );
+    const quantized = quantize(prices, timeUnit);
+    const stats = keepStats(quantized);
+    const interpolated = interpolate(quantized, stats, timeUnit);
+    const normalized = normalize(interpolated, stats);
+    const labels = getLabels(
+      interpolated,
+      timeUnit,
+      Duration.fromISO(modelConfig.benefitDuration),
+    );
+
+    const view = new View(infoRef.current);
+    view.lineChart(
+      {
+        price: interpolated.map(p => p.price),
+      },
+      'x: interpolated',
+    );
+    view.lineChart(
+      {
+        price: normalized.map(p => p.price),
+        lottery: normalized.map(p => p.lottery),
+      },
+      'x: normalized',
+    );
+    view.lineChart(
+      {
+        purchase: labels.map(l => l.purchase).map(Number),
+        divestment: labels.map(l => l.divestment).map(Number),
+      },
+      'label: benefits',
+    );
+    view.lineChart(
+      {
+        increase: labels.map(l => l.increase).map(Number),
+        decrease: labels.map(l => l.decrease).map(Number),
+      },
+      'label: changes',
+    );
+  }, [priceSnapshots, modelConfig, model]);
+
   const predicted = useAsyncSimple(async (): Promise<
     PredictionResult[] | undefined
   > => {
@@ -109,10 +172,8 @@ export default function Item(): JSX.Element {
     return await predict(
       model,
       priceSnapshots.map(s => s.data),
-      toDuration(modelConfig.timeUnit),
     );
   }, [model, priceSnapshots]);
-
   if (!projectId || !itemId) {
     return <NotFound />;
   }
@@ -138,6 +199,7 @@ export default function Item(): JSX.Element {
       model,
       priceSnapshots.map(s => s.data),
       toDuration(modelConfig.timeUnit),
+      toDuration(modelConfig.benefitDuration),
       modelConfig.fitOptions,
       viewRef.current ?? undefined,
     );
@@ -170,37 +232,50 @@ export default function Item(): JSX.Element {
         </Segment>
         <Segment>{predictedChart}</Segment>
         <Segment>
-          <ConfigurationEditor
-            validate={ModelConfigurationConverter.cast}
-            value={modelConfig}
-            onChange={setModelConfig}
-          />
-          <Form>
-            <Form.Input
-              label="xSize"
-              readOnly
-              value={getSize(modelConfig.inputDuration, modelConfig.timeUnit)}
-            />
-            <Form.Input
-              label="ySize"
-              readOnly
-              value={getSize(modelConfig.outputDuration, modelConfig.timeUnit)}
-            />
-          </Form>
-        </Segment>
-        <Segment>
-          <ActionButton action={handleUpdate} color="blue">
-            <Icon name="detective" />
-            {predicted ? '再学習' : '学習'}
-          </ActionButton>
-          <Button color="red" onClick={handleReset}>
-            モデルをリセット
-          </Button>
-        </Segment>
-        <Segment>
-          <div ref={viewRef}>
-            <Message info>学習経過がここに表示されます</Message>
-          </div>
+          <SimpleAccordion title="AI設定">
+            <Segment.Group>
+              <Segment>
+                <ActionButton action={handleUpdate} color="blue">
+                  <Icon name="detective" />
+                  学習
+                </ActionButton>
+                <Button color="red" onClick={handleReset}>
+                  モデルをリセット
+                </Button>
+              </Segment>
+              <Segment>
+                <div ref={infoRef}></div>
+                <div ref={viewRef}>
+                  <Message info>学習経過がここに表示されます</Message>
+                </div>
+              </Segment>
+              <Segment>
+                <ConfigurationEditor
+                  validate={ModelConfigurationConverter.cast}
+                  value={modelConfig}
+                  onChange={setModelConfig}
+                />
+                <Form>
+                  <Form.Input
+                    label="xSize"
+                    readOnly
+                    value={getSize(
+                      modelConfig.inputDuration,
+                      modelConfig.timeUnit,
+                    )}
+                  />
+                  <Form.Input
+                    label="ySize"
+                    readOnly
+                    value={getSize(
+                      modelConfig.outputDuration,
+                      modelConfig.timeUnit,
+                    )}
+                  />
+                </Form>
+              </Segment>
+            </Segment.Group>
+          </SimpleAccordion>
         </Segment>
       </Segment.Group>
     </Container>

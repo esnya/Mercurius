@@ -56,10 +56,9 @@ export default function PredictedChart({
 }: PredictedChartProps): JSX.Element {
   const roidData = {
     predicted: _(predicted)
-      .map(({ timestamp, increase, flat, decrease }) => [
-        { timestamp, rate: increase, series: '上昇確率' },
-        { timestamp, rate: flat, series: '横ばい確率' },
-        { timestamp, rate: decrease, series: '下降確率' },
+      .map(({ timestamp, increase, decrease }) => [
+        { timestamp, rate: increase, series: '上昇指数' },
+        { timestamp, rate: decrease, series: '下降指数' },
       ])
       .unzip()
       .flatten()
@@ -67,9 +66,9 @@ export default function PredictedChart({
   };
   const indexData = {
     predicted: _(predicted)
-      .map(({ timestamp, buy, sell }) => [
-        { timestamp, rate: buy, series: '買い指標' },
-        { timestamp, rate: sell, series: '売り指標' },
+      .map(({ timestamp, purchase, divestment }) => [
+        { timestamp, rate: purchase, series: '買い指数' },
+        { timestamp, rate: divestment, series: '売り指数' },
       ])
       .unzip()
       .flatten()

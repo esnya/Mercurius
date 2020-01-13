@@ -63,24 +63,22 @@ export default class View {
     );
   }
 
-  lineChart(data: { [series: string]: number[] }, title?: string): void {
+  lineChart<T>(data: { [series: string]: T[] }, title?: string): void {
     const length =
       _(data)
         .map(values => values.length)
-        .min() ?? 0;
-
-    if (_.some(data, values => values.length > length)) {
-      console.error(
-        'Warning',
-        'length of values are not matched',
-        _.mapValues(data, values => values.length),
-      );
-    }
+        .max() ?? 0;
 
     const [values, series] = _(data)
       .map(
         (values, key) =>
-          [values.map(toPoint2D).slice(0, length), key] as [Point2D[], string],
+          [
+            _.range(length)
+              .map(i => Number(values[i]))
+              .map(toPoint2D)
+              .slice(0, length),
+            key,
+          ] as [Point2D[], string],
       )
       .unzip()
       .value() as [Point2D[][], string[]];

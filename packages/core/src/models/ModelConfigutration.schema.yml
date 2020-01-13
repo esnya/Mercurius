@@ -34,6 +34,8 @@ properties:
     $ref: "#/definitions/Duration"
   outputDuration:
     $ref: "#/definitions/Duration"
+  benefitDuration:
+    $ref: "#/definitions/Duration"
 required:
   - layers
   - compileOptions
@@ -41,6 +43,7 @@ required:
   - timeDomain
   - inputDuration
   - outputDuration
+  - benefitDuration
 definitions:
   Duration:
     type: string

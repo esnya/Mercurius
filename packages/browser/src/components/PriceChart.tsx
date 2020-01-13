@@ -62,7 +62,7 @@ const VegaChart = createClassFromSpec({
         ],
         encoding: {
           x: {
-            ...timeFormat,
+            axis: timeFormat,
             field: 'timestamp',
             type: 'temporal',
           },
