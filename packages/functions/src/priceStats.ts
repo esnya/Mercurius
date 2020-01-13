@@ -145,7 +145,8 @@ async function calculatePriceStats(
 
   const prices = pricesSnapshot.docs
     .map(Price.parse)
-    .filter(price => price !== null) as Price[];
+    .filter(isDefined)
+    .filter(domainFilter(domain));
 
   const count = prices.length;
   if (count === 0) {
