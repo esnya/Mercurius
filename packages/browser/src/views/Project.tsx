@@ -44,7 +44,7 @@ export default function ProjectHome(): JSX.Element {
     <Container>
       <Segment>
         <ItemFilterControl
-          projectId={projectId || ''}
+          projectId={projectId}
           itemFilter={itemFilter}
           onChange={setItemFilter}
         />
