@@ -42,9 +42,11 @@ function Project(): JSX.Element {
         component={lazy(() => import('./views/Item'))}
       />
       <Route
+        exact
         path={`${path}/items`}
         component={lazy(() => import('./views/Items'))}
       />
+      <Route component={lazy(() => import('./views/Project'))} />
     </Switch>
   );
 }
