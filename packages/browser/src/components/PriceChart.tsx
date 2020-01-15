@@ -8,7 +8,7 @@ export interface PredictedChartProps {
   prices: Price[];
 }
 
-const DomainDuration = Duration.fromISO('P4W');
+const DomainDuration = Duration.fromISO('P60D');
 
 const VegaChart = createClassFromSpec({
   mode: 'vega-lite',
@@ -18,31 +18,41 @@ const VegaChart = createClassFromSpec({
     data: { name: 'prices' },
     layer: [
       {
-        mark: 'rule',
-        encoding: {
-          y: {
-            field: 'price',
-            type: 'quantitative',
-            aggregate: 'min',
+        layer: [
+          {
+            mark: 'rule',
+            encoding: {
+              y: {
+                field: 'price',
+                type: 'quantitative',
+                aggregate: 'min',
+              },
+            },
           },
+          {
+            mark: 'rule',
+            encoding: {
+              y: {
+                field: 'price',
+                type: 'quantitative',
+                aggregate: 'max',
+              },
+            },
+          },
+        ],
+        encoding: {
+          // x: {
+          //   axis: timeFormat,
+          //   field: 'timestamp',
+          //   type: 'temporal',
+          //   timeUnit: 'month',
+          // },
           color: {
             value: 'red',
           },
         },
       },
-      {
-        mark: 'rule',
-        encoding: {
-          y: {
-            field: 'price',
-            type: 'quantitative',
-            aggregate: 'max',
-          },
-          color: {
-            value: 'red',
-          },
-        },
-      },
+
       {
         layer: [
           { mark: 'line' },

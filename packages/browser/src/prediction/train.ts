@@ -8,7 +8,7 @@ import {
 import { interpolate, quantize, keepStats, normalize } from './transform';
 import { getLabels, labelKeys, Labels } from './labels';
 import { Price } from 'mercurius-core/lib/models/Price';
-import { assertIsDefined, assert } from '../utilities/assert';
+import { assertDefined, assert } from '../utilities/assert';
 import View from './view';
 import { Duration } from 'luxon';
 import { isDefined } from '../utilities/types';
@@ -31,10 +31,10 @@ export async function fit(
   const { shape: outputShape } = model.output as SymbolicTensor;
 
   const xSize = inputShape[1];
-  assertIsDefined(xSize);
+  assertDefined(xSize);
 
   const ySize = outputShape[1];
-  assertIsDefined(ySize);
+  assertDefined(ySize);
 
   const quantized = quantize(prices, timeUnit);
   const stats = keepStats(quantized);

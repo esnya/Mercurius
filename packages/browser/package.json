@@ -15,6 +15,7 @@
   "scripts": {
     "build": "cross-env TS_NODE_FILES=true webpack",
     "deploy": "firebase deploy",
+    "dev": "npm run -s serve",
     "postinstall": "rimraf node_modules/preact/*/preact.d.ts",
     "serve": "cross-env TS_NODE_FILES=true webpack-dev-server"
   },
@@ -42,6 +43,8 @@
     "react-vega": "^7.1.1",
     "react-vis": "^1.11.7",
     "request": "^2.88.0",
+    "rxdb": "^8.7.5",
+    "rxjs": "^6.5.4",
     "semantic-ui-css": "^2.4.1",
     "semantic-ui-react": "^0.88.2",
     "shortid": "^2.2.15",

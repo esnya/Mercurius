@@ -3,7 +3,6 @@ import {
   DocumentSnapshot,
   DocumentData,
   Timestamp,
-  QuerySnapshot,
 } from './types';
 import mapObject from 'map-obj';
 
@@ -15,6 +14,8 @@ export interface Snapshot<T> {
   ref: DocumentReference;
   data?: T;
 }
+
+export type QuerySnapshot<T> = NonEmptySnapshot<T>[];
 
 export function isExists<T>(
   snapshot: Snapshot<T>,
@@ -56,7 +57,7 @@ export function cast<T>(
 }
 
 export function castQuery<T>(
-  snapshot: QuerySnapshot,
+  snapshot: firebase.firestore.QuerySnapshot,
   converter: Converter<T>,
   captureError = true,
 ): NonEmptySnapshot<T>[] {

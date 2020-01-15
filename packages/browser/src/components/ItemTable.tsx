@@ -1,15 +1,19 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import ItemTableRow from './ItemTableRow';
 import ItemTableHeader from './ItemTableHeader';
-import { Table, Pagination, Dimmer, Loader, Message } from 'semantic-ui-react';
+import { Table, Pagination } from 'semantic-ui-react';
 import { Item, ItemConverter } from 'mercurius-core/lib/models/Item';
 import { Field } from '../definitions/fields';
-import { NonEmptySnapshot } from '../firebase/snapshot';
+import { QuerySnapshot, decode } from '../firebase/snapshot';
 import usePersistentState from '../hooks/usePersistentState';
 import mingo from 'mingo';
-import { useDebounce } from 'use-debounce';
-import { useQuerySnapshot } from '../hooks/useSnapshot';
-import { isSucceeded, isFailed } from '../utilities/types';
+import { initializeFirestore } from '../firebase/firestore';
+import { map, flatMap, throttleTime } from 'rxjs/operators';
+import { from, Observable } from 'rxjs';
+import { fromQuery } from '../firebase/observable';
+import _ from 'lodash';
+import useObservable from '../hooks/useObservable';
+import { simpleConverter } from '../firebase/converters';
 
 export interface ItemTableProps {
   projectId: string;
@@ -22,16 +26,6 @@ export default function ItemTable({
   fields,
   filters,
 }: ItemTableProps): JSX.Element {
-  const items = useQuerySnapshot(
-    firestore =>
-      firestore
-        .collection('projects')
-        .doc(projectId)
-        .collection('items'),
-    ItemConverter.cast,
-    [projectId],
-  );
-
   const [sortBy, setSortBy] = usePersistentState<string>(
     'sortBy',
     'monthlyRoid',
@@ -46,50 +40,38 @@ export default function ItemTable({
 
   const itemsPerPage = 50;
 
-  const aggDepends = useDebounce(
-    {
-      items,
-      fields,
-      filters,
-      sortBy,
-      sortOrder,
-      activePage,
-      itemsPerPage,
-    },
-    500,
-  );
-
-  const aggregated = useMemo((): NonEmptySnapshot<Item>[] => {
-    if (!isSucceeded(items)) return [];
-
+  const items = useObservable((): Observable<QuerySnapshot<Item>> => {
     const agg = new mingo.Aggregator([
       ...fields.map(({ id, value }) => ({ $set: { [`data.${id}`]: value } })),
       { $match: { $and: filters } },
       { $sort: { [`data.${sortBy}`]: sortOrder === 'ascending' ? 1 : -1 } },
-      { $skip: (activePage - 1) * itemsPerPage },
-      { $limit: itemsPerPage },
     ]);
-    return agg.run(items);
-  }, aggDepends);
 
-  if (isFailed(items)) {
-    return <Message negative>{items.toString}</Message>;
-  }
-
-  if (!isSucceeded(items)) {
-    return (
-      <Dimmer active>
-        <Loader />
-      </Dimmer>
+    return from(initializeFirestore()).pipe(
+      map(firestore =>
+        firestore
+          .collection('projects')
+          .doc(projectId)
+          .collection('items')
+          .withConverter(simpleConverter(ItemConverter.cast)),
+      ),
+      throttleTime(500),
+      flatMap(query => fromQuery(query)),
+      map(items =>
+        agg.run(items.docs.map(doc => ({ ref: doc.ref, data: doc.data() }))),
+      ),
     );
-  }
+  }, [projectId, fields, filters, sortOrder]);
 
-  const totalPages = Math.ceil(items.length / itemsPerPage);
-  const rows = aggregated.map(
-    (item): JSX.Element => {
-      return <ItemTableRow key={item.ref.id} item={item} fields={fields} />;
-    },
-  );
+  const totalPages = items ? Math.ceil(items.length / itemsPerPage) : 1;
+  const rows = items
+    ?.slice((activePage - 1) * itemsPerPage, activePage * itemsPerPage)
+    .map(
+      (item): JSX.Element => {
+        return <ItemTableRow key={item.ref.id} item={item} fields={fields} />;
+      },
+    );
+
   return (
     <Table sortable>
       <ItemTableHeader

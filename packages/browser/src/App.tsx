@@ -1,10 +1,14 @@
 import React, { lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Switch, Route } from 'react-router-dom';
-import AutoInput from './views/project/AutoInput';
+import {
+  BrowserRouter as Router,
+  Switch,
+  Route,
+  Redirect,
+  useRouteMatch,
+} from 'react-router-dom';
 import NotFound from './views/NotFound';
 import Home from './views/Home';
 import AppMenu from './components/AppMenu';
-import Members from './views/project/Members';
 import './App.styl';
 import { Container, Placeholder } from 'semantic-ui-react';
 
@@ -14,6 +18,34 @@ function RouteLoading(): JSX.Element {
       <Placeholder.Header />
       <Placeholder.Paragraph />
     </Placeholder>
+  );
+}
+
+function Project(): JSX.Element {
+  const { path } = useRouteMatch();
+
+  return (
+    <Switch>
+      <Route
+        exact
+        path={`${path}/members`}
+        component={lazy(() => import('./views/project/Members'))}
+      />
+      <Route
+        exact
+        path={`${path}/auto`}
+        component={lazy(() => import('./views/project/AutoInput'))}
+      />
+      <Route
+        exact
+        path={`${path}/items/:itemId`}
+        component={lazy(() => import('./views/Item'))}
+      />
+      <Route
+        path={`${path}/items`}
+        component={lazy(() => import('./views/Items'))}
+      />
+    </Switch>
   );
 }
 
@@ -27,22 +59,7 @@ export default function App(): JSX.Element {
         <Container>
           <Suspense fallback={<RouteLoading />}>
             <Switch>
-              <Route
-                exact
-                path="/projects/:projectId"
-                component={lazy(() => import('./views/Project'))}
-              />
-              <Route exact path="/projects/:projectId/members">
-                <Members />
-              </Route>
-              <Route exact path="/projects/:projectId/auto">
-                <AutoInput />
-              </Route>
-              <Route
-                exact
-                path="/projects/:projectId/items/:itemId"
-                component={lazy(() => import('./views/Item'))}
-              />
+              <Route path="/projects/:projectId" component={Project} />
               <Route
                 exact
                 path="/sign-in"

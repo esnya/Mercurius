@@ -1,17 +1,17 @@
 import _ from 'lodash';
 import { Price } from 'mercurius-core/lib/models/Price';
 import { MinMax } from 'mercurius-core/lib/models/ModelMetadata';
-import { assertIsDefined } from '../utilities/assert';
+import { assertDefined } from '../utilities/assert';
 import { isDefined } from '../utilities/types';
 import { Duration } from 'luxon';
 import { QuantizedPrice, Stats } from './types';
 
 export function minMax(values: number[]): MinMax {
   const min = _.min(values);
-  assertIsDefined(min);
+  assertDefined(min);
 
   const max = _.max(values);
-  assertIsDefined(max);
+  assertDefined(max);
 
   return {
     min,
@@ -63,8 +63,18 @@ export function interpolate(
 ): QuantizedPrice[] {
   const grouped = group(quantized);
 
-  return _(stats.timestamp.min)
-    .range(stats.timestamp.max + timeUnit.valueOf(), timeUnit.valueOf())
+  const left = _(quantized)
+    .map(p => p.timestamp)
+    .min();
+  assertDefined(left);
+
+  const right = _(quantized)
+    .map(p => p.timestamp)
+    .max();
+  assertDefined(right);
+
+  return _(left)
+    .range(right + timeUnit.valueOf(), timeUnit.valueOf())
     .map(t => {
       const found = grouped[t];
       if (found) {
@@ -77,7 +87,7 @@ export function interpolate(
       if (!isDefined(l)) return;
 
       const r = _(t)
-        .range(stats.timestamp.max + timeUnit.valueOf(), timeUnit.valueOf())
+        .range(right + timeUnit.valueOf(), timeUnit.valueOf())
         .drop(1)
         .find(r => r in grouped);
       if (!isDefined(r)) return;

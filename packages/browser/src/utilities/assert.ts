@@ -13,13 +13,13 @@ export function assert<T>(
   }
 }
 
-export function assertIsDefined<T>(
+export function assertDefined<T>(
   value: T | null | undefined,
 ): asserts value is T {
   assert(isDefined(value), `${value} is not defined`);
 }
 
-export function assertIsExists<T>(
+export function assertExists<T>(
   value: Snapshot<T>,
 ): asserts value is NonEmptySnapshot<T> {
   assert(isExists(value), `${value.ref.path} is not exists`);

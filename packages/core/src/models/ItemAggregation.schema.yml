@@ -1,0 +1,28 @@
+$schema: http://json-schema.org/draft-07/schema#
+title: ItemAggregation
+version: 1
+type: object
+properties:
+  projectId:
+    type: string
+    primary: true
+  fields:
+    type: array
+    items:
+      $ref: ./FieldDefinition.schema.yml
+  filters:
+    type: array
+    items:
+      $ref: ./FilterDefinition.schema.yml
+  sortBy:
+    type: string
+  sortOrder:
+    type: string
+    enum:
+      - ascending
+      - descending
+required:
+  - projectId
+  - fields
+  - sortBy
+  - sortOrder

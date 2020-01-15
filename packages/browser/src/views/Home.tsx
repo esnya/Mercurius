@@ -19,7 +19,7 @@ import {
   getCurrentUserProfile,
   setCurrentUserProfile,
 } from '../resources/profile';
-import { assertIsExists } from '../utilities/assert';
+import { assertExists } from '../utilities/assert';
 import ActionButton from '../components/ActionButton';
 
 const resource = {
@@ -43,7 +43,7 @@ function ProjectList(): JSX.Element {
 function UserForm(): JSX.Element {
   const { uid } = resource.user.read();
   const profile = resource.profile.read();
-  assertIsExists(profile);
+  assertExists(profile);
 
   const handleChange = (_e: unknown, { value }: { value: string }): void => {
     setCurrentUserProfile({ name: value });
