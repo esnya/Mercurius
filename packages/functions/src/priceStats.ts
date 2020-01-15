@@ -11,6 +11,10 @@ import _ = require('lodash');
 import { renderChart, backgroundChartSpec, chartSpec } from './chart';
 import { lastPricePeriod, totalStatsPeriod } from './config';
 
+function isDefined<T>(value?: T | null): value is T {
+  return value !== undefined && value !== null;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function isTimestamp(value: any): value is Timestamp {
   return typeof value === 'object' && typeof value.toMillis === 'function';
@@ -255,10 +259,6 @@ async function calculatePriceStats(
   console.debug('done', data);
 
   return { item, prices, domain, priceStats };
-}
-
-function isDefined<T>(value?: T | null): value is T {
-  return value !== undefined && value !== null;
 }
 
 export async function calculateDailyStats(
