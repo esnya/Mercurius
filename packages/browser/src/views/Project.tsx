@@ -122,17 +122,6 @@ export default function ProjectHome(): JSX.Element {
   return (
     <Container>
       <Segment>
-        <Suspense
-          fallback={
-            <Placeholder>
-              <Placeholder.Line />
-            </Placeholder>
-          }
-        >
-          <FilterPanel projectId={projectId} />
-        </Suspense>
-      </Segment>
-      <Segment>
         <ItemFilterControl
           projectId={projectId}
           itemFilter={itemFilter}

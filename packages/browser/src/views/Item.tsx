@@ -228,7 +228,7 @@ export default function Item(): JSX.Element {
           />
         </Segment>
         <Segment>
-          <PriceChart prices={priceSnapshots.map(p => p.data)} />
+          <PriceChart name={itemId} prices={priceSnapshots.map(p => p.data)} />
         </Segment>
         <Segment>{predictedChart}</Segment>
         <Segment>
