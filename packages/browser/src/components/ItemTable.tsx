@@ -61,7 +61,7 @@ export default function ItemTable({
         agg.run(items.docs.map(doc => ({ ref: doc.ref, data: doc.data() }))),
       ),
     );
-  }, [projectId, fields, filters, sortOrder]);
+  }, [projectId, fields, filters, sortBy, sortOrder]);
 
   const totalPages = items ? Math.ceil(items.length / itemsPerPage) : 1;
   const rows = items

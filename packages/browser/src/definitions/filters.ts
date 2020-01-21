@@ -12,12 +12,11 @@ const filters: FilterDefinition[] = [
     query: {
       $or: [
         {
-          'data.priceStats.roid': { $lt: 0.1 },
+          'data.priceStats.roid': { $lt: 0.5 },
           'data.roid0': { $gt: 0 },
         },
         {
           'data.priceStats.roid': 0,
-          'data.roid0': { $gt: -0.1 },
         },
       ],
     },

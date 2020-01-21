@@ -6,6 +6,7 @@ import _ from 'lodash';
 import {
   ItemAggregation,
   SortOrder,
+  ItemAggregationConverter,
 } from 'mercurius-core/lib/models/ItemAggregation';
 import ItemAggregationSchema from 'mercurius-core/src/models/ItemAggregation.schema.yml';
 import createDB from '../rxdb/db';
@@ -14,7 +15,15 @@ import { flatMap, tap } from 'rxjs/operators';
 import useObservable from '../hooks/useObservable';
 import { isDefined } from '../utilities/types';
 import fields from '../definitions/fields';
+import ConfigurationEditor from '../components/ConfigurationEditor';
+import { cast } from '../firebase/snapshot';
 
+const defaultAggregation = {
+  fields,
+  filters: [],
+  sortBy: 'name',
+  sortOrder: SortOrder.Ascending,
+};
 export default function Items(): JSX.Element {
   const { location } = useHistory<{ activePage?: number }>();
   const { projectId } = useParams();
@@ -32,11 +41,8 @@ export default function Items(): JSX.Element {
             schema: ItemAggregationSchema,
             migrationStrategies: {
               1: () => ({
+                ...defaultAggregation,
                 projectId,
-                fields,
-                filters: [],
-                sortBy: 'name',
-                sortOrder: SortOrder.Ascending,
               }),
             },
           }),
@@ -46,11 +52,8 @@ export default function Items(): JSX.Element {
             tap(doc => {
               if (!isDefined(doc)) {
                 return collection.insert({
+                  ...defaultAggregation,
                   projectId,
-                  fields,
-                  filters: [],
-                  sortBy: 'name',
-                  sortOrder: SortOrder.Ascending,
                 });
               }
             }),
@@ -65,6 +68,13 @@ export default function Items(): JSX.Element {
   return (
     <Container>
       <Segment>
+        <ConfigurationEditor
+          value={itemFilter?._data ?? defaultAggregation}
+          validate={ItemAggregationConverter.cast}
+          onChange={(value): void => {
+            itemFilter?.update(value);
+          }}
+        />
         {projectId}/items/{activePage}
       </Segment>
     </Container>
