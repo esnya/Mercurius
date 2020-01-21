@@ -128,7 +128,9 @@ export default function ProjectHome(): JSX.Element {
           onChange={setItemFilter}
         />
       </Segment>
-      <ItemTable projectId={projectId} fields={fields} filters={filters} />
+      <div style={{ overflow: 'auto' }}>
+        <ItemTable projectId={projectId} fields={fields} filters={filters} />
+      </div>
     </Container>
   );
 }
