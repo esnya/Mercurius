@@ -3,7 +3,7 @@ import { simpleConverter } from 'mercurius-core/lib/firestore/converter';
 import { Price, PriceConverter } from 'mercurius-core/lib/models/Price';
 import _ from 'lodash';
 import { DateTime, Duration } from 'luxon';
-import { loadLayersModel, LayerModel, tensor, Tensor } from '@tensorflow/tfjs';
+import { loadLayersModel, LayersModel, tensor, Tensor } from '@tensorflow/tfjs';
 
 const timeDelta = Duration.fromObject({ hours: 3 });
 const inputDuration = Duration.fromObject({ days: 7 });
@@ -116,7 +116,10 @@ function normalize(quantized: QuantizedPrice[]): QuantizedPrice[] {
   return quantized.map(price => ({ ...price, price: price.price / maxPrice }));
 }
 
-async function predict(model: LayerModel, prices: Price[]): Promise<Indices[]> {
+async function predict(
+  model: LayersModel,
+  prices: Price[],
+): Promise<Indices[]> {
   const quantized = quantize(prices);
   const interpolated = interpolate(quantized).slice(-inputSize);
   const normalized = normalize(interpolated);
@@ -158,7 +161,9 @@ export async function predictIndices(
   if (!projectId) {
     throw new Error();
   }
-  const model = await loadLayersModel(`gs://mercurius-6026e.appspot.com/projects/${projectId}/models/benefits`);
+  const model = await loadLayersModel(
+    `gs://mercurius-6026e.appspot.com/projects/${projectId}/models/benefits`,
+  );
   const indices = await predict(model, prices);
 
   await itemRef.update('indices', indices);
