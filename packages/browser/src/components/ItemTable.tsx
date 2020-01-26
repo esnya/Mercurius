@@ -4,14 +4,13 @@ import ItemTableHeader from './ItemTableHeader';
 import { Table, Pagination } from 'semantic-ui-react';
 import { Item, ItemConverter } from 'mercurius-core/lib/models/Item';
 import { Field } from '../definitions/fields';
-import { QuerySnapshot, decode } from '../firebase/snapshot';
+import { QuerySnapshot } from '../firebase/snapshot';
 import usePersistentState from '../hooks/usePersistentState';
 import mingo from 'mingo';
 import { initializeFirestore } from '../firebase/firestore';
 import { map, flatMap, throttleTime } from 'rxjs/operators';
 import { from, Observable } from 'rxjs';
 import { fromQuery } from '../firebase/observable';
-import _ from 'lodash';
 import useObservable from '../hooks/useObservable';
 import { simpleConverter } from '../firebase/converters';
 
@@ -41,12 +40,6 @@ export default function ItemTable({
   const itemsPerPage = 50;
 
   const items = useObservable((): Observable<QuerySnapshot<Item>> => {
-    const agg = new mingo.Aggregator([
-      ...fields.map(({ id, value }) => ({ $set: { [`data.${id}`]: value } })),
-      { $match: { $and: filters } },
-      { $sort: { [`data.${sortBy}`]: sortOrder === 'ascending' ? 1 : -1 } },
-    ]);
-
     return from(initializeFirestore()).pipe(
       map(firestore =>
         firestore
@@ -57,9 +50,18 @@ export default function ItemTable({
       ),
       throttleTime(500),
       flatMap(query => fromQuery(query)),
-      map(items =>
-        agg.run(items.docs.map(doc => ({ ref: doc.ref, data: doc.data() }))),
-      ),
+      map(items => {
+        const agg = new mingo.Aggregator([
+          ...fields.map(({ id, value }) => ({
+            $set: { [`data.${id}`]: value },
+          })),
+          { $match: { $and: filters } },
+          { $sort: { [`data.${sortBy}`]: sortOrder === 'ascending' ? 1 : -1 } },
+        ]);
+        return agg.run(
+          items.docs.map(doc => ({ ref: doc.ref, data: doc.data() })),
+        );
+      }),
     );
   }, [projectId, fields, filters, sortBy, sortOrder]);
 

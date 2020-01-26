@@ -10,6 +10,7 @@ import moment = require('moment');
 import _ = require('lodash');
 import { renderChart, backgroundChartSpec, chartSpec } from './chart';
 import { lastPricePeriod, totalStatsPeriod } from './config';
+import { predictIndices } from './prediction';
 
 function isDefined<T>(value?: T | null): value is T {
   return value !== undefined && value !== null;
@@ -396,6 +397,7 @@ export async function updatePriceStats(
   const res = await calculatePriceStats(itemSnapshot, priceSnapshot);
   await calculateDailyStats(itemSnapshot);
   if (!res) return;
+  await predictIndices(itemRef);
 
   const chartOptions = {
     ...res,

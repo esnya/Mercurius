@@ -3,7 +3,6 @@ import {
   BrowserRouter as Router,
   Switch,
   Route,
-  Redirect,
   useRouteMatch,
 } from 'react-router-dom';
 import NotFound from './views/NotFound';

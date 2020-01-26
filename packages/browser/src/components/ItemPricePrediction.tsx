@@ -1,10 +1,10 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import PromiseReader from '../suspense/PromiseReader';
 import { NonEmptySnapshot } from '../firebase/snapshot';
 import { Price } from 'mercurius-core/lib/models/Price';
 import PredictedChart from './PredictedChart';
 import { Message } from 'semantic-ui-react';
-import { Model, predict, PredictionResult } from '../prediction';
+import { Model, predict } from '../prediction';
 
 export interface ItemPricePredictionProps {
   priceSnapshots: NonEmptySnapshot<Price>[];

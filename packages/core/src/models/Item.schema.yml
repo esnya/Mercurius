@@ -27,5 +27,15 @@ properties:
   backgroundChartUpdatedAt:
     type: string
     format: date-time
+  indices:
+    type: object
+    properties:
+      divestment:
+        type: number
+      purchase:
+        type: number
+    required:
+      - divestment
+      - purchase
 required:
   - name

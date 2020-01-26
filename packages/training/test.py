@@ -17,15 +17,15 @@ def main():
     print(item['name'])
 
     prices = item['prices']
+    interpolated, resampled = p.interpolate(prices)
     normalized, benefitIndices = p.preprocess(prices)
 
     xSize = model.input.shape[1]
     ySize = model.output.shape[1]
 
-    i_test = np.array([normalized.index[n:n + xSize] for n in range(0, normalized.shape[0] - ySize, ySize) if (n + xSize < normalized.shape[0])])
     x_test = np.array([normalized.values[n:n + xSize] for n in range(0, normalized.shape[0] - ySize, ySize) if (n + xSize < normalized.shape[0])])
- 
-    y_test = np.array([model.predict(x.reshape(1,xSize,2)) for x in x_test]).reshape(-1, 2)
+
+    y_test = np.array([model.predict(x.reshape(1,xSize,2)) for x in x_test]).reshape(-1, 2).clip(0, 1)
     i_test = normalized.index[xSize:y_test.shape[0] + xSize + ySize]
     predicted = pd.DataFrame(
       y_test[:i_test.shape[0]],
@@ -44,6 +44,7 @@ def main():
 
     axes[2].plot(predicted.get('divestment'), label='divestment')
     axes[2].plot(predicted.get('purchase'), label='purchase')
+
     axes[2].legend()
 
     plt.savefig('data/' + item['name'] + '.png')

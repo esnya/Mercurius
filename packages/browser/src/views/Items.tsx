@@ -16,7 +16,6 @@ import useObservable from '../hooks/useObservable';
 import { isDefined } from '../utilities/types';
 import fields from '../definitions/fields';
 import ConfigurationEditor from '../components/ConfigurationEditor';
-import { cast } from '../firebase/snapshot';
 
 const defaultAggregation = {
   fields,
@@ -40,7 +39,7 @@ export default function Items(): JSX.Element {
             name: _.snakeCase(ItemAggregationSchema.title),
             schema: ItemAggregationSchema,
             migrationStrategies: {
-              1: () => ({
+              1: (): ItemAggregation => ({
                 ...defaultAggregation,
                 projectId,
               }),

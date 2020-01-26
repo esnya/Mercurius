@@ -69,7 +69,7 @@ export async function fit(
         .map(([{ price, lottery }]) => [price, lottery]),
       zipped
         .slice(i + xSize - 1, i + xSize - 1 + ySize)
-        .map(([_x, l]) => labelKeys.map(key => l[key])),
+        .map(a => labelKeys.map(key => a[1][key])),
     ])
     .unzip()
     .value();

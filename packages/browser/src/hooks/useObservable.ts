@@ -1,6 +1,6 @@
 import { Observable } from 'rxjs';
 import { Unsubscribe } from '../utilities/types';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function useObservable<T>(
   observable: () => Observable<T>,

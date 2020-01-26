@@ -10,7 +10,8 @@
     "url": "git+https://github.com/esnya/Mercurius.git"
   },
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "postinstall": "rimraf node_modules/preact/*/preact.d.ts"
   },
   "bugs": {
     "url": "https://github.com/esnya/Mercurius/issues"
@@ -18,19 +19,27 @@
   "engines": {
     "node": "10"
   },
+  "resolutions": {
+    "@types/webgl2": "0.0.5"
+  },
   "main": "lib/index.js",
   "dependencies": {
+    "@tensorflow/tfjs": "1.4",
     "canvas": "^2.6.0",
-    "firebase-admin": "^8.6.0",
+    "firebase-admin": "^8.9.2",
     "firebase-functions": "^3.3.0",
     "lodash": "^4.17.15",
+    "luxon": "^1.22.0",
+    "mercurius-core": "^0.0.0",
     "moment": "^2.24.0",
     "vega": "^5.9.0",
     "vega-lite": "^4.0.0-beta.12"
   },
   "devDependencies": {
     "@types/lodash": "^4.14.149",
+    "@types/luxon": "^1.21.0",
     "@types/moment": "^2.13.0",
+    "@types/webgl2": "0.0.5",
     "firebase-functions-test": "^0.1.6",
     "firebase-tools": "^7.9.0",
     "typescript": "^3.7.3"

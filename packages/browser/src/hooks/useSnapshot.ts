@@ -2,10 +2,9 @@ import { useState } from 'react';
 import useFirebase from './useFirebase';
 import useAsyncEffect from './useAsyncEffect';
 import { NonEmptySnapshot, Snapshot } from '../firebase/snapshot';
-import { isSucceeded, isDefined, ValueOrGetter } from '../utilities/types';
+import { isSucceeded, isDefined } from '../utilities/types';
 import { DocumentData } from '../firebase';
 import { decode } from '../firebase/snapshot';
-import PromiseReader from '../suspense/PromiseReader';
 
 type Firestore = firebase.firestore.Firestore;
 type DocumentReference = firebase.firestore.DocumentReference;
