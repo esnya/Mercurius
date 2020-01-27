@@ -7,10 +7,10 @@ import matplotlib.pyplot as plt
 from matplotlib import rcParams
 import pickle
 
-xDuration = pd.to_timedelta('7D')
-yDuration = pd.to_timedelta('1D')
+xDuration = pd.to_timedelta('14D')
+yDuration = pd.to_timedelta('3D')
 timeDelta = pd.to_timedelta('3H')
-benefitThreshold = 2
+benefitThreshold = 1.5
 
 def loadItems():
   import json

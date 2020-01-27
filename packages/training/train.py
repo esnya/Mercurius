@@ -15,9 +15,9 @@ def fit(trainSet):
   model = tf.keras.models.Sequential([
     tf.keras.layers.Flatten(input_shape=x_train.shape[1:]),
     tf.keras.layers.Reshape(target_shape=(x_train.shape[1] * x_train.shape[2], 1)),
-    tf.keras.layers.Conv1D(filters=filters, kernel_size=kernel_size, padding='causal'),
-    tf.keras.layers.Conv1D(filters=filters, kernel_size=kernel_size, padding='causal'),
-    tf.keras.layers.Conv1D(filters=filters, kernel_size=kernel_size, padding='causal'),
+    tf.keras.layers.Conv1D(filters=filters, kernel_size=kernel_size, padding='same'),
+    tf.keras.layers.Conv1D(filters=filters, kernel_size=kernel_size, padding='same'),
+    tf.keras.layers.Conv1D(filters=filters, kernel_size=kernel_size, padding='same'),
     # tf.keras.layers.Conv1D(filters=filters, kernel_size=kernel_size, padding='causal'),
     tf.keras.layers.Flatten(),
     tf.keras.layers.Dense(units, activation='relu'),
@@ -37,31 +37,31 @@ def fit(trainSet):
                 metrics=['accuracy'])
 
   history = model.fit(x_train, y_train,
-    epochs=10,
+    epochs=5,
     validation_split=0.5,
     shuffle=True,
   )
 
   model.evaluate(x_train, y_train)
 
-  print('\t'.join(['filters', 'kernel_size', 'units', 'loss', 'val_loss', 'accuracy', 'val_accuracy']))
-  print('\t'.join([str(n) for n in [
-    filters,
-    kernel_size,
-    units,
-    min(history.history['loss']),
-    min(history.history['val_loss']),
-    max(history.history['accuracy']),
-    max(history.history['val_accuracy']),
-  ]]))
+  # print('\t'.join(['filters', 'kernel_size', 'units', 'loss', 'val_loss', 'accuracy', 'val_accuracy']))
+  # print('\t'.join([str(n) for n in [
+  #   filters,
+  #   kernel_size,
+  #   units,
+  #   min(history.history['loss']),
+  #   min(history.history['val_loss']),
+  #   max(history.history['accuracy']),
+  #   max(history.history['val_accuracy']),
+  # ]]))
 
-  plt.title('history')
-  plt.plot(history.epoch, history.history['val_accuracy'], label = 'val_accuracy')
-  plt.plot(history.epoch, history.history['accuracy'], label = 'accuracy')
-  plt.plot(history.epoch, history.history['val_loss'], label = 'val_loss')
-  plt.plot(history.epoch, history.history['loss'], label = 'loss')
-  plt.legend()
-  plt.savefig('data/history.png')
+  # plt.title('history')
+  # plt.plot(history.epoch, history.history['val_accuracy'], label = 'val_accuracy')
+  # plt.plot(history.epoch, history.history['accuracy'], label = 'accuracy')
+  # plt.plot(history.epoch, history.history['val_loss'], label = 'val_loss')
+  # plt.plot(history.epoch, history.history['loss'], label = 'loss')
+  # plt.legend()
+  # plt.savefig('data/history.png')
 
 
   return model
