@@ -1,6 +1,7 @@
 import { io } from '@tensorflow/tfjs';
 import { isDefined } from '../utilities/types';
-import { all } from '../utilities/promise';
+import { assertDefined } from '../utilities/assert';
+import _ from 'lodash';
 
 type Reference = firebase.storage.Reference;
 
@@ -34,7 +35,7 @@ export default class StorageIOHandler implements io.IOHandler {
     };
   }
 
-  private async fetch(url: string, contentType: string): Promise<Body> {
+  private async fetch(url: string, contentType: string): Promise<Response> {
     const response = await fetch(url, {});
 
     if (!response.ok) {
@@ -47,22 +48,66 @@ export default class StorageIOHandler implements io.IOHandler {
     return response;
   }
 
-  async load(): Promise<io.ModelArtifacts> {
-    const [modelUrl, weightDataUrl] = await all(
-      this.modelRef.getDownloadURL(),
-      this.weightDataRef.getDownloadURL(),
+  private async download(
+    ref: Reference,
+    contentType: string,
+  ): Promise<Response> {
+    return await this.fetch(await ref.getDownloadURL(), contentType);
+  }
+  private async downloadJson(ref: Reference): Promise<Record<string, any>> {
+    return await (await this.download(ref, 'application/json')).json();
+  }
+  private async downloadBinary(ref: Reference): Promise<ArrayBuffer> {
+    return await (
+      await this.download(ref, 'application/octet-stream')
+    ).arrayBuffer();
+  }
+
+  private async loadWeights(weightsManifest: io.WeightsManifestConfig) {
+    if (!weightsManifest) {
+      return {
+        weightData: await this.downloadBinary(this.weightDataRef),
+      };
+    }
+
+    const dirRef = this.modelRef.parent;
+    assertDefined(dirRef);
+
+    const paths = weightsManifest.map(g => g.paths).flat();
+    const weightSpecs = weightsManifest.map(g => g.weights).flat();
+
+    const shards = await Promise.all(
+      paths.map(async path => {
+        const ref = dirRef.child(path);
+        return new Uint8Array(await this.downloadBinary(ref));
+      }),
     );
 
-    const [modelJson, weightData] = await all(
-      this.fetch(modelUrl, 'application/json').then(r => r.json()),
-      this.fetch(weightDataUrl, 'application/octet-stream').then(r =>
-        r.arrayBuffer(),
-      ),
-    );
+    const dataLength = _(shards)
+      .map(a => a.byteLength)
+      .sum();
+    const view = new Uint8Array(dataLength);
+
+    let left = 0;
+    for (let i = 0; i < shards.length; i++) {
+      view.set(shards[i], left);
+      left += shards[i].byteLength;
+    }
 
     return {
-      ...modelJson,
-      weightData,
+      weightData: view.buffer,
+      weightSpecs,
     };
+  }
+
+  async load(): Promise<io.ModelArtifacts> {
+    const { weightsManifest, ...others } = (await this.downloadJson(
+      this.modelRef,
+    )) as io.ModelJSON;
+
+    return {
+      ...others,
+      ...(await this.loadWeights(weightsManifest)),
+    } as io.ModelArtifacts;
   }
 }

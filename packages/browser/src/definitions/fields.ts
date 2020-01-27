@@ -14,6 +14,24 @@ const fields: FieldDefinition[] = [
     textAlign: TextAlign.Right,
   },
   {
+    id: 'purchase',
+    text: '買い指数',
+    value: '$data.indices.0.purchase',
+    format: Format.Percentage,
+    textAlign: TextAlign.Center,
+    factor: 100,
+    color: {},
+  },
+  {
+    id: 'divestment',
+    text: '売り指数',
+    value: '$data.indices.0.divestment',
+    format: Format.Percentage,
+    textAlign: TextAlign.Center,
+    factor: 100,
+    color: {},
+  },
+  {
     id: 'roid0',
     text: '騰落率',
     value: {

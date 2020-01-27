@@ -1,12 +1,20 @@
+import 'source-map-support/register';
+
 import firebase from 'firebase-admin';
 import * as functions from 'firebase-functions';
 import { updatePriceStats } from './priceStats';
 
+
 const app = firebase.initializeApp();
 const storage = app.storage();
 
-export const onPriceChange = functions.firestore
-  .document('projects/{projectId}/items/{itemId}/prices/{priceId}')
+const runtimeOptions: functions.RuntimeOptions = {
+  memory: '2GB',
+};
+
+export const onPriceChange = functions
+  .runWith(runtimeOptions)
+  .firestore.document('projects/{projectId}/items/{itemId}/prices/{priceId}')
   .onWrite(
     async (change): Promise<void> => {
       const itemRef = change.after.ref.parent.parent;
@@ -15,8 +23,9 @@ export const onPriceChange = functions.firestore
     },
   );
 
-export const onItemChange = functions.firestore
-  .document('projects/{projectId}/items/{itemId}')
+export const onItemChange = functions
+  .runWith(runtimeOptions)
+  .firestore.document('projects/{projectId}/items/{itemId}')
   .onWrite(
     async (change): Promise<void> => {
       const itemSnapshot = change.after;

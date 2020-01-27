@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, Suspense } from 'react';
 import _ from 'lodash';
 import {
   Container,
@@ -9,6 +9,7 @@ import {
   Icon,
   Button,
   Form,
+  Placeholder,
 } from 'semantic-ui-react';
 import { useQuerySnapshot } from '../hooks/useSnapshot';
 import { useParams } from 'react-router-dom';
@@ -49,6 +50,7 @@ import SimpleAccordion from '../components/SimpleAccordion';
 import View from '../prediction/view';
 import { getLabels } from '../prediction/labels';
 import PredictedChart from '../components/PredictedChart';
+import ItemIndices from '../components/ItemIndices';
 
 const resources = {
   app: new PromiseReader(initializeApp),
@@ -229,6 +231,17 @@ export default function Item(): JSX.Element {
         </Segment>
         <Segment>
           <PriceChart name={itemId} prices={priceSnapshots.map(p => p.data)} />
+        </Segment>
+        <Segment>
+          <Suspense
+            fallback={
+              <Placeholder>
+                <Placeholder.Image />
+              </Placeholder>
+            }
+          >
+            <ItemIndices projectId={projectId} itemId={itemId} />
+          </Suspense>
         </Segment>
         <Segment>{predictedChart}</Segment>
         <Segment>

@@ -257,7 +257,7 @@ async function calculatePriceStats(
   };
 
   await itemRef.update(data);
-  console.debug('done', data);
+  console.debug('done');
 
   return { item, prices, domain, priceStats };
 }
@@ -372,7 +372,7 @@ export async function calculateDailyStats(
     ...dailyStats,
     updatedAt: FieldValue.serverTimestamp(),
   };
-  console.log(data);
+  console.log('done');
   await itemRef.update('dailyStats', data);
 }
 
@@ -397,7 +397,7 @@ export async function updatePriceStats(
   const res = await calculatePriceStats(itemSnapshot, priceSnapshot);
   await calculateDailyStats(itemSnapshot);
   if (!res) return;
-  await predictIndices(itemRef);
+  await predictIndices(storage, itemRef);
 
   const chartOptions = {
     ...res,

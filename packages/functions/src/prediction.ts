@@ -1,15 +1,25 @@
 import firebase from 'firebase-admin';
-import { simpleConverter } from 'mercurius-core/lib/firestore/converter';
-import { Price, PriceConverter } from 'mercurius-core/lib/models/Price';
 import _ from 'lodash';
 import { DateTime, Duration } from 'luxon';
-import { loadLayersModel, LayersModel, tensor, Tensor } from '@tensorflow/tfjs';
+import {
+  loadLayersModel,
+  LayersModel,
+  tensor,
+  Tensor,
+} from '@tensorflow/tfjs-node';
+import StorageIOHandler from './StorageIOHandler';
 
 const timeDelta = Duration.fromObject({ hours: 3 });
 const inputDuration = Duration.fromObject({ days: 7 });
 const inputSize = inputDuration.valueOf() / timeDelta.valueOf();
 // const outputDuration = Duration.fromObject({ days: 1 });
 // const outputSize = outputDuration.valueOf() / timeDelta.valueOf();
+
+export interface Price {
+  timestamp: firebase.firestore.Timestamp;
+  price: number;
+  lottery: boolean;
+}
 
 export interface Indices {
   timestamp: Date;
@@ -26,7 +36,7 @@ export interface QuantizedPrice {
 function quantize(prices: Price[]): QuantizedPrice[] {
   const quantized = prices.map(price => ({
     timestamp:
-      Math.floor(price.timestamp.getTime() / timeDelta.valueOf()) *
+      Math.floor(price.timestamp.toMillis() / timeDelta.valueOf()) *
       timeDelta.valueOf(),
     price: price.price,
     lottery: price.lottery ? 1 : 0,
@@ -35,18 +45,19 @@ function quantize(prices: Price[]): QuantizedPrice[] {
 }
 
 function interpolate(quantized: QuantizedPrice[]): QuantizedPrice[] {
-  const maxTimestamp = _(quantized)
-    .map(p => p.timestamp)
-    .max();
-  if (maxTimestamp === undefined) {
-    throw new Error('Array must contain items');
-  }
-  const rightDateTime = DateTime.fromMillis(maxTimestamp);
-
   const grouped = _.groupBy(quantized, q => q.timestamp);
 
-  const resampled = _(rightDateTime.minus(inputDuration).valueOf())
-    .range(rightDateTime.plus(timeDelta).valueOf(), timeDelta.valueOf())
+  const domainLeft = _(quantized)
+    .map(p => p.timestamp)
+    .min();
+  if (!domainLeft) return [];
+  const domainRight = _(quantized)
+    .map(p => p.timestamp)
+    .max();
+  if (!domainRight) return [];
+
+  const resampled = _(domainLeft)
+    .range(domainRight + timeDelta.valueOf(), timeDelta.valueOf())
     .map(timestamp => {
       const group = grouped[timestamp];
 
@@ -64,9 +75,10 @@ function interpolate(quantized: QuantizedPrice[]): QuantizedPrice[] {
           lottery: _.meanBy(group, p => p.lottery),
         },
       };
-    });
+    })
+    .value();
 
-  const interpolated = resampled
+  const interpolated = _(resampled)
     .map(({ timestamp, value }, i) => {
       if (value) {
         return {
@@ -75,15 +87,15 @@ function interpolate(quantized: QuantizedPrice[]): QuantizedPrice[] {
         };
       }
 
-      const left = resampled
+      const left = _(resampled)
         .take(i)
-        .dropRightWhile(({ value }) => value !== null)
+        .dropRightWhile(({ value }) => value === null)
         .last();
       if (!left || !left.value) return null;
 
-      const right = resampled
+      const right = _(resampled)
         .drop(i + 1)
-        .dropWhile(({ value }) => value !== null)
+        .dropWhile(({ value }) => value === null)
         .first();
       if (!right || !right.value) return null;
 
@@ -109,9 +121,7 @@ function normalize(quantized: QuantizedPrice[]): QuantizedPrice[] {
   const maxPrice = _(quantized)
     .map(p => p.price)
     .max();
-  if (!maxPrice) {
-    throw new Error();
-  }
+  if (!maxPrice) return [];
 
   return quantized.map(price => ({ ...price, price: price.price / maxPrice }));
 }
@@ -133,6 +143,7 @@ async function predict(
   )) as Tensor;
 
   return _(await predicted.data())
+    .map(n => Math.max(Math.min(n, 1), 0))
     .chunk(2)
     .map(([divestment, purchase], i) => ({
       timestamp: new Date(lastTimestamp + (i + 1) * timeDelta.valueOf()),
@@ -143,16 +154,14 @@ async function predict(
 }
 
 export async function predictIndices(
+  storage: firebase.storage.Storage,
   itemRef: firebase.firestore.DocumentReference,
 ): Promise<void> {
-  const domainLeft = DateTime.local()
-    .minus(inputDuration)
-    .minus(inputDuration);
+  console.log('Predicting...');
   const query = itemRef
     .collection('prices')
-    .withConverter(simpleConverter(PriceConverter.cast))
-    .orderBy('timestamp', 'asc')
-    .startAt(domainLeft.toJSDate());
+    .orderBy('timestamp', 'desc')
+    .limit(inputSize);
   const pricesSnapshot = await query.get();
   const priceSnapshots = pricesSnapshot.docs;
   const prices = priceSnapshots.map(s => s.data() as Price);
@@ -161,10 +170,15 @@ export async function predictIndices(
   if (!projectId) {
     throw new Error();
   }
+
   const model = await loadLayersModel(
-    `gs://mercurius-6026e.appspot.com/projects/${projectId}/models/benefits`,
+    new StorageIOHandler(
+      storage.bucket(),
+      `projects/${projectId}/models/benefits`,
+    ),
   );
   const indices = await predict(model, prices);
 
   await itemRef.update('indices', indices);
+  console.log('done');
 }

@@ -28,14 +28,19 @@ properties:
     type: string
     format: date-time
   indices:
-    type: object
-    properties:
-      divestment:
-        type: number
-      purchase:
-        type: number
-    required:
-      - divestment
-      - purchase
+    type: array
+    items:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        divestment:
+          type: number
+        purchase:
+          type: number
+      required:
+        - divestment
+        - purchase
 required:
   - name

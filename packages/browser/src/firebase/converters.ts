@@ -6,7 +6,11 @@ import mapObject from 'map-obj';
 export function decode<T extends {}>(value: T): T {
   return mapObject(value, (key, value) => [
     key as string,
-    value instanceof firebase.firestore.Timestamp ? value.toDate() : value,
+    value instanceof firebase.firestore.Timestamp
+      ? value.toDate()
+      : Array.isArray(value)
+      ? value.map(decode)
+      : value,
   ]) as T;
 }
 

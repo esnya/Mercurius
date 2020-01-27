@@ -24,14 +24,15 @@
   },
   "main": "lib/index.js",
   "dependencies": {
-    "@tensorflow/tfjs": "1.4",
+    "@tensorflow/tfjs": "^1.5.1",
+    "@tensorflow/tfjs-node": "^1.5.1",
     "canvas": "^2.6.0",
     "firebase-admin": "^8.9.2",
     "firebase-functions": "^3.3.0",
     "lodash": "^4.17.15",
     "luxon": "^1.22.0",
-    "mercurius-core": "^0.0.0",
     "moment": "^2.24.0",
+    "source-map-support": "^0.5.16",
     "vega": "^5.9.0",
     "vega-lite": "^4.0.0-beta.12"
   },
