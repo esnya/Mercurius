@@ -33,6 +33,25 @@ definitions:
       $round: { $ref: "#/definitions/PairOfNumberExpression" }
       $subtract: { $ref: "#/definitions/PairOfNumberExpression" }
       $trunc: { $ref: "#/definitions/PairOfNumberExpression" }
+  Array:
+    type: object
+    properties:
+      $filter:
+        type: object
+        properties:
+          input: { $ref: "#/definitions/Expression" }
+          as: { type: string }
+          cond: { $ref: "#/definitions/BooleanExpression" }
+        required:
+          - input
+          - as
+          - cond
+  ArrayElementAt:
+    type: object
+    properties:
+      $arrayElementAt:
+        type: array
+        items: { $ref: "#/definitions/Expression" }
   ArrayOfExpression:
     type: array
     items: { $ref: "#/definitions/Expression" }
@@ -63,15 +82,23 @@ definitions:
   NumberExpression:
     oneOf:
       - $ref: "#/definitions/Arithmetic"
+      - $ref: "#/definitions/ArrayElementAt"
       - $ref: "#/definitions/ComparisonCmp"
       - type: string
   BooleanExpression:
     oneOf:
       - $ref: "#/definitions/Boolean"
+      - $ref: "#/definitions/ArrayElementAt"
       - $ref: "#/definitions/Comparison"
+      - type: string
+  ArrayExpression:
+    oneOf:
+      - $ref: "#/definitions/Array"
+      - $ref: "#/definitions/ArrayElementAt"
       - type: string
   Expression:
     oneOf:
       - $ref: "#/definitions/NumberExpression"
       - $ref: "#/definitions/BooleanExpression"
+      - $ref: "#/definitions/ArrayExpression"
       - type: string

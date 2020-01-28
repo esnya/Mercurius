@@ -1,9 +1,9 @@
 import React from 'react';
 import { TableHeaderCell, TableHeader, TableRow } from 'semantic-ui-react';
-import { Field } from '../definitions/fields';
+import { FieldDefinition } from 'mercurius-core/lib/models-next/FieldDefinition';
 
 export interface ItemTableHeaderProps {
-  fields: Field[];
+  fields: FieldDefinition[];
   sortBy: string;
   sortOrder: 'ascending' | 'descending';
   onSortChange: (id: string) => void;

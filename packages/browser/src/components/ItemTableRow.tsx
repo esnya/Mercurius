@@ -8,17 +8,17 @@ import { formatTimestampShort } from '../utilities/format';
 import PriceTable from './PriceTable';
 import { duration } from 'moment';
 import styles from './ItemTableCell.styl';
-import { Field } from '../definitions/fields';
 import { NonEmptySnapshot } from '../firebase/snapshot';
 import { Item } from 'mercurius-core/lib/models/Item';
 import { Link } from 'react-router-dom';
+import { FieldDefinition } from 'mercurius-core/lib/models-next/FieldDefinition';
 
 export default function ItemTableRow({
   item,
   fields,
 }: {
   item: NonEmptySnapshot<Item>;
-  fields: Field[];
+  fields: FieldDefinition[];
 }): JSX.Element {
   const {
     name,

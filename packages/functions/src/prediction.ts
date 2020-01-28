@@ -1,6 +1,6 @@
 import firebase from 'firebase-admin';
 import _ from 'lodash';
-import { DateTime, Duration } from 'luxon';
+import { Duration } from 'luxon';
 import {
   loadLayersModel,
   LayersModel,
@@ -10,8 +10,6 @@ import {
 import StorageIOHandler from './StorageIOHandler';
 
 const timeDelta = Duration.fromObject({ hours: 3 });
-const inputDuration = Duration.fromObject({ days: 7 });
-const inputSize = inputDuration.valueOf() / timeDelta.valueOf();
 // const outputDuration = Duration.fromObject({ days: 1 });
 // const outputSize = outputDuration.valueOf() / timeDelta.valueOf();
 
@@ -129,6 +127,7 @@ function normalize(quantized: QuantizedPrice[]): QuantizedPrice[] {
 async function predict(
   model: LayersModel,
   prices: Price[],
+  inputSize: number,
 ): Promise<Indices[]> {
   const quantized = quantize(prices);
   const interpolated = interpolate(quantized).slice(-inputSize);
@@ -153,22 +152,35 @@ async function predict(
     .value();
 }
 
+function isUpdateNeeded(
+  indices: { timestamp?: firebase.firestore.Timestamp }[] | undefined,
+  prices: Price[],
+): boolean {
+  if (!Array.isArray(indices)) return true;
+
+  const indicesMin = _(indices)
+    .map(i => i.timestamp)
+    .filter(i => i instanceof firebase.firestore.Timestamp)
+    .map(t => t?.toMillis())
+    .min();
+  if (!indicesMin) return true;
+
+  const pricesMax = _(prices)
+    .map(p => p.timestamp.toMillis())
+    .max();
+  if (!pricesMax) return false;
+
+  return indicesMin < pricesMax;
+}
+
 export async function predictIndices(
   storage: firebase.storage.Storage,
   itemRef: firebase.firestore.DocumentReference,
 ): Promise<void> {
-  console.log('Predicting...');
-  const query = itemRef
-    .collection('prices')
-    .orderBy('timestamp', 'desc')
-    .limit(inputSize);
-  const pricesSnapshot = await query.get();
-  const priceSnapshots = pricesSnapshot.docs;
-  const prices = priceSnapshots.map(s => s.data() as Price);
 
   const projectId = itemRef.parent.parent?.id;
   if (!projectId) {
-    throw new Error();
+    throw new Error('Failed to get project id');
   }
 
   const model = await loadLayersModel(
@@ -177,7 +189,26 @@ export async function predictIndices(
       `projects/${projectId}/models/benefits`,
     ),
   );
-  const indices = await predict(model, prices);
+  const inputSize = model.inputs[0].shape[1];
+  if (!inputSize) {
+    throw new Error('Failed to get input size');
+  }
+
+  console.log('Predicting...');
+  const query = itemRef
+    .collection('prices')
+    .orderBy('timestamp', 'desc')
+    .limit(inputSize);
+  const itemSnapshot = await itemRef.get();
+  const pricesSnapshot = await query.get();
+  const priceSnapshots = pricesSnapshot.docs;
+  const prices = priceSnapshots.map(s => s.data() as Price);
+
+  if (!isUpdateNeeded(itemSnapshot.get('indices'), prices)) {
+    console.log('skipped');
+    return;
+  }
+  const indices = await predict(model, prices, inputSize);
 
   await itemRef.update('indices', indices);
   console.log('done');

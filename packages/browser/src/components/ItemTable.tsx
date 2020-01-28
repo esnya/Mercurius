@@ -3,7 +3,6 @@ import ItemTableRow from './ItemTableRow';
 import ItemTableHeader from './ItemTableHeader';
 import { Table, Pagination } from 'semantic-ui-react';
 import { Item, ItemConverter } from 'mercurius-core/lib/models/Item';
-import { Field } from '../definitions/fields';
 import { QuerySnapshot } from '../firebase/snapshot';
 import usePersistentState from '../hooks/usePersistentState';
 import mingo from 'mingo';
@@ -13,10 +12,12 @@ import { from, Observable } from 'rxjs';
 import { fromQuery } from '../firebase/observable';
 import useObservable from '../hooks/useObservable';
 import { simpleConverter } from '../firebase/converters';
+import { FieldDefinition } from 'mercurius-core/lib/models-next/FieldDefinition';
+import { DateTime, Duration } from 'luxon';
 
 export interface ItemTableProps {
   projectId: string;
-  fields: Field[];
+  fields: FieldDefinition[];
   filters: {}[];
 }
 
@@ -50,17 +51,23 @@ export default function ItemTable({
       ),
       throttleTime(500),
       flatMap(query => fromQuery(query)),
-      map(items => {
+      map(snapshot => {
+        const now = DateTime.local()
+          .minus(Duration.fromObject({ minutes: DateTime.local().offset }))
+          .toJSDate();
         const agg = new mingo.Aggregator([
+          { $set: { now } },
           ...fields.map(({ id, value }) => ({
             $set: { [`data.${id}`]: value },
           })),
           { $match: { $and: filters } },
           { $sort: { [`data.${sortBy}`]: sortOrder === 'ascending' ? 1 : -1 } },
         ]);
-        return agg.run(
-          items.docs.map(doc => ({ ref: doc.ref, data: doc.data() })),
-        );
+        const items = snapshot.docs.map(doc => ({
+          ref: doc.ref,
+          data: doc.data(),
+        }));
+        return agg.run(items);
       }),
     );
   }, [projectId, fields, filters, sortBy, sortOrder]);

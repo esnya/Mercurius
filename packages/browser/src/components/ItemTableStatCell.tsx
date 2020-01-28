@@ -4,13 +4,14 @@ import { getColorName } from '../utilities/chart';
 import styles from './ItemTableCell.styl';
 import _ from 'lodash';
 import { SemanticICONS } from 'semantic-ui-react/dist/commonjs/generic';
-import { Field } from '../definitions/fields';
 import { isDefined } from '../utilities/types';
 import { Item } from 'mercurius-core/lib/models/Item';
+import { FieldDefinition } from 'mercurius-core/lib/models-next/FieldDefinition';
+import { formatInteger, formatPercent } from '../utilities/format';
 
 export interface ItemTableStatCellProps {
   item: Item;
-  field: Field;
+  field: FieldDefinition;
 }
 
 function getIconName(value: number): SemanticICONS {
@@ -23,12 +24,38 @@ function getIconName(value: number): SemanticICONS {
   return 'minus';
 }
 
+function formatNumber(type: string, value: number): string {
+  switch (type) {
+    case 'integer':
+      return formatInteger(value);
+    case 'percentage':
+      return formatPercent(value);
+    default:
+      return `${value}`;
+  }
+}
+
 export default function ItemTableStatCell({
   item,
-  field: { textAlign, factor, color, ...field },
+  field,
 }: ItemTableStatCellProps): JSX.Element {
+  const { factor, format, textAlign } = {
+    factor: 1,
+    format: 'none',
+    ...field,
+  };
+  const color = field.color
+    ? {
+        factor: 1,
+        minus: false,
+        ...field.color,
+      }
+    : null;
+
   const value = _.get(item, field.id);
-  const text = isDefined(value) ? field.format(value * factor) : undefined;
+  const text = isDefined(value)
+    ? formatNumber(format, value * factor)
+    : undefined;
 
   const colorValue =
     isDefined(value) && color

@@ -4,7 +4,7 @@ import ItemTable from '../components/ItemTable';
 import { useParams } from 'react-router';
 import { isDefined } from '../utilities/types';
 import ItemFilterControl, { ItemFilter } from '../components/ItemFilterControl';
-import fieldDefinitions, { getField } from '../definitions/fields';
+import fieldDefinitions from '../definitions/fields';
 import filterDefinitions, { getFilter } from '../definitions/filters';
 import usePersistentState from '../hooks/usePersistentState';
 import { assertDefined } from '../utilities/assert';
@@ -23,7 +23,9 @@ export default function ProjectHome(): JSX.Element {
   );
   const { fieldIds, filterId, search } = itemFilter;
 
-  const fields = fieldIds.map(getField).filter(isDefined);
+  const fields = fieldIds
+    .map(id => fieldDefinitions.find(f => f.id === id))
+    .filter(isDefined);
 
   const searchQueries =
     search &&

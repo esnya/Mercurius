@@ -394,10 +394,12 @@ export async function updatePriceStats(
     .limit(1)
     .get();
 
-  const res = await calculatePriceStats(itemSnapshot, priceSnapshot);
-  await calculateDailyStats(itemSnapshot);
+  const [res] = await Promise.all([
+    calculatePriceStats(itemSnapshot, priceSnapshot),
+    calculateDailyStats(itemSnapshot),
+    predictIndices(storage, itemRef),
+  ]);
   if (!res) return;
-  await predictIndices(storage, itemRef);
 
   const chartOptions = {
     ...res,
