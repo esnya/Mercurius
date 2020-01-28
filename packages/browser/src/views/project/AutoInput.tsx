@@ -19,7 +19,7 @@ import withFirebaseApp, {
 import ActionButton from '../../components/ActionButton';
 import shortid from 'shortid';
 import { formatTimestamp } from '../../utilities/format';
-import firebase from '../../firebase';
+import firebase, { initializeApp } from '../../firebase';
 import { duration } from 'moment';
 import { ErrorThreshold } from '../../components/DiffIcon';
 import { succeeded, failed, notice } from '../../utilities/sounds';
@@ -30,8 +30,20 @@ import { loadPreset, drawPreset } from '../../recognition/RecognitionPreset';
 import { bounds, crop, videoToCanvas, Size } from '../../utilities/image';
 import RecognitionPresetEditor from '../../components/RecognitionPresetEditor';
 import { castQuery } from '../../firebase/snapshot';
-import { ItemConverter } from 'mercurius-core/lib/models/Item';
+import { ItemConverter, Item } from 'mercurius-core/lib/models/Item';
 import { PriceConverter } from 'mercurius-core/lib/models/Price';
+import { simpleConverter } from '../../firebase/converters';
+import { assertDefined } from '../../utilities/assert';
+
+const app = initializeApp();
+async function getItemsRef(
+  projectId: string,
+): Promise<firebase.firestore.CollectionReference<Item>> {
+  return (await app)
+    .firestore()
+    .collection(`projects/${projectId}/items`)
+    .withConverter(simpleConverter(ItemConverter.cast));
+}
 
 interface Rect {
   x: number;
@@ -82,7 +94,7 @@ export default withFirebaseApp<{}>(function AutoInput({
   app,
 }: WithFirebaseProps): JSX.Element | null {
   const { projectId } = useParams();
-  if (typeof projectId !== 'string') return null;
+  assertDefined(projectId);
 
   const [options] = useState<RecognitionOptions>(
     (): RecognitionOptions => {
@@ -105,19 +117,10 @@ export default withFirebaseApp<{}>(function AutoInput({
   const context = canvas && canvas.getContext('2d');
 
   useAsyncEffect(async (): Promise<void> => {
-    const itemSnapshots = castQuery(
-      await app
-        .firestore()
-        .collection('projects')
-        .doc(projectId)
-        .collection('items')
-        .get(),
-      ItemConverter.cast,
-    );
-    const names = itemSnapshots.map(s => s.data.name);
+    const itemSnapshots = await (await getItemsRef(projectId)).get();
+    const names = itemSnapshots.docs.map(s => s.data().name);
     setNames(names);
-    setOcr(new Ocr(names));
-  }, [app]);
+  }, [app, projectId]);
 
   useEffect(() => {
     if (names.length > 0) {
@@ -125,16 +128,11 @@ export default withFirebaseApp<{}>(function AutoInput({
     }
   }, [names]);
 
-  const itemsRef = app
-    .firestore()
-    .collection('projects')
-    .doc(projectId)
-    .collection('items');
-
   async function recognize(
     ocr: Ocr,
     context: CanvasRenderingContext2D,
   ): Promise<void> {
+    assertDefined(projectId);
     const id = shortid();
     const timestamp = formatTimestamp();
 
@@ -169,6 +167,7 @@ export default withFirebaseApp<{}>(function AutoInput({
       return;
     }
 
+    const itemsRef = await getItemsRef(projectId);
     const itemsSnapshot = await itemsRef.where('name', '==', name).get();
     const itemSnapshot = itemsSnapshot.docs[0];
     if (!itemSnapshot) {
@@ -328,6 +327,7 @@ export default withFirebaseApp<{}>(function AutoInput({
 
           const { value, name, drawing } = result;
 
+          const itemsRef = await getItemsRef(projectId);
           const itemsSnapshot = await itemsRef.where('name', '==', name).get();
           const itemSnapshot = itemsSnapshot.docs[0];
           const itemRef = itemSnapshot ? itemSnapshot.ref : itemsRef.doc(name);
