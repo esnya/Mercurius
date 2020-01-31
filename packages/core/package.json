@@ -10,7 +10,7 @@
     "url": "git+https://github.com/esnya/Mercurius.git"
   },
   "scripts": {
-    "build": "run-s build:models build:tsc",
+    "build": "run-s build:models build:models-next build:tsc",
     "build:models": "ts-node src/scripts/build-models.ts",
     "build:models-next": "ts-node src/scripts/build-models-next.ts",
     "build:tsc": "tsc",
