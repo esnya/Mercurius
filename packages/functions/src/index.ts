@@ -4,7 +4,6 @@ import firebase from 'firebase-admin';
 import * as functions from 'firebase-functions';
 import { updatePriceStats } from './priceStats';
 
-
 const app = firebase.initializeApp();
 const storage = app.storage();
 

@@ -7,12 +7,12 @@ import {
   SymbolicTensor,
 } from '@tensorflow/tfjs';
 import StorageIOHandler from '../prediction/StorageIOHandler';
-import { initializeApp } from '../firebase';
+import { initializeApp, Timestamp } from '../firebase';
 import { simpleConverter } from '../firebase/converters';
 import { PriceConverter, Price } from 'mercurius-core/lib/models/Price';
 import { assertDefined, assert } from '../utilities/assert';
 import _ from 'lodash';
-import { Duration } from 'luxon';
+import { Duration, DateTime } from 'luxon';
 import memoize from 'lodash/memoize';
 import PromiseReader from '../suspense/PromiseReader';
 import { createClassFromSpec } from 'react-vega';
@@ -143,7 +143,11 @@ async function getPrices(
   const pricesRef = (await firestore)
     .collection(`projects/${projectId}/items/${itemId}/prices`)
     .withConverter(simpleConverter(PriceConverter.cast));
-  const query = pricesRef.orderBy('timestamp', 'desc').limit(limit);
+  const query = pricesRef.orderBy('timestamp', 'desc').endAt(
+    DateTime.local()
+      .minus(Duration.fromISO('P30D'))
+      .toJSDate(),
+  );
   return (await query.get()).docs.map(s => s.data());
 }
 
@@ -167,8 +171,8 @@ async function getIndices(
   const prices = await getPrices(projectId, itemId, inputSize);
 
   const quantized = quantize(prices);
-  const interpolated = interpolate(quantized).slice(-inputSize);
-  const normalized = normalize(interpolated);
+  const interpolated = interpolate(quantized);
+  const normalized = normalize(interpolated).slice(-inputSize);
   // console.log({ quantized, interpolated, normalized });
   assert(normalized.length === inputSize);
 

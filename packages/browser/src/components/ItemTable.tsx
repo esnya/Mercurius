@@ -1,24 +1,42 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import ItemTableRow from './ItemTableRow';
 import ItemTableHeader from './ItemTableHeader';
 import { Table, Pagination } from 'semantic-ui-react';
 import { Item, ItemConverter } from 'mercurius-core/lib/models/Item';
-import { QuerySnapshot } from '../firebase/snapshot';
 import usePersistentState from '../hooks/usePersistentState';
 import mingo from 'mingo';
-import { initializeFirestore } from '../firebase/firestore';
-import { map, flatMap, throttleTime } from 'rxjs/operators';
-import { from, Observable } from 'rxjs';
 import { fromQuery } from '../firebase/observable';
 import useObservable from '../hooks/useObservable';
-import { simpleConverter } from '../firebase/converters';
-import { FieldDefinition } from 'mercurius-core/lib/models-next/FieldDefinition';
-import { DateTime, Duration } from 'luxon';
+import { simpleConverter, schemaConverter } from '../firebase/converters';
+import FieldDefinition from 'mercurius-core/lib/models-next/FieldDefinition';
+import { CollectionReference, DocumentReference } from '../firebase';
+import Project from 'mercurius-core/lib/models-next/Project';
+import ProjectSchema from 'mercurius-core/lib/models-next/Project.schema.json';
+import PromiseReader from '../suspense/PromiseReader';
+import { initializeFirestore } from '../firebase/firestore';
 
 export interface ItemTableProps {
   projectId: string;
   fields: FieldDefinition[];
   filters: {}[];
+}
+
+const firestoreReader = new PromiseReader(initializeFirestore);
+
+function projectCollection(
+  firestore: firebase.firestore.Firestore,
+): CollectionReference<Project> {
+  return firestore
+    .collection('projects')
+    .withConverter(schemaConverter<Project>(ProjectSchema));
+}
+
+function itemCollection(
+  projectReference: DocumentReference<Project>,
+): CollectionReference<Item> {
+  return projectReference
+    .collection('items')
+    .withConverter(simpleConverter(ItemConverter.cast));
 }
 
 export default function ItemTable({
@@ -40,37 +58,47 @@ export default function ItemTable({
 
   const itemsPerPage = 50;
 
-  const items = useObservable((): Observable<QuerySnapshot<Item>> => {
-    return from(initializeFirestore()).pipe(
-      map(firestore =>
-        firestore
-          .collection('projects')
-          .doc(projectId)
-          .collection('items')
-          .withConverter(simpleConverter(ItemConverter.cast)),
+  const fieldsAggregator = useMemo(
+    () =>
+      new mingo.Aggregator([
+        { $set: { now: new Date() } },
+        ...fields.map(({ id, value }) => ({
+          $set: { [`data.${id}`]: value },
+        })),
+      ]),
+    [fields],
+  );
+
+  const listAggregator = useMemo(
+    () =>
+      new mingo.Aggregator([
+        { $match: { $and: filters } },
+        { $sort: { [`data.${sortBy}`]: sortOrder === 'ascending' ? 1 : -1 } },
+      ]),
+    [filters, sortBy, sortOrder],
+  );
+
+  const query = useMemo(
+    () =>
+      itemCollection(
+        projectCollection(firestoreReader.read()).doc(projectId),
+      ).withConverter(
+        simpleConverter(
+          data => fieldsAggregator.run<{ data: Item }>([{ data }])[0].data,
+        ),
       ),
-      throttleTime(500),
-      flatMap(query => fromQuery(query)),
-      map(snapshot => {
-        const now = DateTime.local()
-          .minus(Duration.fromObject({ minutes: DateTime.local().offset }))
-          .toJSDate();
-        const agg = new mingo.Aggregator([
-          { $set: { now } },
-          ...fields.map(({ id, value }) => ({
-            $set: { [`data.${id}`]: value },
-          })),
-          { $match: { $and: filters } },
-          { $sort: { [`data.${sortBy}`]: sortOrder === 'ascending' ? 1 : -1 } },
-        ]);
-        const items = snapshot.docs.map(doc => ({
-          ref: doc.ref,
-          data: doc.data(),
-        }));
-        return agg.run(items);
-      }),
-    );
-  }, [projectId, fields, filters, sortBy, sortOrder]);
+    [projectId, fieldsAggregator],
+  );
+
+  const itemSnapshots = useObservable(() => fromQuery(query));
+  const items = useMemo(
+    () =>
+      listAggregator.run<{
+        ref: DocumentReference<Item>;
+        data: Item;
+      }>(itemSnapshots?.docs.map(s => ({ ref: s.ref, data: s.data() })) || []),
+    [listAggregator, itemSnapshots],
+  );
 
   const totalPages = items ? Math.ceil(items.length / itemsPerPage) : 1;
   const rows = items

@@ -6,7 +6,7 @@ import _ from 'lodash';
 import { SemanticICONS } from 'semantic-ui-react/dist/commonjs/generic';
 import { isDefined } from '../utilities/types';
 import { Item } from 'mercurius-core/lib/models/Item';
-import { FieldDefinition } from 'mercurius-core/lib/models-next/FieldDefinition';
+import FieldDefinition from 'mercurius-core/lib/models-next/FieldDefinition';
 import { formatInteger, formatPercent } from '../utilities/format';
 
 export interface ItemTableStatCellProps {

@@ -11,7 +11,7 @@ import styles from './ItemTableCell.styl';
 import { NonEmptySnapshot } from '../firebase/snapshot';
 import { Item } from 'mercurius-core/lib/models/Item';
 import { Link } from 'react-router-dom';
-import { FieldDefinition } from 'mercurius-core/lib/models-next/FieldDefinition';
+import FieldDefinition from 'mercurius-core/lib/models-next/FieldDefinition';
 
 export default function ItemTableRow({
   item,

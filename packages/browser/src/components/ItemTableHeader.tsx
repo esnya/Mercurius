@@ -1,6 +1,6 @@
 import React from 'react';
 import { TableHeaderCell, TableHeader, TableRow } from 'semantic-ui-react';
-import { FieldDefinition } from 'mercurius-core/lib/models-next/FieldDefinition';
+import FieldDefinition from 'mercurius-core/lib/models-next/FieldDefinition';
 
 export interface ItemTableHeaderProps {
   fields: FieldDefinition[];

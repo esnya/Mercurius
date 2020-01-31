@@ -243,10 +243,10 @@ export default function Item(): JSX.Element {
             <ItemIndices projectId={projectId} itemId={itemId} />
           </Suspense>
         </Segment>
-        <Segment>{predictedChart}</Segment>
         <Segment>
-          <SimpleAccordion title="AI設定">
+          <SimpleAccordion title="ローカルAI">
             <Segment.Group>
+              <Segment>{predictedChart}</Segment>
               <Segment>
                 <ActionButton action={handleUpdate} color="blue">
                   <Icon name="detective" />

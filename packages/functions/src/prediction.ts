@@ -1,6 +1,6 @@
 import firebase from 'firebase-admin';
 import _ from 'lodash';
-import { Duration } from 'luxon';
+import { Duration, DateTime } from 'luxon';
 import {
   loadLayersModel,
   LayersModel,
@@ -130,8 +130,8 @@ async function predict(
   inputSize: number,
 ): Promise<Indices[]> {
   const quantized = quantize(prices);
-  const interpolated = interpolate(quantized).slice(-inputSize);
-  const normalized = normalize(interpolated);
+  const interpolated = interpolate(quantized);
+  const normalized = normalize(interpolated).slice(-inputSize);
   const lastTimestamp = _.last(normalized)?.timestamp;
   if (!lastTimestamp || normalized.length !== inputSize) {
     throw new TypeError();
@@ -153,31 +153,23 @@ async function predict(
 }
 
 function isUpdateNeeded(
-  indices: { timestamp?: firebase.firestore.Timestamp }[] | undefined,
+  updatedAt: firebase.firestore.Timestamp | undefined,
   prices: Price[],
 ): boolean {
-  if (!Array.isArray(indices)) return true;
-
-  const indicesMin = _(indices)
-    .map(i => i.timestamp)
-    .filter(i => i instanceof firebase.firestore.Timestamp)
-    .map(t => t?.toMillis())
-    .min();
-  if (!indicesMin) return true;
+  if (!updatedAt) return true;
 
   const pricesMax = _(prices)
     .map(p => p.timestamp.toMillis())
     .max();
   if (!pricesMax) return false;
 
-  return indicesMin < pricesMax;
+  return updatedAt.toMillis() < pricesMax;
 }
 
 export async function predictIndices(
   storage: firebase.storage.Storage,
   itemRef: firebase.firestore.DocumentReference,
 ): Promise<void> {
-
   const projectId = itemRef.parent.parent?.id;
   if (!projectId) {
     throw new Error('Failed to get project id');
@@ -198,13 +190,18 @@ export async function predictIndices(
   const query = itemRef
     .collection('prices')
     .orderBy('timestamp', 'desc')
-    .limit(inputSize);
+    .endAt(
+      DateTime.local()
+        .minus(Duration.fromISO('P30D'))
+        .toJSDate(),
+    );
   const itemSnapshot = await itemRef.get();
   const pricesSnapshot = await query.get();
   const priceSnapshots = pricesSnapshot.docs;
+
   const prices = priceSnapshots.map(s => s.data() as Price);
 
-  if (!isUpdateNeeded(itemSnapshot.get('indices'), prices)) {
+  if (!isUpdateNeeded(itemSnapshot.get('updatedAt'), itemSnapshot.get('indices'), prices)) {
     console.log('skipped');
     return;
   }

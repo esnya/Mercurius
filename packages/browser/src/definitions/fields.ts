@@ -1,4 +1,4 @@
-import { FieldDefinition } from 'mercurius-core/lib/models-next/FieldDefinition';
+import FieldDefinition from 'mercurius-core/lib/models-next/FieldDefinition';
 import { ArrayExpression } from 'mercurius-core/lib/models-next/Expression';
 
 const fields: FieldDefinition[] = [
