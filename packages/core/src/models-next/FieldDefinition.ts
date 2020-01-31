@@ -1,6 +1,6 @@
 import { Expression } from './Expression';
 
-export interface FieldDefinition {
+export default interface FieldDefinition {
   id: string;
   text: string;
   value: Expression<number | null | undefined>;

@@ -12,26 +12,31 @@
   "scripts": {
     "build": "run-s build:models build:tsc",
     "build:models": "ts-node src/scripts/build-models.ts",
+    "build:models-next": "ts-node src/scripts/build-models-next.ts",
     "build:tsc": "tsc",
     "dev": "run-s build:models watch",
     "watch": "run-p watch:*",
     "watch:models": "chokidar src/models/**/*.yml -c \"npm run -s build:models\"",
+    "watch:models-next": "chokidar src/models-next/**/*.ts -c \"npm run -s build:models-next\"",
     "watch:tsc": "tsc -w"
   },
   "bugs": {
     "url": "https://github.com/esnya/Mercurius/issues"
   },
   "dependencies": {
+    "ajv": "^6.11.0",
     "js-yaml": "^3.13.1",
+    "json-schema": "^0.2.5",
     "map-obj": "^4.1.0"
   },
   "devDependencies": {
     "@types/js-yaml": "^3.12.1",
-    "@types/map-obj": "^3.1.0",
     "@types/lodash": "^4.14.146",
+    "@types/map-obj": "^3.1.0",
     "chokidar-cli": "^2.1.0",
     "npm-run-all": "^4.1.5",
     "quicktype": "^15.0.209",
+    "ts-json-schema-generator": "^0.58.1",
     "ts-node": "^8.5.4",
     "typescript": "^3.7.4"
   }

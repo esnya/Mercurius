@@ -84,3 +84,4 @@ export type GenericExpression<T> =
   | ReferenceExpression<T>;
 
 export type Expression<T = any> = GenericExpression<T> | ExpressionOf<T>;
+export default Expression;
