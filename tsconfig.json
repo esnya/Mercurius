@@ -11,12 +11,13 @@
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "jsx": "react",
+    "resolveJsonModule": true,
     // Strict
-    "strict": true
+    "strict": true,
   },
   "exclude": [
     "node_modules",
     "dist",
-    "lib"
+    "lib",
   ]
 }
