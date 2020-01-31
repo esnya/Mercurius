@@ -201,7 +201,7 @@ export async function predictIndices(
 
   const prices = priceSnapshots.map(s => s.data() as Price);
 
-  if (!isUpdateNeeded(itemSnapshot.get('updatedAt'), itemSnapshot.get('indices'), prices)) {
+  if (!isUpdateNeeded(itemSnapshot.get('updatedAt'), prices)) {
     console.log('skipped');
     return;
   }
