@@ -1,6 +1,6 @@
 import firebase from 'firebase-admin';
 import _ from 'lodash';
-import { Duration, DateTime } from 'luxon';
+import { Duration } from 'luxon';
 import {
   loadLayersModel,
   LayersModel,
@@ -8,22 +8,11 @@ import {
   Tensor,
 } from '@tensorflow/tfjs-node';
 import StorageIOHandler from './StorageIOHandler';
+import { Price, Indices } from './types';
 
 const timeDelta = Duration.fromObject({ hours: 3 });
 // const outputDuration = Duration.fromObject({ days: 1 });
 // const outputSize = outputDuration.valueOf() / timeDelta.valueOf();
-
-export interface Price {
-  timestamp: firebase.firestore.Timestamp;
-  price: number;
-  lottery: boolean;
-}
-
-export interface Indices {
-  timestamp: Date;
-  divestment: number;
-  purchase: number;
-}
 
 export interface QuantizedPrice {
   timestamp: number;
@@ -128,7 +117,7 @@ async function predict(
   model: LayersModel,
   prices: Price[],
   inputSize: number,
-): Promise<Indices[]> {
+): Promise<(Indices & { timestamp: number })[]> {
   const quantized = quantize(prices);
   const interpolated = interpolate(quantized);
   const normalized = normalize(interpolated).slice(-inputSize);
@@ -145,68 +134,33 @@ async function predict(
     .map(n => Math.max(Math.min(n, 1), 0))
     .chunk(2)
     .map(([divestment, purchase], i) => ({
-      timestamp: new Date(lastTimestamp + (i + 1) * timeDelta.valueOf()),
+      timestamp: lastTimestamp + (i + 1) * timeDelta.valueOf(),
       divestment,
       purchase,
     }))
     .value();
 }
 
-function isUpdateNeeded(
-  updatedAt: firebase.firestore.Timestamp | undefined,
+export default async function predictIndices(
   prices: Price[],
-): boolean {
-  if (!updatedAt) return true;
-
-  const pricesMax = _(prices)
-    .map(p => p.timestamp.toMillis())
-    .max();
-  if (!pricesMax) return false;
-
-  return updatedAt.toMillis() < pricesMax;
-}
-
-export async function predictIndices(
+  projectId: string,
   storage: firebase.storage.Storage,
-  itemRef: firebase.firestore.DocumentReference,
-): Promise<void> {
-  const projectId = itemRef.parent.parent?.id;
-  if (!projectId) {
-    throw new Error('Failed to get project id');
-  }
-
+): Promise<Record<string, Indices>> {
   const model = await loadLayersModel(
     new StorageIOHandler(
       storage.bucket(),
       `projects/${projectId}/models/benefits`,
     ),
   );
+
   const inputSize = model.inputs[0].shape[1];
   if (!inputSize) {
     throw new Error('Failed to get input size');
   }
 
-  console.log('Predicting...');
-  const query = itemRef
-    .collection('prices')
-    .orderBy('timestamp', 'desc')
-    .endAt(
-      DateTime.local()
-        .minus(Duration.fromISO('P30D'))
-        .toJSDate(),
-    );
-  const itemSnapshot = await itemRef.get();
-  const pricesSnapshot = await query.get();
-  const priceSnapshots = pricesSnapshot.docs;
-
-  const prices = priceSnapshots.map(s => s.data() as Price);
-
-  if (!isUpdateNeeded(itemSnapshot.get('updatedAt'), prices)) {
-    console.log('skipped');
-    return;
-  }
   const indices = await predict(model, prices, inputSize);
 
-  await itemRef.update('indices', indices);
-  console.log('done');
+  return _.fromPairs(
+    indices.map(({ timestamp, ...others }) => [`${timestamp}`, others]),
+  );
 }

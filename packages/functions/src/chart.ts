@@ -1,10 +1,10 @@
-import { DocumentReference, FieldValue } from '@google-cloud/firestore';
 import { View, parse, changeset } from 'vega';
 import { TopLevelSpec, compile } from 'vega-lite';
 import defaultsDeep from 'lodash/defaultsDeep';
 import { Canvas } from 'canvas';
-import { Price, Item } from './priceStats';
 import firebase from 'firebase-admin';
+import { Price } from './types';
+import { DateTime, Duration } from 'luxon';
 
 const Colors: string[] = [
   'red',
@@ -121,41 +121,24 @@ export const chartSpec = defaultsDeep(
 );
 
 export interface RenderChartOptions {
-  itemRef: DocumentReference;
+  itemSnapshot: firebase.firestore.DocumentSnapshot;
   spec: TopLevelSpec;
-  domain: number[];
-  item: Item;
-  priceStats?: {
-    endByFluctuationRate: number;
-  };
   prices: Price[];
   storage: firebase.storage.Storage;
   type: string;
 }
 
 export async function renderChart({
-  itemRef,
+  itemSnapshot,
   spec,
-  domain,
-  item,
-  priceStats,
   prices,
   storage,
   type,
 }: RenderChartOptions): Promise<void> {
+  const itemRef = itemSnapshot.ref;
   console.debug('rendering', type, itemRef.path);
   const mergedSpec: TopLevelSpec = defaultsDeep({}, spec, {
-    title: item.name,
-    encoding: {
-      color: {
-        value: priceStats && getColorCode(priceStats.endByFluctuationRate),
-        x: {
-          scale: {
-            domain: domain.map(d => new Date(d).toISOString()),
-          },
-        },
-      },
-    },
+    title: itemSnapshot.get('name'),
   });
 
   const view = new View(parse(compile(mergedSpec).spec), { renderer: 'none' });
@@ -191,8 +174,36 @@ export async function renderChart({
       .on('finish', resolve);
   });
 
-  await itemRef.update({
-    [`${type}UpdatedAt`]: FieldValue.serverTimestamp(),
-  });
   console.debug('done');
+}
+
+export default async function renderAllCharts({
+  prices,
+  ...options
+}: {
+  storage: firebase.storage.Storage;
+  itemSnapshot: firebase.firestore.DocumentSnapshot;
+  prices: Price[];
+}): Promise<void> {
+  const domainLeft = DateTime.local()
+    .minus(Duration.fromISO('P30D'))
+    .valueOf();
+  const filteredPrices = prices.filter(
+    p => p.timestamp.toMillis() > domainLeft,
+  );
+
+  await Promise.all([
+    renderChart({
+      ...options,
+      prices: filteredPrices,
+      spec: backgroundChartSpec,
+      type: 'backgroundChart',
+    }),
+    renderChart({
+      ...options,
+      prices: filteredPrices,
+      spec: chartSpec,
+      type: 'chart',
+    }),
+  ]);
 }

@@ -54,7 +54,7 @@ export default class StorageIOHandler implements io.IOHandler {
   ): Promise<Response> {
     return await this.fetch(await ref.getDownloadURL(), contentType);
   }
-  private async downloadJson(ref: Reference): Promise<Record<string, any>> {
+  private async downloadJson(ref: Reference): Promise<io.ModelArtifacts> {
     return await (await this.download(ref, 'application/json')).json();
   }
   private async downloadBinary(ref: Reference): Promise<ArrayBuffer> {
@@ -63,7 +63,12 @@ export default class StorageIOHandler implements io.IOHandler {
     ).arrayBuffer();
   }
 
-  private async loadWeights(weightsManifest: io.WeightsManifestConfig) {
+  private async loadWeights(
+    weightsManifest: io.WeightsManifestConfig,
+  ): Promise<{
+    weightData: ArrayBuffer;
+    weightSpecs?: io.WeightsManifestEntry[];
+  }> {
     if (!weightsManifest) {
       return {
         weightData: await this.downloadBinary(this.weightDataRef),

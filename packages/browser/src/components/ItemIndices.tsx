@@ -7,7 +7,7 @@ import {
   SymbolicTensor,
 } from '@tensorflow/tfjs';
 import StorageIOHandler from '../prediction/StorageIOHandler';
-import { initializeApp, Timestamp } from '../firebase';
+import { initializeApp } from '../firebase';
 import { simpleConverter } from '../firebase/converters';
 import { PriceConverter, Price } from 'mercurius-core/lib/models/Price';
 import { assertDefined, assert } from '../utilities/assert';
@@ -135,11 +135,7 @@ async function getModel(projectId: string): Promise<LayersModel> {
   return await loadLayersModel(ioHandler);
 }
 
-async function getPrices(
-  projectId: string,
-  itemId: string,
-  limit: number,
-): Promise<Price[]> {
+async function getPrices(projectId: string, itemId: string): Promise<Price[]> {
   const pricesRef = (await firestore)
     .collection(`projects/${projectId}/items/${itemId}/prices`)
     .withConverter(simpleConverter(PriceConverter.cast));
@@ -168,7 +164,7 @@ async function getIndices(
 
   // console.log({ inputSize, outputSize });
 
-  const prices = await getPrices(projectId, itemId, inputSize);
+  const prices = await getPrices(projectId, itemId);
 
   const quantized = quantize(prices);
   const interpolated = interpolate(quantized);

@@ -2,33 +2,31 @@ import 'source-map-support/register';
 
 import firebase from 'firebase-admin';
 import * as functions from 'firebase-functions';
-import { updatePriceStats } from './priceStats';
+import updateItem from './item';
+import * as Luxon from 'luxon';
 
-const app = firebase.initializeApp();
-const storage = app.storage();
+Luxon.Settings.defaultZoneName = 'Asia/Tokyo';
 
-const runtimeOptions: functions.RuntimeOptions = {
+firebase.initializeApp();
+
+const configured = functions.region('asia-northeast1').runWith({
   memory: '2GB',
-};
+});
 
-export const onPriceChange = functions
-  .runWith(runtimeOptions)
-  .firestore.document('projects/{projectId}/items/{itemId}/prices/{priceId}')
+export const onPriceChange = configured.firestore
+  .document('projects/{projectId}/items/{itemId}/prices/{priceId}')
   .onWrite(
     async (change): Promise<void> => {
       const itemRef = change.after.ref.parent.parent;
-      if (!itemRef) return;
-      await updatePriceStats(itemRef, { storage });
+      if (!itemRef) throw new Error('Failed to get Item');
+      await updateItem(await itemRef.get(), change.after);
     },
   );
 
-export const onItemChange = functions
-  .runWith(runtimeOptions)
-  .firestore.document('projects/{projectId}/items/{itemId}')
+export const onItemChange = configured.firestore
+  .document('projects/{projectId}/items/{itemId}')
   .onWrite(
     async (change): Promise<void> => {
-      const itemSnapshot = change.after;
-      const itemRef = itemSnapshot.ref;
-      await updatePriceStats(itemRef, { itemSnapshot, storage });
+      await updateItem(change.after);
     },
   );

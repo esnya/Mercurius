@@ -1,9 +1,7 @@
-import { Expression } from './Expression';
-
 export default interface FieldDefinition {
   id: string;
   text: string;
-  value: Expression<number | null | undefined>;
+  value: string;
   textAlign?: 'center' | 'left' | 'right';
   factor?: number;
   format?: 'integer' | 'percentage';

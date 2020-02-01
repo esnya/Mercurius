@@ -9,29 +9,29 @@ import {
   Image,
   ButtonProps,
 } from 'semantic-ui-react';
-import { Item } from 'mercurius-core/lib/models/Item';
+import { QueryDocumentSnapshot } from '../firebase';
+import Item from 'mercurius-core/lib/models-next/Item';
 
 export interface ItemChartModalProps extends ModalProps {
-  item: Item;
-  itemRef: firebase.firestore.DocumentReference;
+  itemSnapshot: QueryDocumentSnapshot<Item>;
 }
 export default function ItemChartModal({
-  itemRef,
-  item,
+  itemSnapshot,
   open,
   onClose,
   ...modalProps
 }: ItemChartModalProps): JSX.Element {
   const [chartUrl, setChartUrl] = useState<string>();
-  const { chartUpdatedAt } = item;
+  const { chartUpdatedAt } = itemSnapshot.data();
 
+  const path = itemSnapshot.ref.path;
   useEffect(() => {
-    const ref = itemRef.firestore.app
+    const ref = itemSnapshot.ref.firestore.app
       .storage()
-      .ref(itemRef.path)
+      .ref(path)
       .child('chart');
     ref.getDownloadURL().then(setChartUrl);
-  }, [itemRef, chartUpdatedAt]);
+  }, [path, chartUpdatedAt]);
 
   return (
     <Modal open={open} onClose={onClose} {...modalProps}>

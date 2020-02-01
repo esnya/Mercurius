@@ -7,7 +7,7 @@ export async function build(src: string, dst: string): Promise<void> {
   const schema = createGenerator({
     ...DEFAULT_CONFIG,
     path: src,
-    strictTuples: true,
+    // strictTuples: true,
     skipTypeCheck: true,
   }).createSchema(undefined);
 

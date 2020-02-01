@@ -5,6 +5,7 @@ import omit from 'lodash/omit';
 import mapObject from 'map-obj';
 import Ajv from 'ajv';
 import { JSONSchema7 } from 'json-schema';
+import { QueryDocumentSnapshot } from './types';
 
 type DocumentData = firebase.firestore.DocumentData;
 type FirestoreDataConverter<T> = firebase.firestore.FirestoreDataConverter<T>;
@@ -14,6 +15,17 @@ export function decode<T extends {}>(value: T): T {
     key as string,
     value instanceof firebase.firestore.Timestamp
       ? value.toDate()
+      : Array.isArray(value)
+      ? value.map(decode)
+      : value,
+  ]) as T;
+}
+
+export function decodeToMillis<T extends {}>(value: T): T {
+  return mapObject(value, (key, value) => [
+    key as string,
+    value instanceof firebase.firestore.Timestamp
+      ? value.toMillis()
       : Array.isArray(value)
       ? value.map(decode)
       : value,
@@ -35,31 +47,35 @@ export function simpleConverter<T>(
 
 const ajv = new Ajv();
 
-function assertValid<T>(
-  validate: Ajv.ValidateFunction,
-  value: unknown,
-): asserts value is T {
-  if (!validate(value)) {
-    throw new Error(ajv.errorsText(validate.errors));
-  }
-}
-
 export function schemaConverter<T extends {}>(
   schema: JSONSchema7,
+  fallback?: (snapshot: QueryDocumentSnapshot<DocumentData>) => Omit<T, 'id'>,
 ): FirestoreDataConverter<T> {
-  const validate = ajv.compile(schema);
+  const validate = ajv.compile(
+    mapObject(schema, ([key, value]) => [
+      key,
+      key === 'additionalProperties' ? false : value,
+    ]),
+  );
   return {
-    fromFirestore: flow(
-      (snapshot): DocumentData => ({
-        id: snapshot.id,
-        ...snapshot.data(),
-      }),
-      decode,
-      (data: DocumentData): T => {
-        assertValid<T>(validate, data);
-        return data;
-      },
-    ),
+    fromFirestore(snapshot): T {
+      const id = snapshot.id;
+      const data = {
+        ...decodeToMillis(snapshot.data()),
+        id,
+      };
+
+      if (validate(data)) return (data as unknown) as T;
+
+      if (fallback) {
+        return ({
+          ...fallback(snapshot),
+          id,
+        } as unknown) as T;
+      }
+
+      throw new Error(ajv.errorsText(validate.errors));
+    },
     toFirestore(data: T): DocumentData {
       return omit(data, 'id');
     },

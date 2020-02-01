@@ -1,5 +1,4 @@
 import FieldDefinition from 'mercurius-core/lib/models-next/FieldDefinition';
-import { ArrayExpression } from 'mercurius-core/lib/models-next/Expression';
 
 const fields: FieldDefinition[] = [
   {
@@ -12,38 +11,7 @@ const fields: FieldDefinition[] = [
   {
     id: 'purchase',
     text: '買い指数',
-    value: {
-      $cond: {
-        if: '$data.indices',
-        then: {
-          $arrayElemAt: [
-            {
-              $map: {
-                input: {
-                  $filter: {
-                    input: {
-                      $map: {
-                        input: '$data.indices',
-                        as: 'index',
-                        in: {
-                          value: '$$index.purchase',
-                          isFresh: { $gte: ['$$index.timestamp', '$now'] },
-                        },
-                      },
-                    },
-                    as: 'index',
-                    cond: '$$index.isFresh',
-                  },
-                },
-                as: 'index',
-                in: '$$index.value',
-              },
-            } as ArrayExpression<number>,
-            0,
-          ],
-        },
-      },
-    },
+    value: '$data.indices.%now%.purchase',
     format: 'percentage',
     textAlign: 'center',
     factor: 100,
@@ -52,38 +20,7 @@ const fields: FieldDefinition[] = [
   {
     id: 'divestment',
     text: '売り指数',
-    value: {
-      $cond: {
-        if: '$data.indices',
-        then: {
-          $arrayElemAt: [
-            {
-              $map: {
-                input: {
-                  $filter: {
-                    input: {
-                      $map: {
-                        input: '$data.indices',
-                        as: 'index',
-                        in: {
-                          value: '$$index.divestment',
-                          isFresh: { $gte: ['$$index.timestamp', '$now'] },
-                        },
-                      },
-                    },
-                    as: 'index',
-                    cond: '$$index.isFresh',
-                  },
-                },
-                as: 'index',
-                in: '$$index.value',
-              },
-            } as ArrayExpression<number>,
-            0,
-          ],
-        },
-      },
-    },
+    value: '$data.indices.%now%.purchase',
     format: 'percentage',
     textAlign: 'center',
     factor: 100,
@@ -92,12 +29,7 @@ const fields: FieldDefinition[] = [
   {
     id: 'roid0',
     text: '騰落率',
-    value: {
-      $divide: [
-        { $subtract: ['$data.dailyStats.0.closing', '$data.dailyStats.1.avg'] },
-        '$data.dailyStats.1.avg',
-      ],
-    },
+    value: '$data.rate.fluctuationRates.%today%',
     format: 'percentage',
     textAlign: 'center',
     factor: 100,
@@ -109,12 +41,7 @@ const fields: FieldDefinition[] = [
   {
     id: 'roid1',
     text: '前日騰落率',
-    value: {
-      $divide: [
-        { $subtract: ['$data.dailyStats.1.avg', '$data.dailyStats.2.avg'] },
-        '$data.dailyStats.2.avg',
-      ],
-    },
+    value: '$data.rate.fluctuationRates.%yesterday%',
     format: 'percentage',
     textAlign: 'center',
     factor: 100,
@@ -136,20 +63,6 @@ const fields: FieldDefinition[] = [
     value: '$data.priceStats.max',
     format: 'integer',
     textAlign: 'right',
-  },
-  {
-    id: 'closingPerMonthlyMin',
-    text: '対安値騰落率',
-    value: {
-      $divide: [
-        { $subtract: ['$data.priceStats.end', '$data.priceStats.min'] },
-        '$data.priceStats.min',
-      ],
-    },
-    format: 'percentage',
-    textAlign: 'center',
-    factor: 100,
-    color: {},
   },
   {
     id: 'monthlyRoid',

@@ -14,7 +14,7 @@
     "build:models": "ts-node src/scripts/build-models.ts",
     "build:models-next": "ts-node src/scripts/build-models-next.ts",
     "build:tsc": "tsc",
-    "dev": "run-s build:models watch",
+    "dev": "run-s build:models build:models-next watch",
     "watch": "run-p watch:*",
     "watch:models": "chokidar src/models/**/*.yml -c \"npm run -s build:models\"",
     "watch:models-next": "chokidar src/models-next/**/*.ts -c \"npm run -s build:models-next\"",
