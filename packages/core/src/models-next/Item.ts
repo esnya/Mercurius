@@ -12,8 +12,9 @@ export interface ItemPriceStat {
 export default interface Item {
   id: string;
   name: string;
-  updatedAt?: number;
+  type?: string;
 
+  updatedAt?: number;
   backgroundChartUpdatedAt?: number;
   chartUpdatedAt?: number;
 
