@@ -11,6 +11,12 @@ export async function build(src: string, dst: string): Promise<void> {
     skipTypeCheck: true,
   }).createSchema(undefined);
 
+  try {
+    await fs.promises.access(path.dirname(dst));
+  } catch (_e) {
+    await fs.promises.mkdir(path.dirname(dst), { recursive: true });
+  }
+
   await fs.promises.writeFile(dst, JSON.stringify(schema, null, 2));
   await fs.promises.writeFile(
     `${dst}.d.ts`,
