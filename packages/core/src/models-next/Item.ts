@@ -10,7 +10,6 @@ export interface ItemPriceStat {
 }
 
 export default interface Item {
-  id: string;
   name: string;
   type?: string;
 
