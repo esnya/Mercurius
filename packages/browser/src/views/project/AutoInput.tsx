@@ -30,9 +30,10 @@ import { loadPreset, drawPreset } from '../../recognition/RecognitionPreset';
 import { bounds, crop, videoToCanvas, Size } from '../../utilities/image';
 import RecognitionPresetEditor from '../../components/RecognitionPresetEditor';
 import { castQuery } from '../../firebase/snapshot';
-import { ItemConverter, Item } from 'mercurius-core/lib/models/Item';
+import Item from 'mercurius-core/lib/models-next/Item';
+import ItemSchema from 'mercurius-core/lib/models-next/Item.schema.json';
 import { PriceConverter } from 'mercurius-core/lib/models/Price';
-import { simpleConverter } from '../../firebase/converters';
+import { schemaConverter } from '../../firebase/converters';
 import { assertDefined } from '../../utilities/assert';
 
 const app = initializeApp();
@@ -42,7 +43,7 @@ async function getItemsRef(
   return (await app)
     .firestore()
     .collection(`projects/${projectId}/items`)
-    .withConverter(simpleConverter(ItemConverter.cast));
+    .withConverter(schemaConverter<Item>(ItemSchema));
 }
 
 interface Rect {
