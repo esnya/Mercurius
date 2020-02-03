@@ -175,9 +175,9 @@ export default React.memo(function ItemTableRow({
 
   return (
     <Table.Row style={rowStyle}>
-      <Table.Cell textAlign="center">
+      <Table.Cell textAlign="center" verticalAlign="middle">
         <Link
-          to={`${itemSnapshot.ref.parent.parent?.id}/items/${itemSnapshot.ref.id}`}
+          to={`/projects/${itemSnapshot.ref.parent.parent?.id}/items/${itemSnapshot.ref.id}`}
         >
           {name}
         </Link>
@@ -197,15 +197,11 @@ export default React.memo(function ItemTableRow({
       </Cell>
       <Cell>
         {isDefined(last30Days) ? (
-          <Grid stackable verticalAlign="middle">
+          <Grid verticalAlign="middle">
             <Grid.Column width={10}>
               <RateLabel rate={last30Days.minMaxRate} colorFactor={0.1} />
             </Grid.Column>
-            <Grid.Column
-              width={6}
-              className={styles.ItemTableCell}
-              textAlign="right"
-            >
+            <Grid.Column width={6} textAlign="right">
               {formatInteger(last30Days.min)}
               <br />
               {formatInteger(last30Days.max)}

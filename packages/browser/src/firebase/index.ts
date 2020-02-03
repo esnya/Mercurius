@@ -1,6 +1,7 @@
 import firebase from 'firebase/app';
 import memoize from 'lodash/memoize';
 
+import 'firebase/analytics';
 import 'firebase/auth';
 import 'firebase/firestore';
 import 'firebase/storage';
@@ -14,7 +15,11 @@ export const initializeApp = memoize(
 
     const init = await initRes.json();
 
-    return await firebase.initializeApp(init, name);
+    const app = await firebase.initializeApp(init, name);
+    app.auth();
+    app.analytics();
+
+    return app;
   },
 );
 

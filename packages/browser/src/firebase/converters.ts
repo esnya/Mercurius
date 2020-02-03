@@ -49,7 +49,7 @@ const ajv = new Ajv();
 
 export function schemaConverter<T extends {}>(
   schema: JSONSchema7,
-  fallback?: (snapshot: QueryDocumentSnapshot<DocumentData>) => Omit<T, 'id'>,
+  fallback?: (snapshot: QueryDocumentSnapshot<DocumentData>) => T,
 ): FirestoreDataConverter<T> {
   const validate = ajv.compile(
     mapObject(schema, ([key, value]) => [
@@ -59,25 +59,16 @@ export function schemaConverter<T extends {}>(
   );
   return {
     fromFirestore(snapshot): T {
-      const id = snapshot.id;
-      const data = {
-        ...decodeToMillis(snapshot.data()),
-        id,
-      };
+      const data = decodeToMillis(snapshot.data());
 
       if (validate(data)) return (data as unknown) as T;
 
       if (fallback) {
-        return ({
-          ...fallback(snapshot),
-          id,
-        } as unknown) as T;
+        return fallback(snapshot);
       }
 
       throw new Error(ajv.errorsText(validate.errors));
     },
-    toFirestore(data: T): DocumentData {
-      return omit(data, 'id');
-    },
+    toFirestore: identity,
   };
 }

@@ -14,10 +14,11 @@
     "resolveJsonModule": true,
     // Strict
     "strict": true,
+    "skipLibCheck": true,
   },
   "exclude": [
     "node_modules",
     "dist",
     "lib",
-  ]
+  ],
 }

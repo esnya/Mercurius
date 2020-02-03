@@ -30,6 +30,7 @@
     "map-obj": "^4.1.0"
   },
   "devDependencies": {
+    "@types/ajv": "^1.0.0",
     "@types/js-yaml": "^3.12.1",
     "@types/lodash": "^4.14.146",
     "@types/map-obj": "^3.1.0",

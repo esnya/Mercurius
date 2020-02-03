@@ -1,5 +1,12 @@
 import React from 'react';
-import { Table, Input } from 'semantic-ui-react';
+import {
+  Table,
+  Input,
+  Icon,
+  Button,
+  ButtonGroup,
+  Select,
+} from 'semantic-ui-react';
 
 export interface ItemTableHeaderProps {
   headers: Partial<{ id: string; text: string }>[];
@@ -38,14 +45,21 @@ export default function ItemTableHeader({
     <Table.Header>
       <Table.Row>
         <Table.HeaderCell colSpan={headerCells.length} textAlign="right">
-          <Input
+          <Select
+            allowAdditions
+            clearable
             icon="search"
             name="keywords"
-            value={keywords?.join(' ') ?? ''}
+            multiple
+            options={keywords?.map(a => ({ value: a, text: a })) ?? []}
+            style={{ minWidth: '40%' }}
+            search
+            value={keywords ?? []}
             onChange={(_e, { value }): void => {
+              console.log();
               const keywords =
-                value && typeof value === 'string'
-                  ? value.split(/\s+/g).filter(a => a)
+                Array.isArray(value) && value.length > 0
+                  ? value.map(a => `${a}`.split(/\s+/g).filter(a => a)).flat()
                   : null;
               onKeywordsChange(keywords);
             }}
