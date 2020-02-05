@@ -1,12 +1,5 @@
 import React from 'react';
-import {
-  Table,
-  Input,
-  Icon,
-  Button,
-  ButtonGroup,
-  Select,
-} from 'semantic-ui-react';
+import { Table, Select } from 'semantic-ui-react';
 
 export interface ItemTableHeaderProps {
   headers: Partial<{ id: string; text: string }>[];

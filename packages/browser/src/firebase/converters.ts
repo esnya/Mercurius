@@ -1,7 +1,6 @@
 import firebase from 'firebase/app';
 import identity from 'lodash/identity';
 import flow from 'lodash/flow';
-import omit from 'lodash/omit';
 import mapObject from 'map-obj';
 import Ajv from 'ajv';
 import { JSONSchema7 } from 'json-schema';

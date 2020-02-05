@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, CSSProperties } from 'react';
 import {
   Button,
   Table,
@@ -105,7 +105,10 @@ function RateLabel({
   const colorRate = rate * (colorFactor ?? 1);
 
   return (
-    <Label color={getByRate(colors, colorRate)}>
+    <Label
+      color={getByRate(colors, colorRate)}
+      style={{ whiteSpace: 'nowrap' }}
+    >
       <Icon name={getByRate(icons, colorRate)} />
       {formatPercent(rate * 100 * (textFactor ?? 1))}
     </Label>
@@ -158,16 +161,14 @@ export default React.memo(function ItemTableRow({
     />
   );
 
-  const backgroundLeft =
-    updatedAt &&
-    ((Date.now() - updatedAt) / duration(14, 'days').asMilliseconds()) * 100;
+  // const backgroundLeft =
+  //   updatedAt &&
+  //   ((Date.now() - updatedAt) / duration(14, 'days').asMilliseconds()) * 100;
 
-  const rowStyle = {
-    backgroundImage: chartUrl ? `url(${chartUrl})` : null,
+  const rowStyle: CSSProperties = {
+    backgroundImage: chartUrl ? `url(${chartUrl})` : undefined,
     backgroundSize: '100% 100%',
-    backgroundOrigin: 'content-box',
     backgroundRepeat: 'no-repeat',
-    paddingLeft: backgroundLeft && `${backgroundLeft}%`,
     imageRendering: '-webkit-optimize-contrast',
   };
 
@@ -197,14 +198,14 @@ export default React.memo(function ItemTableRow({
       </Cell>
       <Cell>
         {isDefined(last30Days) ? (
-          <Grid verticalAlign="middle">
-            <Grid.Column width={10}>
-              <RateLabel rate={last30Days.minMaxRate} colorFactor={0.1} />
-            </Grid.Column>
-            <Grid.Column width={6} textAlign="right">
+          <Grid verticalAlign="middle" centered columns="equal">
+            <Grid.Column textAlign="right">
               {formatInteger(last30Days.min)}
               <br />
               {formatInteger(last30Days.max)}
+            </Grid.Column>
+            <Grid.Column>
+              <RateLabel rate={last30Days.minMaxRate} colorFactor={0.1} />
             </Grid.Column>
           </Grid>
         ) : (

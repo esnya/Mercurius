@@ -160,7 +160,9 @@ export default function ItemTable({ projectId }: ItemTableProps): JSX.Element {
           <Table.HeaderCell colSpan={headers.length} textAlign="center">
             <Pagination
               activePage={activePage}
+              boundaryRange={0}
               totalPages={totalPages}
+              siblingRange={0}
               onPageChange={(_e, { activePage }): void =>
                 setActivePage(activePage as number)
               }

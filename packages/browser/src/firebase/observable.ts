@@ -5,34 +5,29 @@ import { QueryDocumentSnapshot, Query } from './types';
 export function fromQuery<T>(
   query: Query<T>,
 ): Observable<QueryDocumentSnapshot<T>[]> {
-  // const docs: (QueryDocumentSnapshot<T> | null)[] = [];
+  let docs: QueryDocumentSnapshot<T>[] | null = null;
 
   return new Observable(
     (subject): Unsubscribe => {
       return query.onSnapshot(
         (snapshot): void => {
-          subject.next(snapshot.docs);
-          // snapshot
-          //   .docChanges()
-          //   .forEach(({ type, newIndex, oldIndex, doc }): void => {
-          //     switch (type) {
-          //       case 'modified':
-          //       case 'removed':
-          //         docs[oldIndex] = null;
-          //         break;
-          //     }
+          if (docs) {
+            snapshot
+              .docChanges()
+              .forEach(({ newIndex, oldIndex, doc }): void => {
+                if (docs && oldIndex >= 0) {
+                  docs = docs.splice(oldIndex, 1);
+                }
 
-          //     switch (type) {
-          //       case 'added':
-          //       case 'modified':
-          //         docs[newIndex] = doc;
-          //         break;
-          //     }
-          //   });
+                if (docs && newIndex >= 0) {
+                  docs = docs.splice(newIndex, 0, doc);
+                }
+              });
+          } else {
+            docs = snapshot.docs;
+          }
 
-          // subject.next(
-          //   docs.filter((d): d is QueryDocumentSnapshot<T> => d !== null),
-          // );
+          subject.next(docs);
         },
         error => subject.error(error),
         () => subject.complete(),
