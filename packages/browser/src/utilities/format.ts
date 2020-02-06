@@ -35,7 +35,8 @@ export const formatDecimal = formatter({
 });
 export const formatZeny = formatter({
   round: 0,
-  suffix: ' \u24CF',
+  // suffix: ' \u24CF',
+  suffix: ' zeny',
 });
 export const formatPercent = formatter({
   round: 1,

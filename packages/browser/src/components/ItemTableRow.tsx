@@ -26,6 +26,8 @@ import {
 import { timestampGetters } from '../utilities/path';
 import { Link } from 'react-router-dom';
 import ItemChartModal from './ItemChartModal';
+import RateLabel from './RateLabel';
+import { getIndices, getDaily } from '../utilities/item';
 
 function Cell({
   children,
@@ -44,99 +46,22 @@ function Cell({
   );
 }
 
-const icons: SemanticICONS[] = [
-  'angle double down',
-  'angle down',
-
-  'minus',
-  // 'arrow right',
-
-  'angle up',
-  'angle double up',
-];
-const colors: SemanticCOLORS[] = [
-  'red',
-  'orange',
-  'yellow',
-  'olive',
-
-  'green',
-
-  'teal',
-  'blue',
-  'violet',
-  'purple',
-];
-
-function getByRate<T>(items: T[], rate: number): T {
-  const center = Math.floor(items.length / 2);
-
-  if (Math.abs(rate) < 0.1) return items[center];
-
-  const i =
-    Math.round((center - 1) * Math.min(Math.abs(rate), 1) + 1) *
-    Math.sign(rate);
-
-  return items[center + i];
-}
-
-// function RateIcon({ rate }: { rate: number }): JSX.Element {
-//   return <Icon name={getByRate(icons, rate)} color={getByRate(colors, rate)} />;
-// }
-
-function RateLabel({
-  rate,
-  textFactor,
-  colorFactor,
-}: {
-  rate?: number;
-  textFactor?: number;
-  colorFactor?: number;
-}): JSX.Element {
-  if (rate === undefined) {
-    return (
-      <Label color="grey">
-        <Icon name="question" />
-      </Label>
-    );
-  }
-
-  const colorRate = rate * (colorFactor ?? 1);
-
-  return (
-    <Label
-      color={getByRate(colors, colorRate)}
-      style={{ whiteSpace: 'nowrap' }}
-    >
-      <Icon name={getByRate(icons, colorRate)} />
-      {formatPercent(rate * 100 * (textFactor ?? 1))}
-    </Label>
-  );
-}
-
 export default React.memo(function ItemTableRow({
   itemSnapshot,
 }: {
   itemSnapshot: QueryDocumentSnapshot<Item>;
 }): JSX.Element {
-  const now = DateTime.local();
-
+  const item = itemSnapshot.data();
   const {
     name,
     last30Days,
-    indices,
-    daily,
     backgroundChartUpdatedAt,
     updatedAt,
     chartUpdatedAt,
-  } = itemSnapshot.data();
+  } = item;
 
-  const currentIndices =
-    indices && indices[`${timestampGetters.nextTimeUnit(now).valueOf()}`];
-  const today =
-    daily &&
-    (daily[`${timestampGetters.today(now).valueOf()}`] ||
-      daily[`${timestampGetters.yesterday(now).valueOf()}`]);
+  const currentIndices = getIndices(item);
+  const today = getDaily(item);
 
   const [chartUrl, setChartUrl] = useState<string>();
   const [chartModalOpen, setChartModalOpen] = useState(false);

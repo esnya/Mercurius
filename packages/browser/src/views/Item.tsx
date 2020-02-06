@@ -21,7 +21,6 @@ import useAsyncEffect from '../hooks/useAsyncEffect';
 import ActionButton from '../components/ActionButton';
 import ConfigurationEditor from '../components/ConfigurationEditor';
 import usePersistentState from '../hooks/usePersistentState';
-import ItemView from '../components/ItemView';
 import { DateTime, Duration } from 'luxon';
 import { Timestamp, initializeApp } from '../firebase';
 import {
@@ -51,6 +50,7 @@ import View from '../prediction/view';
 import { getLabels } from '../prediction/labels';
 import PredictedChart from '../components/PredictedChart';
 import ItemIndices from '../components/ItemIndices';
+import ItemDetails from '../components/ItemDetails';
 
 const resources = {
   app: new PromiseReader(initializeApp),
@@ -223,11 +223,7 @@ export default function Item(): JSX.Element {
     <Container>
       <Segment.Group>
         <Segment>
-          <ItemView
-            itemRef={app
-              .firestore()
-              .doc(`projects/${projectId}/items/${itemId}`)}
-          />
+          <ItemDetails projectId={projectId} itemId={itemId} />
         </Segment>
         <Segment>
           <PriceChart name={itemId} prices={priceSnapshots.map(p => p.data)} />
