@@ -5,12 +5,10 @@ import { firestore } from '../resources/firebase';
 import { schemaConverter } from '../firebase/converters';
 import Item from 'mercurius-core/lib/models-next/Item';
 import ItemSchema from 'mercurius-core/lib/models-next/Item.schema.json';
-import { List, Segment, Header, Statistic, Grid } from 'semantic-ui-react';
+import { Header, Statistic } from 'semantic-ui-react';
 import {
-  formatTimestamp,
   formatTimestampShort,
   formatPercent,
-  formatInteger,
   formatZeny,
 } from '../utilities/format';
 import { isDefined } from '../utilities/types';

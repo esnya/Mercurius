@@ -21,6 +21,6 @@
     "rules": "firebase/storage.rules"
   },
   "functions": {
-    "source": "packages/functions"
+    "source": "packages/functions/dist"
   }
 }

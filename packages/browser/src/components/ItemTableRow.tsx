@@ -1,29 +1,12 @@
 import React, { useState, useEffect, CSSProperties } from 'react';
-import {
-  Button,
-  Table,
-  TableCellProps,
-  Icon,
-  Grid,
-  Label,
-} from 'semantic-ui-react';
+import { Button, Table, TableCellProps, Grid } from 'semantic-ui-react';
 import { QueryDocumentSnapshot, FieldValue } from '../firebase';
-import {
-  formatTimestampShort,
-  formatInteger,
-  formatPercent,
-} from '../utilities/format';
+import { formatTimestampShort, formatInteger } from '../utilities/format';
 import styles from './ItemTableCell.styl';
 import Item from 'mercurius-core/lib/models-next/Item';
 import copy from 'copy-text-to-clipboard';
 import ActionButton from './ActionButton';
 import { isDefined } from '../utilities/types';
-import { DateTime } from 'luxon';
-import {
-  SemanticICONS,
-  SemanticCOLORS,
-} from 'semantic-ui-react/dist/commonjs/generic';
-import { timestampGetters } from '../utilities/path';
 import { Link } from 'react-router-dom';
 import ItemChartModal from './ItemChartModal';
 import RateLabel from './RateLabel';
