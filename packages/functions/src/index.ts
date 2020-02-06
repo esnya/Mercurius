@@ -19,7 +19,7 @@ export const onPriceChange = configured.firestore
     async (change): Promise<void> => {
       const itemRef = change.after.ref.parent.parent;
       if (!itemRef) throw new Error('Failed to get Item');
-      await updateItem(await itemRef.get(), change.after);
+      await updateItem(itemRef.path);
     },
   );
 
@@ -27,6 +27,6 @@ export const onItemChange = configured.firestore
   .document('projects/{projectId}/items/{itemId}')
   .onWrite(
     async (change): Promise<void> => {
-      await updateItem(change.after);
+      await updateItem(change.after.ref.path);
     },
   );

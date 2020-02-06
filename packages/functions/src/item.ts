@@ -1,55 +1,46 @@
 import firebase from 'firebase-admin';
 import { DateTime, Duration } from 'luxon';
-import mapValues from 'lodash/mapValues';
-import pickBy from 'lodash/pickBy';
-import { Price } from './types';
 import predictIndices from './indices';
 import { statPrices } from './stats';
 import renderAllCharts from './chart';
+import { serverTimestamp } from 'mercurius-core/lib/firestore/types';
+import chunk from 'lodash/chunk';
+import firestore from './firestore';
 
-function filterUndefined<T extends {}>(
-  value: T,
-): firebase.firestore.DocumentData {
-  return mapValues(
-    pickBy(value, a => a !== undefined),
-    a =>
-      typeof a === 'object' && a?.constructor === Object
-        ? filterUndefined(a)
-        : a,
+export default async function updateItem(itemPath: string): Promise<void> {
+  console.log('UpdateItem', 'Starting', itemPath);
+
+  const [projectId, itemId] = chunk(itemPath.split(/\//g), 2).map(a => a[1]);
+
+  const projectRef = firestore.projectCollection.doc(projectId);
+
+  const itemRef = firestore.getItemCollection(projectRef).doc(itemId);
+  const itemSnapshot = await itemRef.get();
+  const item = itemSnapshot.data();
+
+  if (!item) throw new Error('Item does not exist');
+
+  const { updatedAt } = item;
+  console.log('UpdatedAt', updatedAt && new Date(updatedAt).toISOString());
+
+  const priceCollection = firestore.getPriceCollection(itemRef);
+
+  const {
+    docs: [lastPriceSnapshot],
+  } = await priceCollection
+    .orderBy('timestamp', 'desc')
+    .limit(1)
+    .get();
+  const lastPrice = lastPriceSnapshot?.data();
+  const lastPriceTimestamp = lastPrice?.timestamp;
+  console.log(
+    'CurrentPriceTimestamp',
+    lastPriceTimestamp && new Date(lastPriceTimestamp).toISOString(),
   );
-}
-
-export default async function updateItem(
-  itemSnapshot: firebase.firestore.DocumentSnapshot,
-  currentPriceSnapshot?: firebase.firestore.DocumentSnapshot,
-): Promise<void> {
-  console.log('UpdateItem', 'Starting', itemSnapshot.ref.path);
-  const projectId = itemSnapshot.ref.parent.parent?.id;
-  if (!projectId) {
-    throw new Error('Failed to get projectId');
-  }
-
-  const updatedAt = itemSnapshot.get('updatedAt') as
-    | firebase.firestore.Timestamp
-    | undefined;
-  console.log('UpdatedAt', updatedAt?.toDate()?.toISOString());
-
-  const priceCollection = itemSnapshot.ref.collection('prices');
-  const priceTimestamp = (
-    currentPriceSnapshot ??
-    (await priceCollection
-      .orderBy('timestamp', 'desc')
-      .limit(1)
-      .get()
-      .then(({ docs }) => docs[0]))
-  )?.get('timestamp') as firebase.firestore.Timestamp | undefined;
-  console.log('PriceTimestamp', priceTimestamp?.toDate()?.toISOString());
 
   if (
-    (updatedAt &&
-      priceTimestamp &&
-      updatedAt.toMillis() >= priceTimestamp.toMillis()) ||
-    !priceTimestamp
+    (updatedAt && lastPriceTimestamp && updatedAt >= lastPriceTimestamp) ||
+    !lastPriceTimestamp
   ) {
     console.log('Not updated');
     return;
@@ -62,7 +53,7 @@ export default async function updateItem(
     .orderBy('timestamp', 'desc')
     .endBefore(firebase.firestore.Timestamp.fromDate(domainLeft.toJSDate()))
     .get();
-  const prices = pricesSnapshot.docs.map(s => s.data() as Price);
+  const prices = pricesSnapshot.docs.map(s => s.data());
 
   const storage = firebase.storage();
 
@@ -71,15 +62,12 @@ export default async function updateItem(
 
   await renderAllCharts({ prices, itemSnapshot, storage });
 
-  const newUpdatedAt =
-    prices[0].timestamp || firebase.firestore.FieldValue.serverTimestamp();
+  const newUpdatedAt = prices[0].timestamp || serverTimestamp;
 
   await itemSnapshot.ref.update({
-    ...filterUndefined({
-      indices: await indices,
-      daily,
-      last30Days,
-    }),
+    indices: await indices,
+    daily,
+    last30Days,
     updatedAt: newUpdatedAt,
     chartUpdatedAt: newUpdatedAt,
     backgroundChartUpdatedAt: newUpdatedAt,

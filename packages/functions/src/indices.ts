@@ -8,7 +8,8 @@ import {
   Tensor,
 } from '@tensorflow/tfjs-node';
 import StorageIOHandler from './StorageIOHandler';
-import { Price, Indices } from './types';
+import { Indices } from './types';
+import Price from 'mercurius-core/lib/models-next/Price';
 
 const timeDelta = Duration.fromObject({ hours: 3 });
 // const outputDuration = Duration.fromObject({ days: 1 });
@@ -23,8 +24,7 @@ export interface QuantizedPrice {
 function quantize(prices: Price[]): QuantizedPrice[] {
   const quantized = prices.map(price => ({
     timestamp:
-      Math.floor(price.timestamp.toMillis() / timeDelta.valueOf()) *
-      timeDelta.valueOf(),
+      Math.floor(price.timestamp / timeDelta.valueOf()) * timeDelta.valueOf(),
     price: price.price,
     lottery: price.lottery ? 1 : 0,
   }));

@@ -3,8 +3,14 @@ import { TopLevelSpec, compile } from 'vega-lite';
 import defaultsDeep from 'lodash/defaultsDeep';
 import { Canvas } from 'canvas';
 import firebase from 'firebase-admin';
-import { Price } from './types';
+import _ from 'lodash';
+import PriceSchema from 'mercurius-core/lib/models-next/Price.schema.json';
 import { DateTime, Duration } from 'luxon';
+import { DocumentSnapshot } from 'mercurius-core/lib/firestore/types';
+import Item from 'mercurius-core/lib/models-next/Item';
+import Price from 'mercurius-core/lib/models-next/Price';
+
+console.log(PriceSchema);
 
 const Colors: string[] = [
   'red',
@@ -30,7 +36,7 @@ export function getColorCode(value: number): string {
   return color;
 }
 
-export const defaultSpec = {
+export const defaultSpec: TopLevelSpec = {
   width: 1024,
   height: 1024,
   $schema: 'https://vega.github.io/schema/vega-lite/v4.0.0-beta.12.json',
@@ -76,7 +82,7 @@ export const defaultSpec = {
   },
   config: {
     axis: {
-      shortTimeLabels: true,
+      // shortTimeLabels: true,
     },
   },
 };
@@ -87,9 +93,6 @@ export const backgroundChartSpec = defaultsDeep(
     layer: [{ mark: 'area' }, { mark: 'line' }],
     title: null,
     encoding: {
-      color: {
-        // value: getColorCode(priceStats.endByFluctuationRate),
-      },
       x: {
         axis: null,
         sort: 'descending',
@@ -109,20 +112,11 @@ export const backgroundChartSpec = defaultsDeep(
   defaultSpec,
 );
 
-export const chartSpec = defaultsDeep(
-  {
-    encoding: {
-      color: {
-        // value: getColorCode(priceStats.endByFluctuationRate),
-      },
-    },
-  },
-  defaultSpec,
-);
+export const chartSpec = defaultSpec;
 
 export interface RenderChartOptions {
-  itemSnapshot: firebase.firestore.DocumentSnapshot;
   spec: TopLevelSpec;
+  itemSnapshot: DocumentSnapshot<Item>;
   prices: Price[];
   storage: firebase.storage.Storage;
   type: string;
@@ -137,8 +131,29 @@ export async function renderChart({
 }: RenderChartOptions): Promise<void> {
   const itemRef = itemSnapshot.ref;
   console.debug('rendering', type, itemRef.path);
+
+  const domainLeft = DateTime.local()
+    .minus(Duration.fromISO('P30D'))
+    .valueOf();
+
+  const data = prices
+    .map(({ timestamp, ...others }) => ({
+      ...others,
+      timestamp: timestamp,
+    }))
+    .filter(({ timestamp }) => timestamp > domainLeft);
+
+  const closing = _.maxBy(data, ({ timestamp }) => timestamp);
+  const min = _.min(data.map(({ price }) => price));
+  const minClosingRate = closing && min && (closing.price - min) / min;
+
   const mergedSpec: TopLevelSpec = defaultsDeep({}, spec, {
-    title: itemSnapshot.get('name'),
+    title: itemSnapshot.data()?.name,
+    encoding: {
+      color: {
+        value: minClosingRate ? getColorCode(minClosingRate) : 'grey',
+      },
+    },
   });
 
   const view = new View(parse(compile(mergedSpec).spec), { renderer: 'none' });
@@ -146,12 +161,7 @@ export async function renderChart({
     'data',
     changeset()
       .remove(() => true)
-      .insert(
-        prices.map(({ timestamp, ...others }) => ({
-          ...others,
-          timestamp: timestamp.toMillis(),
-        })),
-      ),
+      .insert(data),
   );
   await view.runAsync();
 
@@ -182,26 +192,19 @@ export default async function renderAllCharts({
   ...options
 }: {
   storage: firebase.storage.Storage;
-  itemSnapshot: firebase.firestore.DocumentSnapshot;
+  itemSnapshot: DocumentSnapshot<Item>;
   prices: Price[];
 }): Promise<void> {
-  const domainLeft = DateTime.local()
-    .minus(Duration.fromISO('P30D'))
-    .valueOf();
-  const filteredPrices = prices.filter(
-    p => p.timestamp.toMillis() > domainLeft,
-  );
-
   await Promise.all([
     renderChart({
       ...options,
-      prices: filteredPrices,
+      prices,
       spec: backgroundChartSpec,
       type: 'backgroundChart',
     }),
     renderChart({
       ...options,
-      prices: filteredPrices,
+      prices,
       spec: chartSpec,
       type: 'chart',
     }),

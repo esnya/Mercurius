@@ -13,7 +13,6 @@ import {
   formatInteger,
   formatPercent,
 } from '../utilities/format';
-import { duration } from 'moment';
 import styles from './ItemTableCell.styl';
 import Item from 'mercurius-core/lib/models-next/Item';
 import copy from 'copy-text-to-clipboard';

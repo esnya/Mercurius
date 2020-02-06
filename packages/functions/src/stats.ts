@@ -1,6 +1,6 @@
 import { DateTime, Duration } from 'luxon';
 import _ from 'lodash';
-import { Price } from './types';
+import Price from 'mercurius-core/lib/models-next/Price';
 
 export interface PriceStat {
   fluctuationRate?: number;
@@ -23,17 +23,17 @@ export function statPricesIn(
   const deadline = today.minus(timeUnit * days * group).valueOf();
 
   const t1 = _(prices)
-    .filter(price => price.timestamp.toMillis() >= deadline)
+    .filter(price => price.timestamp >= deadline)
     .groupBy(({ timestamp }): number | string =>
       all
         ? 'all'
-        : DateTime.fromMillis(timestamp.toMillis())
+        : DateTime.fromMillis(timestamp)
             .startOf('day')
             .valueOf(),
     )
     .mapValues(
       (group): Omit<PriceStat, 'minMaxRate' | 'fluctuationRate'> => {
-        const last = _.maxBy(group, ({ timestamp }) => timestamp.toMillis());
+        const last = _.maxBy(group, ({ timestamp }) => timestamp);
         const mean = _.mean(group.map(p => p.price));
         const min = _.min(group.map(p => p.price));
         const max = _.max(group.map(p => p.price));
@@ -66,9 +66,7 @@ export function statPricesIn(
         const minMaxFluctuation = value.max - value.min;
         const tmp = prev && {
           fluctuation: value.closing.price - prev.closing.price,
-          duration:
-            value.closing.timestamp.toMillis() -
-            prev.closing.timestamp.toMillis(),
+          duration: value.closing.timestamp - prev.closing.timestamp,
           prevPrice: prev.closing.price,
         };
 

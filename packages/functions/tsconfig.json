@@ -1,17 +1,6 @@
 {
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
-
-    // Output
-    "outDir": "lib",
-    "sourceMap": true,
-    "module": "commonjs",
-    // Features
     "target": "es2017",
-    "moduleResolution": "node",
-    "allowSyntheticDefaultImports": true,
-    "esModuleInterop": true,
-    // Strict
-    "strict": true,
-    "skipLibCheck": true
-  }
+  },
 }

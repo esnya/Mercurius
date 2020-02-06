@@ -10,8 +10,10 @@
     "url": "git+https://github.com/esnya/Mercurius.git"
   },
   "scripts": {
-    "build": "tsc",
-    "postinstall": "rimraf node_modules/preact/*/preact.d.ts"
+    "build": "webpack",
+    "dev": "npm run -s watch",
+    "postinstall": "rimraf node_modules/preact/*/preact.d.ts",
+    "watch": "webpack -w"
   },
   "bugs": {
     "url": "https://github.com/esnya/Mercurius/issues"
@@ -24,6 +26,7 @@
   },
   "main": "lib/index.js",
   "dependencies": {
+    "@google-cloud/firestore": "^3.4.1",
     "@tensorflow/tfjs": "^1.5.1",
     "@tensorflow/tfjs-node": "^1.5.1",
     "canvas": "^2.6.0",
@@ -31,6 +34,7 @@
     "firebase-functions": "^3.3.0",
     "lodash": "^4.17.15",
     "luxon": "^1.22.0",
+    "mercurius-core": "^0.0.0",
     "moment": "^2.24.0",
     "source-map-support": "^0.5.16",
     "vega": "^5.9.0",
@@ -41,9 +45,16 @@
     "@types/luxon": "^1.21.0",
     "@types/moment": "^2.13.0",
     "@types/webgl2": "0.0.5",
+    "@types/webpack": "^4.41.3",
+    "@types/webpack-node-externals": "^1.7.1",
     "firebase-functions-test": "^0.1.6",
     "firebase-tools": "^7.9.0",
-    "typescript": "^3.7.3"
+    "ts-loader": "^6.2.1",
+    "ts-node": "^8.6.2",
+    "typescript": "^3.7.3",
+    "webpack": "^4.41.5",
+    "webpack-cli": "^3.3.10",
+    "webpack-node-externals": "^1.7.2"
   },
   "private": true
 }
