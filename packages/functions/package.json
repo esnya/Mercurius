@@ -10,7 +10,9 @@
     "url": "git+https://github.com/esnya/Mercurius.git"
   },
   "scripts": {
-    "build": "webpack",
+    "build": "run-s build:webpack build:package",
+    "build:webpack": "webpack",
+    "build:package": "ts-node src/scripts/copy-package.json.ts",
     "dev": "npm run -s watch",
     "postinstall": "rimraf node_modules/preact/*/preact.d.ts",
     "watch": "webpack -w"
