@@ -7,10 +7,7 @@
   "author": "esnya",
   "scripts": {
     "build": "lerna run build",
-    "dev": "run-p dev:*",
-    "dev:browser": "npm --prefix packages/browser -s run dev",
-    "dev:core": "npm --prefix packages/core -s run dev",
-    "dev:functions": "npm --prefix packages/functions -s run dev",
+    "dev": "lerna run --parallel dev",
     "build-production": "cross-env NODE_ENV=production npm run -s build",
     "clean": "rimraf dist lib packages/*/dist packages/*/lib",
     "deploy": "firebase deploy",

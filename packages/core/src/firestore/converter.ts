@@ -1,7 +1,6 @@
 /* eslint @typescript-eslint/no-explicit-any: off */
 
-import identity from 'lodash/identity';
-import flow from 'lodash/flow';
+import pickBy from 'lodash/pickBy';
 import mapObject from 'map-obj';
 import Ajv, { ErrorObject } from 'ajv';
 import { JSONSchema7 } from 'json-schema';
@@ -37,10 +36,12 @@ export function encodeValue(
   key: string,
   fieldValueClass: FieldValueClass,
 ): any {
-  if (value === undefined) return fieldValueClass.delete();
   if (value === serverTimestamp) return fieldValueClass.serverTimestamp();
   if (typeof value === 'number' && key.match(/timestamp|uUpdatedAt$/)) {
     return new Date(value);
+  }
+  if (typeof value === 'object') {
+    return pickBy(value, v => v !== undefined);
   }
   return value;
 }
@@ -49,23 +50,13 @@ export function encode<T extends {}>(
   value: T,
   fieldValueClass: FieldValueClass,
 ): DocumentData {
-  return mapObject(value, (key, value) => [
-    key as string,
-    encodeValue(value, key as string, fieldValueClass),
-  ]);
-}
-
-export function simpleConverter<T>(
-  cast: (data: DocumentData) => T,
-): FirestoreDataConverter<T> {
-  return {
-    fromFirestore: flow(
-      (snapshot: QueryDocumentSnapshot): DocumentData => snapshot.data(),
-      decode,
-      cast,
-    ),
-    toFirestore: identity,
-  };
+  return pickBy(
+    mapObject(value, (key, value) => [
+      key as string,
+      encodeValue(value, key as string, fieldValueClass),
+    ]),
+    v => v !== undefined,
+  );
 }
 
 const ajv = new Ajv();
@@ -83,24 +74,24 @@ type Validator<T> = ((value: unknown) => value is T) & {
 export function schemaConverter<T>(
   schema: JSONSchema7,
   fieldValueClass: FieldValueClass,
-  fallback?: (
-    data: DocumentData,
-    snapshot: QueryDocumentSnapshot,
-    validate: Validator<T>,
-  ) => T,
+  fallback?: (data: DocumentData, validate: Validator<T>) => T,
 ): FirestoreDataConverter<T> & { validate: Validator<T> } {
   const validate = ajv.compile(schema) as Validator<T>;
 
   return {
-    fromFirestore(snapshot): T {
-      const data = decode(snapshot.data());
+    fromFirestore(snapshotOrData): T {
+      const data = decode(
+        'data' in snapshotOrData && typeof snapshotOrData.data === 'function'
+          ? snapshotOrData.data()
+          : snapshotOrData,
+      );
 
       if (validate(data)) {
         return data;
       }
 
       if (fallback) {
-        return fallback(data, snapshot, validate);
+        return fallback(data, validate);
       }
 
       throw new DataConverterError(validate.errors);

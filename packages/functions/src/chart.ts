@@ -4,13 +4,10 @@ import defaultsDeep from 'lodash/defaultsDeep';
 import { Canvas } from 'canvas';
 import firebase from 'firebase-admin';
 import _ from 'lodash';
-import PriceSchema from 'mercurius-core/lib/models-next/Price.schema.json';
 import { DateTime, Duration } from 'luxon';
 import { DocumentSnapshot } from 'mercurius-core/lib/firestore/types';
 import Item from 'mercurius-core/lib/models-next/Item';
 import Price from 'mercurius-core/lib/models-next/Price';
-
-console.log(PriceSchema);
 
 const Colors: string[] = [
   'red',
@@ -56,7 +53,7 @@ export const defaultSpec: TopLevelSpec = {
           },
         },
         size: {
-          value: 10,
+          value: 12,
         },
       },
     },
@@ -128,7 +125,7 @@ export async function renderChart({
   prices,
   storage,
   type,
-}: RenderChartOptions): Promise<void> {
+}: RenderChartOptions): Promise<string> {
   const itemRef = itemSnapshot.ref;
   console.debug('rendering', type, itemRef.path);
 
@@ -171,7 +168,8 @@ export async function renderChart({
   const bucket = storage.bucket();
   const path = `${itemRef.path}/${type}`;
 
-  const dst = bucket.file(path).createWriteStream({
+  const file = bucket.file(path);
+  const dst = file.createWriteStream({
     metadata: {
       contentType: 'image/png',
     },
@@ -184,7 +182,11 @@ export async function renderChart({
       .on('finish', resolve);
   });
 
-  console.debug('done');
+  const { 0: url } = await file.getSignedUrl({
+    action: 'read',
+    expires: DateTime.local().plus(Duration.fromISO('P7D')).toJSDate(),
+  });
+  return url;
 }
 
 export default async function renderAllCharts({
@@ -194,8 +196,8 @@ export default async function renderAllCharts({
   storage: firebase.storage.Storage;
   itemSnapshot: DocumentSnapshot<Item>;
   prices: Price[];
-}): Promise<void> {
-  await Promise.all([
+}): Promise<Record<string, string>> {
+  const [backgroundChartUrl, chartUrl] = await Promise.all([
     renderChart({
       ...options,
       prices,
@@ -209,4 +211,9 @@ export default async function renderAllCharts({
       type: 'chart',
     }),
   ]);
+
+  return {
+    chartUrl,
+    backgroundChartUrl,
+  };
 }

@@ -7,7 +7,7 @@ export type UpdateData = { [fieldPath: string]: any };
 
 export interface FirestoreDataConverter<T> {
   toFirestore(modelObject: T): DocumentData;
-  fromFirestore(snapshot: QueryDocumentSnapshot<DocumentData>): T;
+  fromFirestore(snapshotOrData: QueryDocumentSnapshot<DocumentData> | DocumentData): T;
 }
 
 export interface Firestore {

@@ -21,17 +21,7 @@ export default function ItemChartModal({
   onClose,
   ...modalProps
 }: ItemChartModalProps): JSX.Element {
-  const [chartUrl, setChartUrl] = useState<string>();
-  const { chartUpdatedAt } = itemSnapshot.data();
-
-  const path = itemSnapshot.ref.path;
-  useEffect(() => {
-    const ref = itemSnapshot.ref.firestore.app
-      .storage()
-      .ref(path)
-      .child('chart');
-    ref.getDownloadURL().then(setChartUrl);
-  }, [path, chartUpdatedAt]);
+  const { chartUrl } = itemSnapshot.data();
 
   return (
     <Modal open={open} onClose={onClose} {...modalProps}>

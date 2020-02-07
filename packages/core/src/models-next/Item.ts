@@ -14,8 +14,9 @@ export default interface Item {
   type?: string;
 
   updatedAt?: number;
-  backgroundChartUpdatedAt?: number;
-  chartUpdatedAt?: number;
+
+  backgroundChartUrl?: string;
+  chartUrl?: string;
 
   daily?: Record<string, ItemPriceStat>;
   last30Days?: ItemPriceStat;

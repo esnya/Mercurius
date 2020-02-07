@@ -35,32 +35,14 @@ export default React.memo(function ItemTableRow({
   itemSnapshot: QueryDocumentSnapshot<Item>;
 }): JSX.Element {
   const item = itemSnapshot.data();
-  const {
-    name,
-    last30Days,
-    backgroundChartUpdatedAt,
-    updatedAt,
-    chartUpdatedAt,
-  } = item;
+  const { name, last30Days, updatedAt, chartUrl, backgroundChartUrl } = item;
 
   const currentIndices = getIndices(item);
   const today = getDaily(item);
 
-  const [chartUrl, setChartUrl] = useState<string>();
   const [chartModalOpen, setChartModalOpen] = useState(false);
 
-  const itemPath = itemSnapshot.ref.path;
-  const storage = itemSnapshot.ref.firestore.app.storage();
-  useEffect(() => {
-    if (!backgroundChartUpdatedAt) return;
-    storage
-      .ref(itemPath)
-      .child('backgroundChart')
-      .getDownloadURL()
-      .then(setChartUrl);
-  }, [itemPath, backgroundChartUpdatedAt]);
-
-  const chartModal = chartUpdatedAt && (
+  const chartModal = chartUrl && (
     <ItemChartModal
       itemSnapshot={itemSnapshot}
       open={chartModalOpen}
@@ -73,7 +55,7 @@ export default React.memo(function ItemTableRow({
   //   ((Date.now() - updatedAt) / duration(14, 'days').asMilliseconds()) * 100;
 
   const rowStyle: CSSProperties = {
-    backgroundImage: chartUrl ? `url(${chartUrl})` : undefined,
+    backgroundImage: chartUrl ? `url(${backgroundChartUrl})` : undefined,
     backgroundSize: '100% 100%',
     backgroundRepeat: 'no-repeat',
     imageRendering: '-webkit-optimize-contrast',
@@ -137,6 +119,7 @@ export default React.memo(function ItemTableRow({
           />
           <Button
             color="blue"
+            disabled={!chartUrl}
             icon="chart line"
             onClick={(): void => setChartModalOpen(true)}
           />

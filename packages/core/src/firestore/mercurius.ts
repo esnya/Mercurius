@@ -26,7 +26,7 @@ export default class MercuriusFirestore {
     project: schemaConverter<Project>(
       ProjectSchema,
       this.fieldValueClass,
-      (decoded, _snapshot, validate): Project => {
+      (decoded, validate): Project => {
         const data = {
           owner: 'unknown',
           ...pick(decoded, 'title', 'owner'),
@@ -40,7 +40,7 @@ export default class MercuriusFirestore {
     item: schemaConverter<Item>(
       ItemSchema,
       this.fieldValueClass,
-      (decoded, _snapshot, validate): Item => {
+      (decoded, validate): Item => {
         const { name, indices } = decoded;
         const data = {
           name,

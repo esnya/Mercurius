@@ -3,9 +3,24 @@ import { DateTime, Duration } from 'luxon';
 import predictIndices from './indices';
 import { statPrices } from './stats';
 import renderAllCharts from './chart';
-import { serverTimestamp } from 'mercurius-core/lib/firestore/types';
+import { serverTimestamp, DocumentData } from 'mercurius-core/lib/firestore/types';
 import chunk from 'lodash/chunk';
 import firestore from './firestore';
+import pickBy from 'lodash/pickBy';
+import mapValues from 'lodash/mapValues';
+
+function filter(value: DocumentData): DocumentData {
+  if (Array.isArray(value)) {
+    return value.map(filter);
+  }
+  if (typeof value === 'object') {
+    return mapValues(
+      pickBy(value, a => a !== undefined),
+      filter,
+    );
+  }
+  return value;
+}
 
 export default async function updateItem(itemPath: string): Promise<void> {
   console.log('UpdateItem', 'Starting', itemPath);
@@ -30,6 +45,7 @@ export default async function updateItem(itemPath: string): Promise<void> {
   } = await priceCollection
     .orderBy('timestamp', 'desc')
     .limit(1)
+    .withConverter(firestore.converters.price)
     .get();
   const lastPrice = lastPriceSnapshot?.data();
   const lastPriceTimestamp = lastPrice?.timestamp;
@@ -47,11 +63,11 @@ export default async function updateItem(itemPath: string): Promise<void> {
   }
 
   const domainLeft = DateTime.local().minus(Duration.fromISO('P30D'));
-  console.log(domainLeft.toISO());
 
   const pricesSnapshot = await priceCollection
     .orderBy('timestamp', 'desc')
     .endBefore(firebase.firestore.Timestamp.fromDate(domainLeft.toJSDate()))
+    .withConverter(firestore.converters.price)
     .get();
   const prices = pricesSnapshot.docs.map(s => s.data());
 
@@ -60,18 +76,21 @@ export default async function updateItem(itemPath: string): Promise<void> {
   const indices = predictIndices(prices, projectId, storage);
   const { daily, last30Days } = statPrices(prices);
 
-  await renderAllCharts({ prices, itemSnapshot, storage });
+  const chartUrls = await renderAllCharts({ prices, itemSnapshot, storage });
 
   const newUpdatedAt = prices[0].timestamp || serverTimestamp;
 
-  await itemSnapshot.ref.update({
-    indices: await indices,
-    daily,
-    last30Days,
-    updatedAt: newUpdatedAt,
-    chartUpdatedAt: newUpdatedAt,
-    backgroundChartUpdatedAt: newUpdatedAt,
-  });
+  await itemSnapshot.ref.update(
+    filter(
+      {
+        ...chartUrls,
+        indices: await indices.catch(() => undefined),
+        daily,
+        last30Days,
+        updatedAt: newUpdatedAt,
+      },
+    ),
+  );
 
   console.log('UpdateItem', 'Done');
 }
