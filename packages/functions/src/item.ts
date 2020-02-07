@@ -3,7 +3,10 @@ import { DateTime, Duration } from 'luxon';
 import predictIndices from './indices';
 import { statPrices } from './stats';
 import renderAllCharts from './chart';
-import { serverTimestamp, DocumentData } from 'mercurius-core/lib/firestore/types';
+import {
+  serverTimestamp,
+  DocumentData,
+} from 'mercurius-core/lib/firestore/types';
 import chunk from 'lodash/chunk';
 import firestore from './firestore';
 import pickBy from 'lodash/pickBy';
@@ -81,15 +84,13 @@ export default async function updateItem(itemPath: string): Promise<void> {
   const newUpdatedAt = prices[0].timestamp || serverTimestamp;
 
   await itemSnapshot.ref.update(
-    filter(
-      {
-        ...chartUrls,
-        indices: await indices.catch(() => undefined),
-        daily,
-        last30Days,
-        updatedAt: newUpdatedAt,
-      },
-    ),
+    filter({
+      ...chartUrls,
+      indices: await indices.catch(() => undefined),
+      daily,
+      last30Days,
+      updatedAt: newUpdatedAt,
+    }),
   );
 
   console.log('UpdateItem', 'Done');

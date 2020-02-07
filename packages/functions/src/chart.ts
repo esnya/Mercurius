@@ -184,7 +184,9 @@ export async function renderChart({
 
   const { 0: url } = await file.getSignedUrl({
     action: 'read',
-    expires: DateTime.local().plus(Duration.fromISO('P7D')).toJSDate(),
+    expires: DateTime.local()
+      .plus(Duration.fromISO('P7D'))
+      .toJSDate(),
   });
   return url;
 }
