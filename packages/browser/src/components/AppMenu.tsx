@@ -1,38 +1,51 @@
-import React from 'react';
-import { useRouteMatch } from 'react-router';
+import React, { FunctionComponent } from 'react';
+import { Switch, Route, RouteComponentProps } from 'react-router';
 import { MenuItem, Menu } from 'semantic-ui-react';
 import { Link } from 'react-router-dom';
 
-const menuItems = [
-  { path: '/', text: 'プロジェクト' },
-  { path: '/members', text: 'メンバー' },
-  { path: '/auto', text: '自動入力' },
-];
+function menuItemOf(
+  path: string,
+  content: string,
+): FunctionComponent<RouteComponentProps<{ projectId: string }>> {
+  return function ProjectMenuItem({
+    match,
+  }: RouteComponentProps<{ projectId: string }>): JSX.Element {
+    const { projectId } = match.params;
+
+    return (
+      <MenuItem
+        as={Link}
+        to={path.replace(':projectId', projectId)}
+        content={content}
+      />
+    );
+  };
+}
+
+function ProjectMenuItem({
+  path,
+  content,
+}: {
+  path: string;
+  content: string;
+}): JSX.Element {
+  return (
+    <Switch>
+      <Route
+        path="/projects/:projectId"
+        component={menuItemOf(path, content)}
+      />
+    </Switch>
+  );
+}
 
 export default function AppMenu(): JSX.Element {
-  const projectMatched = useRouteMatch<{ projectId?: string }>(
-    '/projects/:projectId',
-  );
-  const projectId = projectMatched && projectMatched.params.projectId;
-
-  const items = menuItems.map(({ path, text }, i) => {
-    const to = `/projects/${projectId}${path}`;
-    const match = useRouteMatch(to);
-    const active = match ? match.isExact : false;
-    return (
-      <MenuItem key={i} as={Link} to={to} active={active}>
-        {text}
-      </MenuItem>
-    );
-  });
-
-  const m = useRouteMatch('/');
   return (
     <Menu pointing secondary>
-      <MenuItem as={Link} to="/" active={m ? m.isExact : false}>
-        ホーム
-      </MenuItem>
-      {items}
+      <MenuItem as={Link} to="/" content="ホーム" />
+      <ProjectMenuItem path="/projects/:projectId" content="プロジェクト" />
+      <ProjectMenuItem path="/projects/:projectId/members" content="メンバー" />
+      <ProjectMenuItem path="/projects/:projectId/auto" content="自動入力" />
     </Menu>
   );
 }

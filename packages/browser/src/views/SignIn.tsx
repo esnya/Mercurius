@@ -1,9 +1,10 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import { Container, Placeholder, ButtonProps } from 'semantic-ui-react';
 import firebase from 'firebase/app';
 import { initializeAuth } from '../firebase/auth';
 import PromiseReader from '../suspense/PromiseReader';
 import ActionButton from '../components/ActionButton';
+import { useHistory } from 'react-router-dom';
 
 const resource = {
   auth: new PromiseReader(initializeAuth()),
@@ -17,13 +18,21 @@ function SingInButton({
   provider: firebase.auth.AuthProvider;
 }): JSX.Element {
   const auth = resource.auth.read();
+  const history = useHistory();
+
+  useEffect(() =>
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        history.push('/');
+      }
+    }),
+  );
 
   return (
     <ActionButton
       {...others}
       action={async (): Promise<void> => {
         await auth.signInWithPopup(provider);
-        location.href = '/';
       }}
     >
       {children}
