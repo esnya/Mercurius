@@ -65,7 +65,7 @@ export default async function updateItem(itemPath: string): Promise<void> {
     return;
   }
 
-  const domainLeft = DateTime.local().minus(Duration.fromISO('P30D'));
+  const domainLeft = DateTime.local().minus(Duration.fromISO('P90D'));
 
   const pricesSnapshot = await priceCollection
     .orderBy('timestamp', 'desc')

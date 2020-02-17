@@ -76,7 +76,12 @@ export function schemaConverter<T>(
   fieldValueClass: FieldValueClass,
   fallback?: (data: DocumentData, validate: Validator<T>) => T,
 ): FirestoreDataConverter<T> & { validate: Validator<T> } {
-  const validate = ajv.compile(schema) as Validator<T>;
+  const validate = ajv.compile(
+    mapObject(schema, ([key, value]) => [
+      key,
+      key === 'additionalProperties' ? false : value,
+    ]),
+  ) as Validator<T>;
 
   return {
     fromFirestore(snapshotOrData): T {

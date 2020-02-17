@@ -129,16 +129,10 @@ export async function renderChart({
   const itemRef = itemSnapshot.ref;
   console.debug('rendering', type, itemRef.path);
 
-  const domainLeft = DateTime.local()
-    .minus(Duration.fromISO('P30D'))
-    .valueOf();
-
-  const data = prices
-    .map(({ timestamp, ...others }) => ({
-      ...others,
-      timestamp: timestamp,
-    }))
-    .filter(({ timestamp }) => timestamp > domainLeft);
+  const data = prices.map(({ timestamp, ...others }) => ({
+    ...others,
+    timestamp: timestamp,
+  }));
 
   const closing = _.maxBy(data, ({ timestamp }) => timestamp);
   const min = _.min(data.map(({ price }) => price));
