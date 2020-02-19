@@ -56,8 +56,9 @@ def preprocess(prices):
     'divestment': ((interpolated - leftMin) / leftMin)['price'],
     'purchase': ((rightMax - interpolated) / interpolated)['price'],
   })
-  benefits.loc[raiseAndFall['index'] < 0, 'divestment'] = 0
-  benefitIndices = benefits.applymap(lambda x: 1 if x >= benefitThreshold else 0)
+  benefits.loc[raiseAndFall['index'] <= 0.1, 'divestment'] = 0
+  # benefits.loc[raiseAndFall['index'] < -0.3, 'purchase'] = 0
+  benefitIndices = benefits.applymap(lambda x: x / 2 if x >= 0.5 else 0)
 
   return normalized, benefitIndices
 
