@@ -1,4 +1,4 @@
-import React, { useState, useEffect, CSSProperties } from 'react';
+import React, { useState, CSSProperties } from 'react';
 import { Button, Table, TableCellProps, Grid } from 'semantic-ui-react';
 import { QueryDocumentSnapshot, FieldValue } from '../firebase';
 import { formatTimestampShort, formatInteger } from '../utilities/format';
