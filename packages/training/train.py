@@ -11,6 +11,7 @@ def fit(trainSet):
   filters = 2 ** 5
   kernel_size = 2 ** 5
   units = 2 ** 12
+  epochs = 20
 
   model = tf.keras.models.Sequential([
     tf.keras.layers.Flatten(input_shape=x_train.shape[1:]),
@@ -37,7 +38,7 @@ def fit(trainSet):
                 metrics=['accuracy'])
 
   history = model.fit(x_train, y_train,
-    epochs=5,
+    epochs=epochs,
     validation_split=0.5,
     shuffle=True,
   )

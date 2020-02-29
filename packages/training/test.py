@@ -18,7 +18,7 @@ def main():
 
     prices = item['prices']
     interpolated, resampled = p.interpolate(prices)
-    normalized, benefitIndices = p.preprocess(prices)
+    normalized, labels = p.preprocess(prices)
 
     xSize = model.input.shape[1]
     ySize = model.output.shape[1]
@@ -27,9 +27,10 @@ def main():
 
     y_test = np.array([model.predict(x.reshape(1,xSize,2)) for x in x_test]).reshape(-1, 2).clip(0, 1)
     i_test = normalized.index[xSize:y_test.shape[0] + xSize + ySize]
+    # print(labels.columns)
     predicted = pd.DataFrame(
       y_test[:i_test.shape[0]],
-      columns=benefitIndices.columns,
+      columns=labels.columns,
       index=i_test
     )
     fig, axes = plt.subplots(nrows=3, figsize=(16,9), sharex=True)
@@ -38,8 +39,8 @@ def main():
     axes[0].plot(normalized.get('lottery'), label='lottery')
     axes[0].legend()
 
-    axes[1].plot(benefitIndices.get('divestment'), label='divestment')
-    axes[1].plot(benefitIndices.get('purchase'), label='purchase')
+    axes[1].plot(labels.get('divestment'), label='divestment')
+    axes[1].plot(labels.get('purchase'), label='purchase')
     axes[1].legend()
 
     axes[2].plot(predicted.get('divestment'), label='divestment')

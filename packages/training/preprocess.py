@@ -6,6 +6,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
 import pickle
+import matplotlib.pyplot as plt
+import common
 
 xDuration = pd.to_timedelta('14D')
 yDuration = pd.to_timedelta('3D')
@@ -30,57 +32,87 @@ def interpolate(prices):
   interpolated = resampled.interpolate(method='linear')
   return interpolated, resampled
 
+def normalize(interpolated, resampled):
+  max = resampled.max()
+  return interpolated.transform({
+    'price': lambda price: price / max.get('price'),
+    'lottery': lambda x: x,
+  })
+
+def evaluate(normalized):
+  window = '7D'
+  shift = math.ceil(pd.to_timedelta(window).total_seconds() / timeDelta.total_seconds())
+
+  price = normalized['price']
+
+  diff = price.diff()
+  rolledMin = price.rolling(window, min_periods=1).min()
+  rolledMax = price.rolling(window, closed='left', min_periods=1).max().shift(-shift)
+
+  rateByRolledMin = (price - rolledMin) / rolledMin
+  rateByRolledMax = (rolledMax - price) / price
+  rateOfWindow = (rolledMax - rolledMin) / rolledMin
+
+  labels = (pd.DataFrame({
+    'divestment': rateByRolledMax[diff >= 0],
+    'purchase': rateByRolledMin,
+  })[rateOfWindow >= 2.0] <= 1.5) > 0
+
+  return labels.reindex(rateOfWindow.index[0:-shift]).fillna(0)
+
 def preprocess(prices):
   interpolated, resampled = interpolate(prices)
 
   min = resampled.min()
   max = resampled.max()
 
-  normalized = interpolated.transform({
-    # 'price': lambda price: (price - min.get('price')) / (max.get('price') - min.get('price')),
-    'price': lambda price: price / max.get('price'),
-    # 'price': lambda price: price / 5000000,
-    'lottery': lambda x: x,
-  })
+  normalized = normalize(interpolated, resampled)
+  labels = evaluate(normalized)
 
-  rightMax = interpolated.rolling('14D').max()
-  leftMin = interpolated.rolling('14D', closed='left').min()
+  return normalized.reindex(labels.index), labels
 
-  raiseAndFallRates = ((interpolated.shift(periods=-1) - interpolated) / interpolated * (24 / 6)).shift(periods=1).get('price')
-  raiseAndFall = pd.DataFrame({
-    'rate': raiseAndFallRates,
-    'index': raiseAndFallRates.transform(lambda x: 1 if x > 0.1 else (-1 if x < -0.1 else 0)),
-  })
-
-  benefits = pd.DataFrame({
-    'divestment': ((interpolated - leftMin) / leftMin)['price'],
-    'purchase': ((rightMax - interpolated) / interpolated)['price'],
-  })
-  benefits.loc[raiseAndFall['index'] <= 0.1, 'divestment'] = 0
-  # benefits.loc[raiseAndFall['index'] < -0.3, 'purchase'] = 0
-  benefitIndices = benefits.applymap(lambda x: x / 2 if x >= 0.5 else 0)
-
-  return normalized, benefitIndices
-
-def toTrainSet(normalized, benefitIndices):
-  trainSet = [(normalized[left:left + xDuration - timeDelta], benefitIndices[left + xDuration:left + xDuration + yDuration - timeDelta]) for left in normalized.index]
+def toTrainSet(normalized, labels):
+  trainSet = [(normalized[left:left + xDuration - timeDelta], labels[left + xDuration:left + xDuration + yDuration - timeDelta]) for left in normalized.index]
 
   xSize = max([x.size for (x, y) in trainSet])
   ySize = max([y.size for (x, y) in trainSet])
 
   return [(x, y) for (x, y) in trainSet if x.size == xSize and y.size == ySize]
 
+def plot(item, normalized, benefitIndices):
+  fig, axes = plt.subplots(nrows=2, figsize=(16,9), sharex=True)
+  fig.suptitle(item['name'])
+  axes[0].plot(normalized.get('price'), label='price')
+  axes[0].plot(normalized.get('lottery'), label='lottery')
+  axes[0].legend()
+
+  axes[1].plot(benefitIndices.get('divestment'), label='divestment')
+  axes[1].plot(benefitIndices.get('purchase'), label='purchase')
+  axes[1].legend()
+
+  plt.savefig('data/' + item['name'] + '.png')
+  plt.close(fig)
+
 def itemToTrainSet(item):
   print(item['name'])
   prices = item['prices']
-  normalized, benefitIndices = preprocess(prices)
-  return toTrainSet(normalized, benefitIndices)
+  normalized, labels = preprocess(prices)
+
+  if [s.hasnans for col, s in labels.items()].count(True) > 0:
+    return
+
+  if labels.max().max() == 0:
+    return
+
+  plot(item, normalized, labels)
+
+  return toTrainSet(normalized, labels)
 
 def main():
   from itertools import chain
 
   items = loadItems()
-  trainSet = list(chain.from_iterable(([itemToTrainSet(item) for item in items])))
+  trainSet = list(chain.from_iterable(([ts for ts in [itemToTrainSet(item) for item in items] if ts])))
 
   with open('data/trainset.pickle', 'wb') as f:
     pickle.dump(trainSet, f)
