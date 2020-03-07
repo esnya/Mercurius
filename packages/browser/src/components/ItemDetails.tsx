@@ -5,7 +5,7 @@ import { firestore } from '../resources/firebase';
 import { schemaConverter } from '../firebase/converters';
 import Item from 'mercurius-core/lib/models-next/Item';
 import ItemSchema from 'mercurius-core/lib/models-next/Item.schema.json';
-import { Header, Statistic } from 'semantic-ui-react';
+import { Header, Statistic, Segment } from 'semantic-ui-react';
 import {
   formatTimestampShort,
   formatPercent,
@@ -13,6 +13,7 @@ import {
 } from '../utilities/format';
 import { isDefined } from '../utilities/types';
 import { getDaily, getIndices } from '../utilities/item';
+import MinMaxCurrentBar from './MinMaxCurrentBar';
 
 export interface ItemDetailsProps {
   projectId: string;
@@ -76,10 +77,19 @@ export default function ItemDetails({
     ),
   );
 
+  const currentPrice = item.last30Days ? (
+    <MinMaxCurrentBar
+      min={item.last30Days.min}
+      max={item.last30Days.max}
+      current={item.last30Days.closing.price}
+      format={formatZeny}
+    />
+  ) : null;
+
   return (
-    <div>
-      <Header>{item.name}</Header>
-      <Statistic.Group>{fieldElements}</Statistic.Group>
-    </div>
+    <Segment>
+      <Header as="h2">{item.name}</Header>
+      {currentPrice}
+    </Segment>
   );
 }

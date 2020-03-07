@@ -6,7 +6,6 @@ import {
   Tensor,
   SymbolicTensor,
 } from '@tensorflow/tfjs';
-import StorageIOHandler from '../prediction/StorageIOHandler';
 import { initializeApp } from '../firebase';
 import { simpleConverter } from '../firebase/converters';
 import { PriceConverter, Price } from 'mercurius-core/lib/models/Price';
@@ -17,6 +16,9 @@ import memoize from 'lodash/memoize';
 import PromiseReader from '../suspense/PromiseReader';
 import { createClassFromSpec } from 'react-vega';
 import { lite, timeFormat } from '../definitions/chart';
+import StaticIOHandler from '../prediction/StaticIOHandler';
+import model from '../prediction/model.json';
+import weights from '../prediction/weights.bin';
 
 const timeDelta = Duration.fromObject({ hours: 3 });
 
@@ -126,14 +128,9 @@ function normalize(quantized: QuantizedPrice[]): QuantizedPrice[] {
 }
 
 const app = initializeApp();
-const storage = app.then(a => a.storage());
 const firestore = app.then(a => a.firestore());
 
-async function getModel(projectId: string): Promise<LayersModel> {
-  const modelRef = (await storage).ref(`projects/${projectId}/models/benefits`);
-  const ioHandler = new StorageIOHandler(modelRef);
-  return await loadLayersModel(ioHandler);
-}
+const model$ = loadLayersModel(new StaticIOHandler(model, weights));
 
 async function getPrices(projectId: string, itemId: string): Promise<Price[]> {
   const pricesRef = (await firestore)
@@ -151,7 +148,7 @@ async function getIndices(
   projectId: string,
   itemId: string,
 ): Promise<Indices[]> {
-  const model = await getModel(projectId);
+  const model = await model$;
   // console.log(model);
 
   const inputShape = (model.input as SymbolicTensor).shape;

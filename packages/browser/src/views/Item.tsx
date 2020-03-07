@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, Suspense } from 'react';
+import React, { useState, useRef, useMemo, Suspense, useEffect } from 'react';
 import _ from 'lodash';
 import {
   Container,
@@ -40,7 +40,6 @@ import {
   ModelConfigurationConverter,
 } from 'mercurius-core/lib/models/ModelConfiguration';
 import DefaultModelConfiguration from '../prediction/DefaultModelConfiguration.yml';
-import PriceChart from '../components/PriceChart';
 import { toDuration, getSize } from '../prediction/time';
 import { getCurrentUser } from '../firebase/auth';
 import PromiseReader from '../suspense/PromiseReader';
@@ -51,11 +50,48 @@ import { getLabels } from '../prediction/labels';
 import PredictedChart from '../components/PredictedChart';
 import ItemIndices from '../components/ItemIndices';
 import ItemDetails from '../components/ItemDetails';
+import { schemaConverter } from '../firebase/converters';
+import Item from 'mercurius-core/lib/models-next/Item';
+import ItemSchema from 'mercurius-core/lib/models-next/Item.schema.json';
+import FirestoreDocumentModel from '../models/FirestoreDocumentModel';
+import ItemPriceChart from '../components/ItemPriceChart';
 
 const resources = {
   app: new PromiseReader(initializeApp),
   user: new PromiseReader(getCurrentUser),
 };
+
+const app$ = initializeApp();
+async function getItemReference(
+  projectId: string,
+  itemId: string,
+): Promise<firebase.firestore.DocumentReference<Item>> {
+  const app = await app$;
+  return app
+    .firestore()
+    .doc(`projects/${projectId}/items/${itemId}`)
+    .withConverter(schemaConverter<Item>(ItemSchema));
+}
+
+function useDocument<T>(
+  init: () => Promise<firebase.firestore.DocumentReference<T>>,
+  dependsOn?: unknown[],
+): firebase.firestore.DocumentSnapshot<T> | undefined {
+  const [value, set] = useState<firebase.firestore.DocumentSnapshot<T>>();
+
+  useAsyncEffect(async () => {
+    const ref = await init();
+    return ref.onSnapshot(set, error => console.error(error));
+  }, dependsOn);
+
+  return value;
+}
+
+function isExists<T>(
+  snapshot: firebase.firestore.DocumentSnapshot<T>,
+): snapshot is firebase.firestore.QueryDocumentSnapshot<T> {
+  return snapshot.exists;
+}
 
 export default function Item(): JSX.Element {
   const app = resources.app.read();
@@ -65,168 +101,30 @@ export default function Item(): JSX.Element {
   const viewRef = useRef<HTMLDivElement>(null);
   const infoRef = useRef<HTMLDivElement>(null);
   const { projectId, itemId } = useParams();
-  const [modelConfig, setModelConfig] = usePersistentState<ModelConfiguration>(
-    `model-configuration-${projectId}-4`,
-    DefaultModelConfiguration,
-  );
-
-  const min = modelConfig.timeDomain.min;
-
-  const priceSnapshots = useQuerySnapshot(
-    firestore =>
-      firestore
-        .collection(`projects/${projectId}/items/${itemId}/prices`)
-        .orderBy('timestamp', 'asc')
-        .startAt(
-          Timestamp.fromDate(
-            DateTime.local()
-              .minus(Duration.fromISO(min))
-              .toJSDate(),
-          ),
-        ),
-    PriceConverter.cast,
-    [min],
-  );
-
-  const modelPath = `/projects/${projectId}/users/${uid}/items/${itemId}/models/prices_1`;
-  const modelIOHandler = useMemo(
-    () => new StorageIOHandler(storage.ref(modelPath)),
-    [modelPath],
-  );
-  const loadedModel = useAsyncSimple(() => load(modelIOHandler), [
-    modelIOHandler,
-  ]);
-
-  const [model, setModel] = useState<Model>();
-
-  useAsyncEffect(async (): Promise<void> => {
-    if (isSucceeded(loadedModel)) {
-      return setModel(loadedModel);
-    }
-  }, [loadedModel]);
-
-  useAsyncEffect(async (): Promise<void> => {
-    if (
-      !infoRef.current ||
-      !isSucceeded(priceSnapshots) ||
-      priceSnapshots.length === 0
-    ) {
-      return;
-    }
-
-    const timeUnit = Duration.fromISO(modelConfig.timeUnit);
-    const prices = _.sortBy(
-      priceSnapshots.map(p => p.data),
-      p => p.timestamp,
-    );
-    const quantized = quantize(prices, timeUnit);
-    const stats = keepStats(quantized);
-    const interpolated = interpolate(quantized, stats, timeUnit);
-    const normalized = normalize(interpolated, stats);
-    const labels = getLabels(
-      interpolated,
-      timeUnit,
-      Duration.fromISO(modelConfig.benefitDuration),
-    );
-
-    const view = new View(infoRef.current);
-    view.lineChart(
-      {
-        price: interpolated.map(p => p.price),
-      },
-      'x: interpolated',
-    );
-    view.lineChart(
-      {
-        price: normalized.map(p => p.price),
-        lottery: normalized.map(p => p.lottery),
-      },
-      'x: normalized',
-    );
-    view.lineChart(
-      {
-        purchase: labels.map(l => l.purchase).map(Number),
-        divestment: labels.map(l => l.divestment).map(Number),
-      },
-      'label: benefits',
-    );
-    view.lineChart(
-      {
-        increase: labels.map(l => l.increase).map(Number),
-        decrease: labels.map(l => l.decrease).map(Number),
-      },
-      'label: changes',
-    );
-  }, [priceSnapshots, modelConfig, model]);
-
-  const predicted = useAsyncSimple(async (): Promise<
-    PredictionResult[] | undefined
-  > => {
-    if (
-      !isSucceeded(model) ||
-      !model ||
-      !isSucceeded(priceSnapshots) ||
-      priceSnapshots.length === 0
-    ) {
-      return;
-    }
-
-    return await predict(
-      model,
-      priceSnapshots.map(s => s.data),
-    );
-  }, [model, priceSnapshots]);
   if (!projectId || !itemId) {
-    return <NotFound />;
+    throw new Error();
   }
 
-  if (isFailed(priceSnapshots)) {
-    return <Message negative>{priceSnapshots.toString()}</Message>;
-  }
-  if (isFailed(app)) {
-    return <Message negative>{app.toString()}</Message>;
-  }
-
-  if (!isSucceeded(priceSnapshots) || !isSucceeded(app)) {
+  const itemSnapshot = useDocument(() => getItemReference(projectId, itemId), [
+    projectId,
+    itemId,
+  ]);
+  if (!itemSnapshot) {
     return (
       <Dimmer active>
         <Loader />
       </Dimmer>
     );
   }
-
-  const handleUpdate = async (): Promise<void> => {
-    const model = compile(modelConfig);
-    await fit(
-      model,
-      priceSnapshots.map(s => s.data),
-      toDuration(modelConfig.timeUnit),
-      toDuration(modelConfig.benefitDuration),
-      modelConfig.fitOptions,
-      viewRef.current ?? undefined,
-    );
-    setModel(model);
-    await model.save(modelIOHandler);
-  };
-
-  const predictedChart = isSucceeded(predicted) ? (
-    <PredictedChart predicted={predicted} />
-  ) : isFailed(predicted) ? (
-    <Message negative>{predicted.toString()}</Message>
-  ) : (
-    <Message info>モデルが作成されていません。</Message>
-  );
-
-  const handleReset = (): void => setModelConfig(DefaultModelConfiguration);
-
+  if (!isExists(itemSnapshot)) {
+    throw new Error('Item not found');
+  }
   return (
     <Container>
       <Segment.Group>
+        <ItemDetails projectId={projectId} itemId={itemId} />
         <Segment>
-          <ItemDetails projectId={projectId} itemId={itemId} />
-        </Segment>
-        <Segment>
-          <PriceChart name={itemId} prices={priceSnapshots.map(p => p.data)} />
+          <ItemPriceChart itemSnapshot={itemSnapshot} />
         </Segment>
         <Segment>
           <Suspense
@@ -238,53 +136,6 @@ export default function Item(): JSX.Element {
           >
             <ItemIndices projectId={projectId} itemId={itemId} />
           </Suspense>
-        </Segment>
-        <Segment>
-          <SimpleAccordion title="ローカルAI">
-            <Segment.Group>
-              <Segment>{predictedChart}</Segment>
-              <Segment>
-                <ActionButton action={handleUpdate} color="blue">
-                  <Icon name="detective" />
-                  学習
-                </ActionButton>
-                <Button color="red" onClick={handleReset}>
-                  モデルをリセット
-                </Button>
-              </Segment>
-              <Segment>
-                <div ref={infoRef}></div>
-                <div ref={viewRef}>
-                  <Message info>学習経過がここに表示されます</Message>
-                </div>
-              </Segment>
-              <Segment>
-                <ConfigurationEditor
-                  validate={ModelConfigurationConverter.cast}
-                  value={modelConfig}
-                  onChange={setModelConfig}
-                />
-                <Form>
-                  <Form.Input
-                    label="xSize"
-                    readOnly
-                    value={getSize(
-                      modelConfig.inputDuration,
-                      modelConfig.timeUnit,
-                    )}
-                  />
-                  <Form.Input
-                    label="ySize"
-                    readOnly
-                    value={getSize(
-                      modelConfig.outputDuration,
-                      modelConfig.timeUnit,
-                    )}
-                  />
-                </Form>
-              </Segment>
-            </Segment.Group>
-          </SimpleAccordion>
         </Segment>
       </Segment.Group>
     </Container>

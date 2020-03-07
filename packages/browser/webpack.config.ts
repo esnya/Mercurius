@@ -75,7 +75,7 @@ export default async function config(): Promise<Configuration> {
           loaders: ['js-yaml-loader'],
         },
         {
-          test: /\.(ttf|woff2?|eot|png|svg|mp3|wav)$/,
+          test: /\.(ttf|woff2?|eot|png|svg|mp3|wav|bin)$/,
           loaders: ['file-loader'],
         },
       ],
