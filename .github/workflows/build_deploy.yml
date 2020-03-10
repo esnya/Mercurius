@@ -1,12 +1,14 @@
-name: Build
+name: Build and Deploy
 
 on: [push]
 
 jobs:
-  ci:
+  build_and_deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+        with:
+          lfs: *.bin
       - uses: actions/setup-node@v1
         with:
           node-version: 12.x
