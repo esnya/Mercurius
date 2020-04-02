@@ -80,9 +80,6 @@ export default async function config(): Promise<Configuration> {
         {
           test: /\.(ttf|woff2?|eot|png|svg|mp3|wav|bin)$/,
           loader: 'file-loader',
-          options: {
-            name: '[path][name].[contentHash].[ext]',
-          },
         },
       ],
     },
