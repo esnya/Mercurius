@@ -1,5 +1,5 @@
 import React from 'react';
-import { Progress, Grid, Segment, Header, Statistic } from 'semantic-ui-react';
+import { Progress } from 'semantic-ui-react';
 import { getColor } from '../utilities/rating';
 
 export interface MinMaxCurrentBarProps {

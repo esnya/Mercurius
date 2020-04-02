@@ -1,4 +1,4 @@
-import { Configuration, Plugin } from 'webpack';
+import { Configuration, Plugin, DefinePlugin } from 'webpack';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
 import WorkboxPlugin from 'workbox-webpack-plugin';
 import firebaseInitMiddleware from './src/build/firebaseInitMiddleware';
@@ -22,14 +22,17 @@ async function devServerBefore(): Promise<
   }
 }
 
+const production = process.env.NODE_ENV === 'production';
+const ENABLE_SW = production || process.env['ENABLE_SW'];
+
 export default async function config(): Promise<Configuration> {
-  const production = process.env.NODE_ENV === 'production';
   return {
     devServer: {
       host: '0.0.0.0',
       historyApiFallback: true,
       before: await devServerBefore(),
     },
+
     output: {
       publicPath: '/',
     },
@@ -76,15 +79,23 @@ export default async function config(): Promise<Configuration> {
         },
         {
           test: /\.(ttf|woff2?|eot|png|svg|mp3|wav|bin)$/,
-          loaders: ['file-loader'],
+          loader: 'file-loader',
+          options: {
+            name: '[path][name].[contentHash].[ext]',
+          },
         },
       ],
     },
     plugins: [
+      new DefinePlugin({
+        ENABLE_SW,
+      }),
       new HtmlWebpackPlugin({
         template: './src/template.html',
       }),
-      production ? new WorkboxPlugin.GenerateSW({}) : null,
+      ENABLE_SW
+        ? new WorkboxPlugin.GenerateSW()
+        : null,
       new FaviconsWebpackPlugin({
         logo: './src/assets/icon.png',
         favicons: {

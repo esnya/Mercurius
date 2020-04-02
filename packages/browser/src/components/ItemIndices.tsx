@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  LayersModel,
   loadLayersModel,
   tensor,
   Tensor,
@@ -17,8 +16,8 @@ import PromiseReader from '../suspense/PromiseReader';
 import { createClassFromSpec } from 'react-vega';
 import { lite, timeFormat } from '../definitions/chart';
 import StaticIOHandler from '../prediction/StaticIOHandler';
-import model from '../prediction/model.json';
-import weights from '../prediction/weights.bin';
+import model from '../assets/model.json';
+import weights from '../assets/group1.bin';
 
 const timeDelta = Duration.fromObject({ hours: 3 });
 

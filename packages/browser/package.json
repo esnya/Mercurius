@@ -2,16 +2,16 @@
   "name": "mercurius-browser",
   "version": "0.0.0",
   "description": "> TODO: description",
-  "author": "esnya",
   "homepage": "https://github.com/esnya/Mercurius#readme",
-  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/esnya/Mercurius/issues"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/esnya/Mercurius.git"
   },
-  "bugs": {
-    "url": "https://github.com/esnya/Mercurius/issues"
-  },
+  "license": "MIT",
+  "author": "esnya",
   "scripts": {
     "build": "cross-env TS_NODE_FILES=true webpack",
     "deploy": "firebase deploy",

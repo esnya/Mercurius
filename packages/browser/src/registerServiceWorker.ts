@@ -1,4 +1,6 @@
-if (process.env.NODE_ENV === 'prodeuction' && 'serviceWorker' in navigator) {
+declare const ENABLE_SW: boolean;
+
+if (ENABLE_SW && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker
       .register('/service-worker.js')
