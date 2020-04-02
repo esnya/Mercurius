@@ -10,6 +10,7 @@ import Home from './views/Home';
 import AppMenu from './components/AppMenu';
 import './App.styl';
 import { Container, Placeholder } from 'semantic-ui-react';
+import PriceList from './views/PriceList';
 
 function RouteLoading(): JSX.Element {
   return (
@@ -34,6 +35,15 @@ function Project(): JSX.Element {
         exact
         path={`${path}/auto`}
         component={lazy(() => import('./views/project/AutoInput'))}
+      />
+      <Route
+        exact
+        path={`${path}/items/:itemId/prices`}
+        render={({
+          match: {
+            params: { projectId, itemId },
+          },
+        }): JSX.Element => <PriceList projectId={projectId} itemId={itemId} />}
       />
       <Route
         exact

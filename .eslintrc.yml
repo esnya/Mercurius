@@ -12,8 +12,6 @@ rules:
       - error
       - singleQuote: true
         trailingComma: all
-  # "@typescript-eslint/no-explicit-any": off
-  # "@typescript-eslint/no-empty-interface": warn
 settings:
   react:
     version: "16.12.0"

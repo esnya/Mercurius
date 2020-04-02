@@ -1,25 +1,58 @@
-import { Observable } from 'rxjs';
-import { Unsubscribe } from '../utilities/types';
 import { useState, useEffect } from 'react';
+import { ObservableInput, from } from 'rxjs';
 
-export default function useObservable<T>(
-  observable: () => Observable<T>,
+interface ObservableStateBase<State extends string> {
+  state: State;
+  completed?: boolean;
+}
+export type ObservableLoadingState = ObservableStateBase<'loading'>;
+export interface ObservableFailedState<E extends Error>
+  extends ObservableStateBase<'failed'> {
+  error: E;
+}
+export interface ObservableSucceededState<T>
+  extends ObservableStateBase<'succeeded'> {
+  value: T;
+}
+export type ObservableState<T, E extends Error> =
+  | ObservableLoadingState
+  | ObservableFailedState<E>
+  | ObservableSucceededState<T>;
+export default function useObservable<T, E extends Error = Error>(
+  init: () => ObservableInput<T>,
   dependsOn?: unknown[],
-): T | undefined {
-  const [value, setValue] = useState<T>();
-  const [error, setError] = useState<Error>();
+): ObservableState<T, E> {
+  const [state, setState] = useState(
+    (): ObservableState<T, E> => ({ state: 'loading' }),
+  );
 
-  useEffect((): Unsubscribe => {
-    const s = observable().subscribe({
-      next: setValue,
-      error: setError,
+  useEffect((): (() => void) => {
+    const observable = init();
+    const subscription = from(observable).subscribe({
+      next: (value: T): void => {
+        setState({
+          state: 'succeeded',
+          value,
+        });
+      },
+      error: (error: E): void => {
+        setState({
+          state: 'failed',
+          error,
+        });
+      },
+      complete: (): void => {
+        setState(prev => ({
+          ...prev,
+          completed: true,
+        }));
+      },
     });
-    return (): void => s.unsubscribe();
-  }, dependsOn ?? [observable]);
 
-  if (error) {
-    throw error;
-  }
+    return (): void => {
+      subscription.unsubscribe();
+    };
+  }, dependsOn);
 
-  return value;
+  return state;
 }

@@ -5,8 +5,9 @@ import {
   Dimmer,
   Segment,
   Placeholder,
+  Button,
 } from 'semantic-ui-react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import useAsyncEffect from '../hooks/useAsyncEffect';
 import { initializeApp } from '../firebase';
 import ItemIndices from '../components/ItemIndices';
@@ -73,6 +74,11 @@ export default function Item(): JSX.Element {
       <Segment.Group>
         <ItemDetails projectId={projectId} itemId={itemId} />
         <Segment>
+          <Button
+            as={Link}
+            icon="table"
+            to={`/projects/${projectId}/items/${itemId}/prices`}
+          />
           <ItemPriceChart itemSnapshot={itemSnapshot} />
         </Segment>
         <Segment>

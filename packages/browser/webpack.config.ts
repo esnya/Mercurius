@@ -94,7 +94,9 @@ export default async function config(): Promise<Configuration> {
         template: './src/template.html',
       }),
       ENABLE_SW
-        ? new WorkboxPlugin.GenerateSW()
+        ? new WorkboxPlugin.GenerateSW({
+          skipWaiting: !production,
+        })
         : null,
       new FaviconsWebpackPlugin({
         logo: './src/assets/icon.png',

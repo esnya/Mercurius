@@ -1,67 +1,31 @@
-import React from 'react';
-import { ButtonProps, Message, Button } from 'semantic-ui-react';
+import React, { useState } from 'react';
+import { ButtonProps, Button } from 'semantic-ui-react';
 
 export interface ActionButtonProps extends ButtonProps {
   action: () => Promise<void>;
 }
+export default function ActionButton<E = Error>({
+  action,
+  onClick,
+  ...props
+}: ActionButtonProps): JSX.Element {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<E>();
 
-interface State {
-  acting: boolean;
-  error: string | null;
-}
-
-export default class ActionButton extends React.Component<
-  ActionButtonProps,
-  State
-> {
-  constructor(props: ActionButtonProps) {
-    super(props);
-
-    this.state = {
-      acting: false,
-      error: null,
-    };
+  if (error) {
+    throw error;
   }
 
-  render(): JSX.Element {
-    const { action, children, ...props } = this.props;
+  const handleClick = (
+    e: React.MouseEvent<HTMLButtonElement, MouseEvent>,
+    data: ButtonProps,
+  ): void => {
+    setLoading(true);
 
-    const { acting, error } = this.state;
+    action()
+      .then((): void => onClick && onClick(e, data), setError)
+      .then((): void => setLoading(false));
+  };
 
-    const errorMessage = error ? <Message negative>{error}</Message> : null;
-
-    const onClick = async (): Promise<void> => {
-      try {
-        await new Promise(resolve =>
-          this.setState(
-            {
-              acting: true,
-              error: null,
-            },
-            resolve,
-          ),
-        );
-        await action();
-        this.setState({
-          acting: false,
-          error: null,
-        });
-      } catch (error) {
-        console.error(error);
-        this.setState({
-          acting: false,
-          error: error.toString(),
-        });
-      }
-    };
-
-    return (
-      <span>
-        <Button disabled={acting} loading={acting} {...props} onClick={onClick}>
-          {children}
-        </Button>
-        {errorMessage}
-      </span>
-    );
-  }
+  return <Button {...props} loading={loading} onClick={handleClick} />;
 }
