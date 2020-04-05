@@ -12,6 +12,13 @@ jobs:
       - uses: actions/setup-node@v1
         with:
           node-version: 12.x
+      - uses: actions-hub/gcloud@master
+        env:
+          PROJECT_ID: test
+          APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+          CLI: gsutil
+        with:
+          args: cp gs://mercurius-6026e.appspot.com/group1.bin packages/browser/assets/group1.bin
       - run: npm ci
       - run: npm run lint
       - run: npm run build-production
