@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Fragment } from 'react';
 import ItemTableRow from './ItemTableRow';
 import ItemTableHeader from './ItemTableHeader';
 import { Table, Pagination, Dimmer, Loader } from 'semantic-ui-react';
@@ -34,7 +34,7 @@ export interface ItemTableProps {
 export default function ItemTable({ state }: ItemTableProps): JSX.Element {
   return useObserver(() => {
     const itemsPerPage = 50;
-    const { activePage, itemQuerySnapshots: sorted } = state;
+    const { itemQuerySnapshots: sorted } = state;
     if (!sorted) {
       return (
         <Dimmer active>
@@ -45,7 +45,10 @@ export default function ItemTable({ state }: ItemTableProps): JSX.Element {
 
     const totalPages = Math.ceil((sorted.length || 0) / itemsPerPage) || 1;
     const rows = sorted
-      .slice((activePage - 1) * itemsPerPage, activePage * itemsPerPage)
+      .slice(
+        (state.activePage - 1) * itemsPerPage,
+        state.activePage * itemsPerPage,
+      )
       .map(
         (itemSnapshot): JSX.Element => {
           return (
@@ -58,41 +61,38 @@ export default function ItemTable({ state }: ItemTableProps): JSX.Element {
       );
 
     return (
-      <Table sortable>
-        <ItemTableHeader
-          headers={headers}
-          keywords={state.keywords ?? null}
-          sortBy={state.sortBy}
-          sortOrder={state.sortOrder === 'asc' ? 'ascending' : 'descending'}
-          onSortChange={(id): void => {
-            if (state.sortBy === id) {
-              state.sortOrder = 'asc';
-            } else {
-              state.sortBy = id;
-              state.sortOrder = 'desc';
-            }
-          }}
-          onKeywordsChange={(keywords): void => {
-            state.keywords = keywords ?? undefined;
+      <Fragment>
+        <Table sortable>
+          <ItemTableHeader
+            headers={headers}
+            keywords={state.keywords ?? null}
+            sortBy={state.sortBy}
+            sortOrder={state.sortOrder === 'asc' ? 'ascending' : 'descending'}
+            onSortChange={(id): void => {
+              state.activePage = 1;
+              if (state.sortBy === id) {
+                state.sortOrder = state.sortOrder === 'desc' ? 'asc' : 'desc';
+              } else {
+                state.sortBy = id;
+                state.sortOrder = 'desc';
+              }
+            }}
+            onKeywordsChange={(keywords): void => {
+              state.keywords = keywords ?? undefined;
+            }}
+          />
+          <Table.Body>{rows}</Table.Body>
+        </Table>
+        <Pagination
+          activePage={state.activePage}
+          boundaryRange={0}
+          totalPages={totalPages}
+          siblingRange={0}
+          onPageChange={(_e, { activePage }): void => {
+            state.activePage = activePage as number;
           }}
         />
-        <Table.Body>{rows}</Table.Body>
-        <Table.Footer>
-          <Table.Row>
-            <Table.HeaderCell colSpan={headers.length} textAlign="center">
-              <Pagination
-                activePage={activePage}
-                boundaryRange={0}
-                totalPages={totalPages}
-                siblingRange={0}
-                onPageChange={(_e, { activePage }): void => {
-                  state.activePage = activePage as number;
-                }}
-              />
-            </Table.HeaderCell>
-          </Table.Row>
-        </Table.Footer>
-      </Table>
+      </Fragment>
     );
   });
 }

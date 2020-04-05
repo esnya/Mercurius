@@ -26,7 +26,7 @@ export const timestampGetters = {
   },
 };
 
-export function replaceTimestamps(path: string): string {
+export function replaceTimestamps(path: string, now?: DateTime): string {
   return path.replace(/%[^%]+?%/g, (matched): string => {
     const name = matched.substr(1, matched.length - 2);
     const getter = (timestampGetters as Record<
@@ -35,6 +35,6 @@ export function replaceTimestamps(path: string): string {
     >)[name];
     if (!getter) return matched;
 
-    return `${getter(DateTime.local()).toMillis()}`;
+    return `${getter(now ?? DateTime.local()).toMillis()}`;
   });
 }

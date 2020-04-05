@@ -10,7 +10,6 @@ export default function ProjectHome(): JSX.Element {
   assertDefined(projectId);
 
   const state = new ProjectState(firebaseReader.read(), projectId);
-
   return (
     <div style={{ overflow: 'auto', marginTop: 4 }}>
       <ItemTable state={state} />
