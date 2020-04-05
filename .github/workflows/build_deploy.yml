@@ -18,7 +18,7 @@ jobs:
           APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
           CLI: gsutil
         with:
-          args: cp gs://mercurius-6026e.appspot.com/group1.bin packages/browser/assets/group1.bin
+          args: cp gs://mercurius-6026e.appspot.com/group1.bin packages/browser/src/assets/group1.bin
       - run: npm ci
       - run: npm run lint
       - run: npm run build-production
