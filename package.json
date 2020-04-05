@@ -8,6 +8,7 @@
   "scripts": {
     "build": "lerna run build",
     "dev": "lerna run --parallel dev",
+    "download-models": "gsutil cp gs://mercurius-6026e.appspot.com/group1.bin packages/browser/src/assets/group1.bin",
     "build-production": "cross-env NODE_ENV=production npm run -s build",
     "clean": "rimraf dist lib packages/*/dist packages/*/lib",
     "deploy": "firebase deploy",
