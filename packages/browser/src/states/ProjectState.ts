@@ -38,7 +38,11 @@ export default class ProjectState {
       );
       const parsed = localStorage.getItem(storageKey) as string | undefined;
       if (parsed) {
-        this[key] = JSON.parse(parsed) as this[K];
+        try {
+          this[key] = JSON.parse(parsed) as this[K];
+        } catch (e) {
+          console.error(e);
+        }
       }
     });
 
