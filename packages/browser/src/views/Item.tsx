@@ -16,6 +16,7 @@ import { schemaConverter } from '../firebase/converters';
 import Item from 'mercurius-core/lib/models-next/Item';
 import ItemSchema from 'mercurius-core/lib/models-next/Item.schema.json';
 import ItemPriceChart from '../components/ItemPriceChart';
+import ErrorBoundary from 'react-error-boundary';
 
 const app$ = initializeApp();
 async function getItemReference(
@@ -89,7 +90,9 @@ export default function Item(): JSX.Element {
               </Placeholder>
             }
           >
-            <ItemIndices projectId={projectId} itemId={itemId} />
+            <ErrorBoundary>
+              <ItemIndices projectId={projectId} itemId={itemId} />
+            </ErrorBoundary>
           </Suspense>
         </Segment>
       </Segment.Group>
