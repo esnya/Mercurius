@@ -5,8 +5,13 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 
 def fit(trainSet):
-  x_train = np.array([x.values for (x, y) in trainSet])
-  y_train = np.array([y.values for (x, y) in trainSet])
+  x_shape = trainSet[0][0].shape
+  y_shape = trainSet[0][1].shape
+  for (x, y) in trainSet:
+    if (x.shape[0] != 112):
+      print(x.shape)
+  x_train = np.array([x for (x, y) in trainSet])
+  y_train = np.array([y for (x, y) in trainSet])
 
   filters = 2 ** 5
   kernel_size = 2 ** 5
@@ -14,8 +19,8 @@ def fit(trainSet):
   epochs = 20
 
   model = tf.keras.models.Sequential([
-    tf.keras.layers.Flatten(input_shape=x_train.shape[1:]),
-    tf.keras.layers.Reshape(target_shape=(x_train.shape[1] * x_train.shape[2], 1)),
+    tf.keras.layers.Flatten(input_shape=x_shape),
+    tf.keras.layers.Reshape(target_shape=(x_shape[0] * x_shape[1], 1)),
     tf.keras.layers.Conv1D(filters=filters, kernel_size=kernel_size, padding='same'),
     tf.keras.layers.Conv1D(filters=filters, kernel_size=kernel_size, padding='same'),
     tf.keras.layers.Conv1D(filters=filters, kernel_size=kernel_size, padding='same'),
@@ -24,8 +29,8 @@ def fit(trainSet):
     tf.keras.layers.Dense(units, activation='relu'),
     tf.keras.layers.Dense(units, activation='relu'),
     tf.keras.layers.Dense(units, activation='relu'),
-    tf.keras.layers.Dense(y_train.shape[1] * y_train.shape[2]),
-    tf.keras.layers.Reshape(target_shape=y_train.shape[1:]),
+    tf.keras.layers.Dense(y_shape[0] * y_shape[1]),
+    tf.keras.layers.Reshape(target_shape=y_shape),
   ])
   model.summary()
   print({

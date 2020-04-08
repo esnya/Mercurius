@@ -74,10 +74,10 @@ def preprocess(prices):
 def toTrainSet(normalized, labels):
   trainSet = [(normalized[left:left + xDuration - timeDelta], labels[left + xDuration:left + xDuration + yDuration - timeDelta]) for left in normalized.index]
 
-  xSize = max([x.size for (x, y) in trainSet])
-  ySize = max([y.size for (x, y) in trainSet])
+  xSize = 224 #max([x.size for (x, y) in trainSet])
+  ySize = 48 #max([y.size for (x, y) in trainSet])
 
-  return [(x, y) for (x, y) in trainSet if x.size == xSize and y.size == ySize]
+  return [(x.values, y.values) for (x, y) in trainSet if x.size == xSize and y.size == ySize]
 
 def plot(item, normalized, benefitIndices):
   fig, axes = plt.subplots(nrows=2, figsize=(16,9), sharex=True)

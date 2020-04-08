@@ -1,4 +1,4 @@
-import React, { Fragment } from 'react';
+import React, { Fragment, useEffect } from 'react';
 import ItemTableRow from './ItemTableRow';
 import ItemTableHeader from './ItemTableHeader';
 import { Table, Pagination, Dimmer, Loader } from 'semantic-ui-react';
@@ -32,6 +32,10 @@ export interface ItemTableProps {
 }
 
 export default function ItemTable({ state }: ItemTableProps): JSX.Element {
+  useEffect(() => {
+    document.body.scroll({ top: 0 });
+  }, [state.activePage]);
+
   return useObserver(() => {
     const itemsPerPage = 50;
     const { itemQuerySnapshots: sorted } = state;
@@ -85,9 +89,7 @@ export default function ItemTable({ state }: ItemTableProps): JSX.Element {
         </Table>
         <Pagination
           activePage={state.activePage}
-          boundaryRange={0}
           totalPages={totalPages}
-          siblingRange={0}
           onPageChange={(_e, { activePage }): void => {
             state.activePage = activePage as number;
           }}
