@@ -80,7 +80,7 @@ export default class Ocr {
           ...rect
         }): Promise<{ name: string; text: string | null }> => {
           try {
-            const { scale, center } = getScales(canvas);
+            const { scale, center } = getScales(canvas, 1);
 
             const x = rect.x * scale + center.x;
             const y = rect.y * scale + center.y;

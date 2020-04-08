@@ -1,14 +1,14 @@
 import { Size, Point, Rect } from './RecognitionPreset';
 
-export function getScales({
-  width,
-  height,
-}: Size): { scale: number; center: Point } {
+export function getScales(
+  { width, height }: Size,
+  scale: number,
+): { scale: number; center: Point } {
   return {
-    scale: height / 2,
+    scale: (height / 2) * scale,
     center: {
-      x: width / 2,
-      y: height / 2,
+      x: (width / 2) * scale,
+      y: (height / 2) * scale,
     },
   };
 }
@@ -53,17 +53,34 @@ export function bounds(rects: Rect[]): Rect {
   };
 }
 
-export async function crop(rect: Rect, frame: ImageBitmap): Promise<Blob> {
-  const { scale, center } = getScales(frame);
+export async function crop(
+  rect: Rect,
+  frame: ImageBitmap,
+  imageScale: number,
+): Promise<Blob> {
+  const { scale, center } = getScales(frame, 1);
 
   const x = rect.x * scale + center.x;
   const y = rect.y * scale + center.y;
   const width = rect.width * scale;
   const height = rect.height * scale;
 
-  const { canvas, context } = createCanvas({ width, height });
+  const { canvas, context } = createCanvas({
+    width: width * imageScale,
+    height: height * imageScale,
+  });
 
-  context.drawImage(frame, x, y, width, height, 0, 0, width, height);
+  context.drawImage(
+    frame,
+    x,
+    y,
+    width,
+    height,
+    0,
+    0,
+    canvas.width,
+    canvas.height,
+  );
 
   const blob = await toBlob(canvas);
 

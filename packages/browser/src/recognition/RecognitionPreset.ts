@@ -27,9 +27,10 @@ export default interface RecognitionPreset {
   recognitions: Recognition[];
   triggers: Trigger[];
   fps: number;
+  scale: number;
 }
 
-const PresetKey = 'mercurius-recognition-preset-5';
+const PresetKey = 'mercurius-recognition-preset-6';
 export function loadPreset(): RecognitionPreset {
   try {
     const data = localStorage.getItem(PresetKey);
@@ -49,10 +50,10 @@ export function drawPreset(
   preset: RecognitionPreset,
   rect?: Rect,
 ): void {
-  const width = rect?.width ?? context.canvas.width;
-  const height = rect?.height ?? context.canvas.height;
-  const ox = rect?.x ?? 0;
-  const oy = rect?.y ?? 0;
+  const width = rect ? rect.width : context.canvas.width;
+  const height = rect ? rect.height : context.canvas.height;
+  const ox = rect ? rect.x : 0;
+  const oy = rect ? rect.y : 0;
 
   const cx = width / 2 + ox;
   const cy = height / 2 + oy;
