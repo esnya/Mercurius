@@ -90,7 +90,7 @@ export default function Item(): JSX.Element {
               </Placeholder>
             }
           >
-            <ErrorBoundary>
+            <ErrorBoundary onError={console.error}>
               <ItemIndices projectId={projectId} itemId={itemId} />
             </ErrorBoundary>
           </Suspense>

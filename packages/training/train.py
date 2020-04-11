@@ -63,20 +63,19 @@ def fit(trainSet):
 
   model = buildModel(
     tf.keras.layers.Input(input_shape),
-    [(
-      [
-        (
-          tf.keras.layers.Conv1D(**conv_options),
-          tf.keras.layers.Flatten(),
-        ),
-        tf.keras.layers.Flatten(),
-      ],
-      tf.keras.layers.Concatenate(),
-    ) for n in range(conv_layers)]
-      if conv_layers >= 2
-      else [(tf.keras.layers.Conv1D(**conv_options), tf.keras.layers.Flatten()), tf.keras.layers.Flatten()],
-    # [(*[tf.keras.layers.Conv1D(**conv_options) for n in range(conv_layers)], tf.keras.layers.Flatten()), tf.keras.layers.Flatten()],
-    tf.keras.layers.Concatenate(),
+    # [(
+    #   [
+    #     (
+    #       tf.keras.layers.Conv1D(**conv_options),
+    #       tf.keras.layers.Flatten(),
+    #     ),
+    #     tf.keras.layers.Flatten(),
+    #   ],
+    #   tf.keras.layers.Concatenate(),
+    # ) for n in range(conv_layers)]
+    #   if conv_layers >= 2
+    #   else [(tf.keras.layers.Conv1D(**conv_options), tf.keras.layers.Flatten()), tf.keras.layers.Flatten()],
+    *[tf.keras.layers.Conv1D(**conv_options) for n in range(conv_layers)],
     tf.keras.layers.Flatten(),
     *[tf.keras.layers.Dense(**dense_options) for n in range(hidden_dense_layers)],
     tf.keras.layers.Dense(output_units),
