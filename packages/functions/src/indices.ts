@@ -149,7 +149,6 @@ export default async function predictIndices(
   const model = await loadLayersModel(
     new StorageIOHandler(
       storage.bucket(),
-      '',
     ),
   );
 

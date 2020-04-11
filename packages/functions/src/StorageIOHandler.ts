@@ -2,10 +2,10 @@ import { io } from '@tensorflow/tfjs';
 import { Bucket, File } from '@google-cloud/storage';
 
 export default class StorageIOHandler implements io.IOHandler {
-  constructor(readonly bucket: Bucket, readonly path: string) {}
+  constructor(readonly bucket: Bucket, readonly path?: string) {}
 
   file(name: string): File {
-    return this.bucket.file(`${this.path}/${name}`);
+    return this.bucket.file(this.path ? `${this.path}/${name}` : name);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
