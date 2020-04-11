@@ -56,19 +56,23 @@ def evaluate(interpolated):
     'diff': diff,
     'roid': roid,
     'divestment': ((prices - min) / min)[diff >= 0],
-    'purchase': ((max - prices) / prices)[diff >= 0],
+    'purchase': ((max - prices) / prices)[diff >= -0.1],
     'increase': np.zeros(roid.shape),
     'decrease': np.zeros(roid.shape),
   }).fillna(0)
 
   res['increase'][roid > 0.01] = 1
   res['decrease'][roid < -0.01] = 1
+  res['divestment'][res['divestment'] <= 1] = 0
+  res['divestment'][res['divestment'] > 0] = 1
+  res['purchase'][res['purchase'] <= 1] = 0
+  res['purchase'][res['purchase'] > 0] = 1
 
   return pd.DataFrame({
     'divestment': res['divestment'],
     'purchase': res['purchase'],
-    'increase': res['increase'],
-    'decrease': res['decrease'],
+    # 'increase': res['increase'],
+    # 'decrease': res['decrease'],
   })
 
 def preprocess(prices):
@@ -100,11 +104,11 @@ def plot(item, normalized, benefitIndices):
   axes[1].plot(benefitIndices.get('purchase'), label='purchase')
   axes[1].legend()
 
-  axes[2].plot(benefitIndices.get('increase'), label='increase')
-  axes[2].plot(benefitIndices.get('decrease'), label='decrease')
-  axes[2].legend()
+  # axes[2].plot(benefitIndices.get('increase'), label='increase')
+  # axes[2].plot(benefitIndices.get('decrease'), label='decrease')
+  # axes[2].legend()
 
-  plt.savefig('data/' + item['name'] + '.png')
+  plt.savefig('data/evalution/' + item['name'] + '.png')
   plt.close(fig)
 
 def itemToTrainSet(item):

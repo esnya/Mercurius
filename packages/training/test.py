@@ -1,12 +1,10 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from matplotlib import rcParams
 import tensorflow as tf
 import preprocess as p
 
-rcParams['font.family'] = 'sans-serif'
-rcParams['font.sans-serif'] = ['Hiragino Maru Gothic Pro', 'Yu Gothic', 'Meirio', 'Takao', 'IPAexGothic', 'IPAPGothic', 'VL PGothic', 'Noto Sans CJK JP']
+import config
 
 def plotDataFrame(target, data, columns):
   for column in columns:
@@ -16,7 +14,7 @@ def plotDataFrame(target, data, columns):
 
 def main():
   items = p.loadItems()
-  model = tf.keras.models.load_model('data/benefits.h5')
+  model = tf.keras.models.load_model('data/model.h5')
 
   for item in items:
     print(item['name'])
@@ -63,7 +61,7 @@ def main():
     plotDataFrame(axes[1], evaluations, predicted.columns)
     plotDataFrame(axes[2], predicted, predicted.columns)
 
-    plt.savefig('data/' + item['name'] + '.png')
+    plt.savefig('data/test/' + item['name'] + '.png')
     plt.close(fig)
 
 
