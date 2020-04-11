@@ -2,19 +2,19 @@ recognitions:
   - name: name
     type: text
     x: -0.41
-    'y': -0.5
+    'y': -0.475
     width: 0.54
     height: 0.09
   - name: lottery
     type: number
     x: 0.15
-    'y': -0.5
+    'y': -0.475
     width: 0.13
     height: 0.09
   - name: price
     type: number
     x: -0.134
-    'y': -0.4
+    'y': -0.375
     width: 0.39
     height: 0.08
 triggers:

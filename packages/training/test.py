@@ -8,6 +8,11 @@ import preprocess as p
 rcParams['font.family'] = 'sans-serif'
 rcParams['font.sans-serif'] = ['Hiragino Maru Gothic Pro', 'Yu Gothic', 'Meirio', 'Takao', 'IPAexGothic', 'IPAPGothic', 'VL PGothic', 'Noto Sans CJK JP']
 
+def plotDataFrame(target, data, columns):
+  for column in columns:
+    print(target)
+    target.plot(data[column], label=column)
+  target.legend()
 
 def main():
   items = p.loadItems()
@@ -18,38 +23,49 @@ def main():
 
     prices = item['prices']
     interpolated, resampled = p.interpolate(prices)
-    normalized, labels = p.preprocess(prices)
+    normalized, evaluations = p.preprocess(prices)
 
-    xSize = model.input.shape[1]
-    ySize = model.output.shape[1]
+    input_shape = model.input.shape[1:]
+    print('input_shape', input_shape)
+    output_shape = model.output.shape[1:]
+    print('output_shape', output_shape)
 
-    x_test = np.array([normalized.values[n:n + xSize] for n in range(0, normalized.shape[0] - ySize, ySize) if (n + xSize < normalized.shape[0])])
+    input_len = input_shape[0]
+    output_len = output_shape[0]
 
-    y_test = np.array([model.predict(x.reshape(1,xSize,2)) for x in x_test]).reshape(-1, 2).clip(0, 1)
-    i_test = normalized.index[xSize:y_test.shape[0] + xSize + ySize]
-    # print(labels.columns)
+    test_input_list = np.array([
+      normalized.values[n:n + input_len]
+        for n
+        in range(0, normalized.shape[0] - output_len, output_len)
+        if (n + input_len < normalized.shape[0])
+    ]).reshape(-1, 1, *input_shape)
+    print('test_input_list', test_input_list.shape)
+
+    predicted_output = np.array([
+      model.predict(test_input)
+        for test_input
+        in test_input_list
+    ]).reshape(-1, output_shape[1])
+    print('predicted_output', predicted_output.shape)
+
+    index = normalized.index[input_len:input_len + predicted_output.shape[0]]
+    print('index', index.shape)
+
     predicted = pd.DataFrame(
-      y_test[:i_test.shape[0]],
-      columns=labels.columns,
-      index=i_test
+      predicted_output[:index.shape[0]],
+      columns=evaluations.columns[0:model.output.shape[2]],
+      # columns=['purchase'],
+      index=index,
     )
-    fig, axes = plt.subplots(nrows=3, figsize=(16,9), sharex=True)
+    fig, axes = plt.subplots(nrows=4, figsize=(16,9), sharex=True)
     fig.suptitle(item['name'])
-    axes[0].plot(normalized.get('price'), label='price')
-    axes[0].plot(normalized.get('lottery'), label='lottery')
-    axes[0].legend()
-
-    axes[1].plot(labels.get('divestment'), label='divestment')
-    axes[1].plot(labels.get('purchase'), label='purchase')
-    axes[1].legend()
-
-    axes[2].plot(predicted.get('divestment'), label='divestment')
-    axes[2].plot(predicted.get('purchase'), label='purchase')
-
-    axes[2].legend()
+    plotDataFrame(axes[0], normalized, normalized.columns)
+    plotDataFrame(axes[1], evaluations, predicted.columns)
+    plotDataFrame(axes[2], predicted, predicted.columns)
 
     plt.savefig('data/' + item['name'] + '.png')
     plt.close(fig)
+
 
 if __name__ == '__main__':
   main()

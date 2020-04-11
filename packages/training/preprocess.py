@@ -19,7 +19,7 @@ def loadItems():
   import re
 
   with codecs.open('data/items.json', 'r', 'UTF-8') as f:
-    return [item for item in json.load(f)['items'] if re.search(u'のレシピ', item['name'])][0:50]
+    return [item for item in json.load(f)['items'] if len(item['prices']) >= 100][0:100]
 
 def interpolate(prices):
   index = [pd.to_datetime(price['timestamp'] * 1000000) for price in prices]
@@ -39,35 +39,43 @@ def normalize(interpolated, resampled):
     'lottery': lambda x: x,
   })
 
-def evaluate(normalized):
-  window = '7D'
-  shift = math.ceil(pd.to_timedelta(window).total_seconds() / timeDelta.total_seconds())
+def evaluate(interpolated):
+  win = '7D'
+  shift = math.ceil(pd.to_timedelta(win).total_seconds() / timeDelta.total_seconds())
 
-  price = normalized['price']
+  prices = interpolated['price']
+  rolled = prices.rolling(win)
+  max = rolled.max().shift(-shift)
+  min = rolled.min()
+  diff = prices - prices.shift(1)
+  roid = diff / prices.shift(1)
 
-  diff = price.diff()
-  rolledMin = price.rolling(window, min_periods=1).min()
-  rolledMax = price.rolling(window, closed='left', min_periods=1).max().shift(-shift)
+  res = pd.DataFrame({
+    'max': max,
+    'min': min,
+    'diff': diff,
+    'roid': roid,
+    'divestment': ((prices - min) / min)[diff >= 0],
+    'purchase': ((max - prices) / prices)[diff >= 0],
+    'increase': np.zeros(roid.shape),
+    'decrease': np.zeros(roid.shape),
+  }).fillna(0)
 
-  rateByRolledMin = (price - rolledMin) / rolledMin
-  rateByRolledMax = (rolledMax - price) / price
-  rateOfWindow = (rolledMax - rolledMin) / rolledMin
+  res['increase'][roid > 0.01] = 1
+  res['decrease'][roid < -0.01] = 1
 
-  labels = (pd.DataFrame({
-    'divestment': rateByRolledMax[diff >= 0],
-    'purchase': rateByRolledMin,
-  })[rateOfWindow >= 2.0] <= 1.5) > 0
-
-  return labels.reindex(rateOfWindow.index[0:-shift]).fillna(0)
+  return pd.DataFrame({
+    'divestment': res['divestment'],
+    'purchase': res['purchase'],
+    'increase': res['increase'],
+    'decrease': res['decrease'],
+  })
 
 def preprocess(prices):
   interpolated, resampled = interpolate(prices)
 
-  min = resampled.min()
-  max = resampled.max()
-
   normalized = normalize(interpolated, resampled)
-  labels = evaluate(normalized)
+  labels = evaluate(interpolated)
 
   return normalized.reindex(labels.index), labels
 
@@ -76,11 +84,13 @@ def toTrainSet(normalized, labels):
 
   xSize = 224 #max([x.size for (x, y) in trainSet])
   ySize = 48 #max([y.size for (x, y) in trainSet])
+  print(trainSet[0][0].values.size)
+  print(trainSet[0][1].values.size)
 
   return [(x.values, y.values) for (x, y) in trainSet if x.size == xSize and y.size == ySize]
 
 def plot(item, normalized, benefitIndices):
-  fig, axes = plt.subplots(nrows=2, figsize=(16,9), sharex=True)
+  fig, axes = plt.subplots(nrows=3, figsize=(16,9), sharex=True)
   fig.suptitle(item['name'])
   axes[0].plot(normalized.get('price'), label='price')
   axes[0].plot(normalized.get('lottery'), label='lottery')
@@ -89,6 +99,10 @@ def plot(item, normalized, benefitIndices):
   axes[1].plot(benefitIndices.get('divestment'), label='divestment')
   axes[1].plot(benefitIndices.get('purchase'), label='purchase')
   axes[1].legend()
+
+  axes[2].plot(benefitIndices.get('increase'), label='increase')
+  axes[2].plot(benefitIndices.get('decrease'), label='decrease')
+  axes[2].legend()
 
   plt.savefig('data/' + item['name'] + '.png')
   plt.close(fig)
